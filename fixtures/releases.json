@@ -1,0 +1,95 @@
+{
+  "reference_clock": "2026-11-01T23:59:59Z",
+  "ac01": {
+    "description": "REQ-01. Set the clock to reference_clock, register each case in order, then GET each created release.",
+    "cases": [
+      {
+        "id": "past",
+        "request": {
+          "product": "ExampleRouter",
+          "version": "1.0.0",
+          "support_end_date": "2026-10-31"
+        },
+        "expected": {
+          "http_status": 201,
+          "support_status": "unsupported"
+        }
+      },
+      {
+        "id": "boundary",
+        "request": {
+          "product": "ExampleRouter",
+          "version": "2.0.0",
+          "support_end_date": "2026-11-01"
+        },
+        "expected": {
+          "http_status": 201,
+          "support_status": "supported"
+        }
+      },
+      {
+        "id": "future",
+        "request": {
+          "product": "ExampleRouter",
+          "version": "3.0.0",
+          "support_end_date": "2026-11-02"
+        },
+        "expected": {
+          "http_status": 201,
+          "support_status": "supported"
+        }
+      },
+      {
+        "id": "missing_support_end_date",
+        "request": {
+          "product": "ExampleRouter",
+          "version": "4.0.0"
+        },
+        "expected": {
+          "http_status": 400,
+          "error_code": "INVALID_REQUEST",
+          "release_created": false
+        }
+      }
+    ]
+  },
+  "ac01_rollover": {
+    "description": "Extra boundary check, not in the AC-01 wording: one second after reference_clock the boundary release becomes unsupported.",
+    "clock": "2026-11-02T00:00:00Z",
+    "case_id": "boundary",
+    "expected": {
+      "support_status": "unsupported"
+    }
+  },
+  "ac02": {
+    "description": "REQ-02. Register both releases, upload sbom_file to the first only, then GET components for both.",
+    "sbom_file": "sbom_25_components.json",
+    "releases": [
+      {
+        "id": "with_sbom",
+        "request": {
+          "product": "ExampleGateway",
+          "version": "1.0.0",
+          "support_end_date": "2027-12-31"
+        },
+        "upload_sbom": true,
+        "expected": {
+          "sbom_http_status": 200,
+          "component_count": 25
+        }
+      },
+      {
+        "id": "without_sbom",
+        "request": {
+          "product": "ExampleGateway",
+          "version": "1.1.0",
+          "support_end_date": "2027-12-31"
+        },
+        "upload_sbom": false,
+        "expected": {
+          "component_count": 0
+        }
+      }
+    ]
+  }
+}
