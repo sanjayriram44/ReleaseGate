@@ -127,3 +127,26 @@ def test_put_sbom_requires_user_id(client: TestClient) -> None:
     r = put(client, rid, raw(make_sbom(1)), headers={"Content-Type": "application/json"})
     assert r.status_code == 400 and r.json()["error"]["code"] == "INVALID_REQUEST"
     assert components(client, rid) == []
+
+
+def test_upload_works_on_database_created_by_older_schema(tmp_path: Path) -> None:
+    import sqlite3
+
+    from app.config import Settings
+    from app.main import create_app
+
+    path = tmp_path / "old.db"
+    old = sqlite3.connect(path)
+    old.executescript(
+        """
+        CREATE TABLE releases (
+            release_id TEXT PRIMARY KEY, product TEXT NOT NULL, version TEXT NOT NULL,
+            support_end_date TEXT NOT NULL, created_at TEXT NOT NULL,
+            UNIQUE (product, version));
+        INSERT INTO releases VALUES ('r1', 'p', '1', '2030-01-01', '2026-01-01T00:00:00Z');
+        """
+    )
+    old.close()
+    with TestClient(create_app(Settings(db_path=str(path)))) as c:
+        r = put(c, "r1", (FIXTURES / "sbom_25_components.json").read_bytes())
+        assert r.status_code == 200 and r.json()["component_count"] == 25

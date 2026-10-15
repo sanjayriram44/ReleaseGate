@@ -60,8 +60,24 @@ class Database:
         conn = self.connect()
         try:
             conn.executescript(SCHEMA + AUDIT_TRIGGERS)
+            self._migrate(conn)
         finally:
             conn.close()
+
+    @staticmethod
+    def _migrate(conn: sqlite3.Connection) -> None:
+        """Bring a database created by an older version up to the current schema.
+
+        CREATE TABLE IF NOT EXISTS never alters an existing table, so columns added later
+        must be added here (a persisted volume outlives app versions).
+        """
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(releases)")}
+        if "sbom_stored_at" not in columns:
+            conn.execute("ALTER TABLE releases ADD COLUMN sbom_stored_at TEXT")
+            conn.execute(
+                "UPDATE releases SET sbom_stored_at = created_at"
+                " WHERE release_id IN (SELECT DISTINCT release_id FROM components)"
+            )
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
