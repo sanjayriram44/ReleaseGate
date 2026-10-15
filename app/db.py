@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS releases (
     version TEXT NOT NULL,
     support_end_date TEXT NOT NULL,
     created_at TEXT NOT NULL,
+    sbom_stored_at TEXT,
     UNIQUE (product, version)
 );
 CREATE TABLE IF NOT EXISTS components (
