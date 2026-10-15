@@ -15,4 +15,3 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.db.init_schema()
     install_error_handlers(app)
     return app
-
