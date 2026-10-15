@@ -1,7 +1,24 @@
+import re
 from datetime import date
-from typing import Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
+
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _parse_date(value: Any) -> date:
+    if isinstance(value, date):
+        return value
+    if not isinstance(value, str) or not _DATE_RE.match(value):
+        raise ValueError("must be a date in YYYY-MM-DD format")
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError("must be a valid calendar date in YYYY-MM-DD format") from exc
+
+
+IsoDate = Annotated[date, BeforeValidator(_parse_date)]
 
 
 class ReleaseCreate(BaseModel):
@@ -10,7 +27,7 @@ class ReleaseCreate(BaseModel):
 
     product: str = Field(min_length=1)
     version: str = Field(min_length=1)
-    support_end_date: date
+    support_end_date: IsoDate
 
 
 class Release(BaseModel):
