@@ -1,0 +1,10 @@
+flask
+requests
+pyyaml
+cryptography
+sqlalchemy
+python-dateutil
+gunicorn
+pydantic
+marshmallow
+pyjwt
