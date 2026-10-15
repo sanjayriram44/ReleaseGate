@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict
 from app.clock import format_utc
 from app.deps import ClockDep, DbDep
 from app.errors import ApiError
+from app.models import DateTimeStr
 
 router = APIRouter(prefix="/api/v1/test", tags=["test"])
 
@@ -16,11 +17,11 @@ _UTC_TS = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$")
 class ClockBody(BaseModel):
     model_config = ConfigDict(strict=True)
 
-    now: str
+    now: DateTimeStr
 
 
 class ClockState(BaseModel):
-    now: str
+    now: DateTimeStr
 
 
 @router.post("/reset", status_code=204)

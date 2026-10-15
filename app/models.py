@@ -54,9 +54,12 @@ class SbomStored(BaseModel):
     component_count: int = Field(ge=0)
 
 
+DateTimeStr = Annotated[str, Field(json_schema_extra={"format": "date-time"})]
+
+
 class AuditEvent(BaseModel):
     event_id: str
-    timestamp: str
+    timestamp: DateTimeStr
     user_id: str
     action: str
     entity_type: str
