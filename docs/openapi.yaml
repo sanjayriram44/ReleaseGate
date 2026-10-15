@@ -1,0 +1,729 @@
+openapi: 3.1.0
+info:
+  title: CRA Vulnerability Response Service
+  version: 1.0.0
+servers:
+  - url: http://{host}:{port}
+    variables:
+      host:
+        default: localhost
+      port:
+        default: "8080"
+paths:
+  /api/v1/releases:
+    post:
+      summary: Register a product release
+      description: >
+        Stores a product release and its support-period end date.
+        A release is supported through the end of support_end_date.
+      x-requirements: [REQ-01, REQ-08]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReleaseCreate"
+      responses:
+        "201":
+          description: Release registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Release"
+        "400":
+          description: Missing or invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Product/version already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/releases/{releaseId}:
+    get:
+      summary: Retrieve a registered release
+      x-requirements: [REQ-01]
+      parameters:
+        - $ref: "#/components/parameters/ReleaseId"
+      responses:
+        "200":
+          description: Release record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Release"
+        "404":
+          description: Release not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/releases/{releaseId}/sbom:
+    put:
+      summary: Submit or replace the current CycloneDX JSON SBOM
+      description: >
+        The SBOM must be valid CycloneDX JSON and belong to an already
+        registered release. Invalid input must not modify stored components.
+      x-requirements: [REQ-02, REQ-08]
+      parameters:
+        - $ref: "#/components/parameters/ReleaseId"
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: CycloneDX JSON document
+      responses:
+        "200":
+          description: SBOM accepted and stored
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [release_id, component_count]
+                properties:
+                  release_id:
+                    type: string
+                  component_count:
+                    type: integer
+                    minimum: 0
+        "400":
+          description: >
+            Malformed JSON or invalid CycloneDX document. The response must
+            state the reason and no components may be stored from the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Release not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/releases/{releaseId}/components:
+    get:
+      summary: Retrieve components stored for a release
+      x-requirements: [REQ-02]
+      parameters:
+        - $ref: "#/components/parameters/ReleaseId"
+      responses:
+        "200":
+          description: Component inventory; empty array if no SBOM has been stored
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [release_id, components]
+                properties:
+                  release_id:
+                    type: string
+                  components:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Component"
+        "404":
+          description: Release not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/vulnerabilities/{cveId}/affected-releases:
+    get:
+      summary: Find releases affected by a CVE
+      description: >
+        Returns affected releases grouped by current support status.
+        A known CVE that affects no stored release returns HTTP 200 with
+        empty supported and unsupported arrays.
+      x-requirements: [REQ-03, REQ-04]
+      parameters:
+        - name: cveId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^CVE-[0-9]{4}-[0-9]+$"
+      responses:
+        "200":
+          description: CVE is known; affected releases returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AffectedReleaseResult"
+        "404":
+          description: CVE is unknown to the configured vulnerability source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: CVE_UNKNOWN
+                  message: CVE identifier is not known
+        "503":
+          description: Vulnerability source cannot be reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: VULNERABILITY_SOURCE_UNREACHABLE
+                  message: Vulnerability information is currently unavailable
+  /api/v1/incidents:
+    post:
+      summary: Open an incident case
+      description: >
+        Records organizational awareness and the user's mandatory or
+        voluntary classification. Mandatory incidents immediately receive
+        24-hour and 72-hour deadlines.
+      x-requirements: [REQ-05, REQ-06, REQ-08]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IncidentCreate"
+      responses:
+        "201":
+          description: Incident created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+        "400":
+          description: >
+            Invalid classification, missing rationale, or invalid UTC
+            awareness timestamp
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/incidents/{incidentId}:
+    get:
+      summary: Retrieve incident state and calculated deadlines
+      x-requirements: [REQ-05, REQ-06]
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+      responses:
+        "200":
+          description: Incident record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+        "404":
+          description: Incident not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      summary: Record when a corrective or mitigating measure became available
+      description: >
+        Setting fix_available_at causes the final-report deadline for a
+        mandatory vulnerability case to become fix_available_at + 14 days.
+      x-requirements: [REQ-06, REQ-08]
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fix_available_at]
+              properties:
+                fix_available_at:
+                  type: string
+                  format: date-time
+      responses:
+        "200":
+          description: Incident updated and final deadline calculated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+        "400":
+          description: Invalid timestamp
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Incident not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/incidents/{incidentId}/submissions:
+    post:
+      summary: Record a regulatory-report submission time
+      description: >
+        Records when a report stage was submitted and recomputes that
+        deadline's status.
+      x-requirements: [REQ-06, REQ-08]
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stage, submitted_at]
+              properties:
+                stage:
+                  $ref: "#/components/schemas/ReportStage"
+                submitted_at:
+                  type: string
+                  format: date-time
+      responses:
+        "201":
+          description: Submission recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+        "400":
+          description: Invalid stage or timestamp
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Incident not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/incidents/{incidentId}/report-data/{stage}:
+    put:
+      summary: Add or replace data used to generate a report stage
+      description: >
+        Partial report data is allowed so that the report-generation
+        operation can identify fields that are still missing.
+      x-requirements: [REQ-07, REQ-08]
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+        - $ref: "#/components/parameters/Stage"
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportData"
+      responses:
+        "200":
+          description: Report data stored
+        "400":
+          description: Invalid stage or field format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Incident not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/incidents/{incidentId}/reports/{stage}:
+    get:
+      summary: Generate structured data for a CRA report stage
+      description: >
+        Returns the stored and system-generated fields for the requested
+        stage together with an explicit missing_fields array.
+      x-requirements: [REQ-07]
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+        - $ref: "#/components/parameters/Stage"
+      responses:
+        "200":
+          description: Report data generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedReport"
+        "404":
+          description: Incident not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/audit-logs:
+    get:
+      summary: Retrieve the append-only audit log
+      x-requirements: [REQ-08]
+      responses:
+        "200":
+          description: Audit events in chronological order
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events]
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditEvent"
+  /api/v1/audit-logs/{eventId}:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      summary: Audit entries cannot be modified
+      x-requirements: [REQ-08]
+      responses:
+        "405":
+          description: Audit log is immutable
+    delete:
+      summary: Audit entries cannot be deleted
+      x-requirements: [REQ-08]
+      responses:
+        "405":
+          description: Audit log is immutable
+  /api/v1/test/reset:
+    post:
+      summary: Reset system state for repeatable cross-team testing
+      description: >
+        TEST DEPLOYMENTS ONLY. Removes releases, SBOMs, incidents,
+        submissions, report data, and audit events and restores the
+        test clock and vulnerability fixture state.
+      responses:
+        "204":
+          description: Test state reset
+  /api/v1/test/clock:
+    put:
+      summary: Set the reference UTC clock used during automated tests
+      description: TEST DEPLOYMENTS ONLY.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [now]
+              properties:
+                now:
+                  type: string
+                  format: date-time
+      responses:
+        "200":
+          description: Test clock set
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [now]
+                properties:
+                  now:
+                    type: string
+                    format: date-time
+  /api/v1/test/vulnerability-source:
+    put:
+      summary: Configure deterministic vulnerability data or simulate failure
+      description: >
+        TEST DEPLOYMENTS ONLY. Allows both teams to run the same seeded
+        CVE tests and simulate an unavailable vulnerability source without
+        constraining the production vulnerability-data implementation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mode]
+              properties:
+                mode:
+                  type: string
+                  enum: [available, unreachable]
+                records:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/VulnerabilityFixture"
+      responses:
+        "200":
+          description: Test vulnerability source configured
+components:
+  parameters:
+    UserId:
+      name: X-User-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    ReleaseId:
+      name: releaseId
+      in: path
+      required: true
+      schema:
+        type: string
+    IncidentId:
+      name: incidentId
+      in: path
+      required: true
+      schema:
+        type: string
+    Stage:
+      name: stage
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/ReportStage"
+  schemas:
+    ReleaseCreate:
+      type: object
+      required: [product, version, support_end_date]
+      properties:
+        product:
+          type: string
+        version:
+          type: string
+        support_end_date:
+          type: string
+          format: date
+    Release:
+      type: object
+      required:
+        [release_id, product, version, support_end_date, support_status]
+      properties:
+        release_id:
+          type: string
+        product:
+          type: string
+        version:
+          type: string
+        support_end_date:
+          type: string
+          format: date
+        support_status:
+          type: string
+          enum: [supported, unsupported]
+    Component:
+      type: object
+      required: [name, version]
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        purl:
+          type: [string, "null"]
+    AffectedRelease:
+      type: object
+      required:
+        [release_id, product, version, support_end_date, matched_components]
+      properties:
+        release_id:
+          type: string
+        product:
+          type: string
+        version:
+          type: string
+        support_end_date:
+          type: string
+          format: date
+        matched_components:
+          type: array
+          items:
+            $ref: "#/components/schemas/Component"
+    AffectedReleaseResult:
+      type: object
+      required: [cve_id, supported, unsupported]
+      properties:
+        cve_id:
+          type: string
+        supported:
+          type: array
+          items:
+            $ref: "#/components/schemas/AffectedRelease"
+        unsupported:
+          type: array
+          items:
+            $ref: "#/components/schemas/AffectedRelease"
+    IncidentCreate:
+      type: object
+      required: [awareness_at, classification, rationale]
+      properties:
+        cve_id:
+          type: [string, "null"]
+        awareness_at:
+          type: string
+          format: date-time
+        classification:
+          type: string
+          enum: [mandatory, voluntary]
+        rationale:
+          type: string
+          minLength: 1
+    Deadline:
+      type: object
+      required: [status]
+      properties:
+        deadline_at:
+          type: [string, "null"]
+          format: date-time
+        submitted_at:
+          type: [string, "null"]
+          format: date-time
+        status:
+          type: string
+          enum: [pending, met, overdue, not_applicable]
+    Incident:
+      type: object
+      required:
+        - incident_id
+        - awareness_at
+        - created_by
+        - classification
+        - rationale
+        - deadlines
+      properties:
+        incident_id:
+          type: string
+        cve_id:
+          type: [string, "null"]
+        awareness_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+        classification:
+          type: string
+          enum: [mandatory, voluntary]
+        rationale:
+          type: string
+        fix_available_at:
+          type: [string, "null"]
+          format: date-time
+        deadlines:
+          type: object
+          required:
+            [early_warning, vulnerability_notification, final_report]
+          properties:
+            early_warning:
+              $ref: "#/components/schemas/Deadline"
+            vulnerability_notification:
+              $ref: "#/components/schemas/Deadline"
+            final_report:
+              $ref: "#/components/schemas/Deadline"
+    ReportStage:
+      type: string
+      enum:
+        - early_warning
+        - vulnerability_notification
+        - final_report
+    ReportData:
+      type: object
+      description: >
+        Partial data is accepted. Fields not yet supplied are reported
+        through missing_fields when the report is generated.
+      properties:
+        member_states:
+          type: array
+          items:
+            type: string
+        product_information:
+          type: string
+        exploit_nature:
+          type: string
+        vulnerability_nature:
+          type: string
+        corrective_measures_taken:
+          type: string
+        user_mitigations:
+          type: string
+        sensitivity:
+          type: string
+        vulnerability_description:
+          type: string
+        severity:
+          type: string
+        impact:
+          type: string
+        malicious_actor_information:
+          type: string
+        corrective_measure_details:
+          type: string
+    GeneratedReport:
+      type: object
+      required:
+        [incident_id, stage, generated_at, data, missing_fields]
+      properties:
+        incident_id:
+          type: string
+        stage:
+          $ref: "#/components/schemas/ReportStage"
+        generated_at:
+          type: string
+          format: date-time
+        data:
+          $ref: "#/components/schemas/ReportData"
+        missing_fields:
+          type: array
+          items:
+            type: string
+    AuditEvent:
+      type: object
+      required:
+        [event_id, timestamp, user_id, action, entity_type, entity_id]
+      properties:
+        event_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        user_id:
+          type: string
+        action:
+          type: string
+        entity_type:
+          type: string
+        entity_id:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+    VulnerabilityFixture:
+      type: object
+      required: [cve_id, affected_purls]
+      properties:
+        cve_id:
+          type: string
+        affected_purls:
+          type: array
+          items:
+            type: string
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
