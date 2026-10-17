@@ -19,7 +19,7 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyt
 ```
 
 `tests/contract/` compares the generated OpenAPI with `docs/openapi.yaml`; `tests/acceptance/`
-drives AC-01 to AC-03 over HTTP using the pod fixtures in `fixtures/` (draft, pending sign-off).
+drives AC-01 to AC-03 over HTTP using the pod fixtures in `fixtures/` (agreed with Team 2).
 
 ## Docker
 

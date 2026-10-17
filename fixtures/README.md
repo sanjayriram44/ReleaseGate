@@ -1,7 +1,7 @@
 # Shared pod test fixtures
 
-> **Status: DRAFT, created by Team 6. Needs human review and Team 2 sign-off before it is used for cross-team testing.**
-> Do not change the expected results in these files without the same review.
+> **Status: Agreed with Team 2 on 2026-10-17.** Created by Team 6, reviewed by Team 6 and signed off by Team 2 for cross-team testing.
+> Do not change the expected results in these files without the same review and pod agreement.
 
 | File | Used by | Contents |
 |---|---|---|
@@ -45,7 +45,7 @@ Several of these 2023 versions have since had published vulnerabilities. That ma
 
 ## Review checklist
 
-- [ ] A Team 6 member checked the 25 components against `sbom_source/requirements.txt`.
-- [ ] A Team 6 member checked every expected result in `releases.json` against REQ-01, AC-01 and AC-02.
-- [ ] Sent to Team 2; they agreed to use these files unchanged.
-- [ ] The decision is recorded in `docs/decisions.md`.
+- [x] A Team 6 member checked the 25 components against `sbom_source/requirements.txt`.
+- [x] A Team 6 member checked every expected result in `releases.json` against REQ-01, AC-01 and AC-02.
+- [x] Sent to Team 2; they agreed to use these files unchanged.
+- [x] The decision is recorded in `docs/decisions.md`.

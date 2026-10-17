@@ -1,4 +1,4 @@
-"""AC-01 driven by the pod's shared fixtures/releases.json (draft; do not edit expectations)."""
+"""AC-01 driven by the pod's shared fixtures/releases.json (agreed; do not edit expectations)."""
 
 import json
 from pathlib import Path
