@@ -56,6 +56,39 @@ curl -X POST http://<tester-host>:8081/api/v1/runs \
   a run.
 - Error messages for rejected input appear in the report for the human inspection AC-03 asks for.
 
+## Models (as delivered in Phase 3)
+
+The Phase 2 report (`docs/phase2_report.pdf`, Section 3.2) has the full information and
+behavior models. Where its diagrams show an external timer service, that design was dropped:
+deadlines (Phase 4) will be computed on read from stored timestamps.
+
+**Data.** `releases` (product, version, support_end_date; product+version unique) has many
+`components` (name, version, purl) from its current SBOM. `audit_log` holds one entry per
+change (timestamp, user, action, entity); SQLite triggers reject any UPDATE or DELETE on it.
+Support status is never stored: a release is `supported` while the clock's UTC date is on or
+before `support_end_date`.
+
+**SBOM upload** (`PUT /api/v1/releases/{releaseId}/sbom`): unknown release → 404; body not JSON
+→ 400; missing `bomFormat`/`specVersion`, a specVersion other than 1.4–1.6, a schema violation
+or a component without a version → 400 naming the problem. Only a fully valid SBOM is stored,
+replacing the release's previous components and writing its audit entry in one transaction.
+
+## Known limitations
+
+- **Phase 3 scope only.** CVE queries, incidents, deadlines, report generation and
+  `/api/v1/test/vulnerability-source` (REQ-03 to REQ-07) are not built yet; those contract paths
+  return 404. Dependency-Track is not integrated into the app; see `spikes/dependency_track/`.
+- **Nested components are not stored.** Only top-level `components[]` entries are kept.
+- **Large SBOMs are slow.** CycloneDX schema validation grows roughly with the square of the
+  component count (about 10 s at 5,000 components) and blocks other requests while it runs.
+- **Single instance.** SQLite and the in-memory test clock assume one process; the test clock
+  returns to real time when the container restarts.
+- **No authentication.** `X-User-Id` only attributes changes in the audit log. The test
+  endpoints are unauthenticated, and `POST /api/v1/test/reset` (also called by every tester run)
+  wipes all data, so the evaluation deployment holds synthetic data only.
+- **Provisional behavior.** Except for the shared fixtures, the rows in `docs/decisions.md`
+  still await pod confirmation and may change.
+
 ## Deployment (Google Compute Engine)
 
 | | URL |
