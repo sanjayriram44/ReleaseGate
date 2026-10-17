@@ -16,5 +16,19 @@ services:
       timeout: 5s
       retries: 3
 
+  # Runs AC-01..AC-03 against any system base URL; stateless (reports kept in memory).
+  tester:
+    build:
+      context: .
+      dockerfile: tester/Dockerfile
+    ports:
+      - "${TESTER_PORT:-8081}:8081"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8081/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
 volumes:
   releasegate-data:

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Deploy ReleaseGate to a Google Compute Engine VM.
-#   PROJECT=<id> bash deploy/gcp.sh create   # one time: API, static IP, firewall, VM
+#   PROJECT=<id> bash deploy/gcp.sh create   # one time: API, static IP, firewall (8080, 8081), VM
 #   PROJECT=<id> bash deploy/gcp.sh update   # pull latest main on the VM and rebuild; data kept
-#   PROJECT=<id> bash deploy/gcp.sh status   # VM state, base URL and /health
+#   PROJECT=<id> bash deploy/gcp.sh status   # VM state and /health of system and tester
 # Needs: gcloud signed in, PROJECT set to a project with billing enabled.
 set -euo pipefail
 
@@ -24,6 +24,9 @@ case "${1:-}" in
     "${G[@]}" compute firewall-rules create "${VM}-allow-8080" \
       --network default --direction INGRESS --allow tcp:8080 \
       --source-ranges 0.0.0.0/0 --target-tags "$VM"
+    "${G[@]}" compute firewall-rules create "${VM}-allow-8081" \
+      --network default --direction INGRESS --allow tcp:8081 \
+      --source-ranges 0.0.0.0/0 --target-tags "$VM"
     "${G[@]}" compute instances create "$VM" \
       --zone "$ZONE" --machine-type "$MACHINE" \
       --image-family debian-12 --image-project debian-cloud \
@@ -31,7 +34,7 @@ case "${1:-}" in
       --address "$(ip)" --tags "$VM" \
       --metadata-from-file startup-script="$HERE/gcp-startup.sh" \
       --metadata enable-test-endpoints=true,repo-branch=main
-    echo "Base URL: http://$(ip):8080  (first boot installs Docker and builds; allow ~3-5 min)"
+    echo "System: http://$(ip):8080  Tester: http://$(ip):8081  (first boot takes ~3-5 min)"
     ;;
   update)
     "${G[@]}" compute ssh "$VM" --zone "$ZONE" --command \
@@ -39,9 +42,11 @@ case "${1:-}" in
     ;;
   status)
     "${G[@]}" compute instances describe "$VM" --zone "$ZONE" --format='value(status)'
-    echo "Base URL: http://$(ip):8080"
-    curl -s --max-time 5 "http://$(ip):8080/health" || echo "(not answering yet)"
-    echo
+    for port in 8080 8081; do
+      printf 'http://%s:%s  ' "$(ip)" "$port"
+      curl -s --max-time 5 "http://$(ip):$port/health" || printf '(not answering)'
+      echo
+    done
     ;;
   *)
     sed -n '2,6p' "$0"

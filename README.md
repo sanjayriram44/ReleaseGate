@@ -35,16 +35,42 @@ ENABLE_TEST_ENDPOINTS=true docker compose up --build   # API on :8080, data in a
 
 Run a single instance: SQLite and the in-memory test clock assume one process.
 
+## Tester
+
+`tester/` is a separate service (port 8081 in compose) that runs the shared AC-01, AC-02 and
+AC-03 checks over HTTP against **any** system implementing `docs/openapi.yaml`: ours or another
+team's. Open its page and enter a system base URL, or call the API:
+
+```bash
+curl -X POST http://<tester-host>:8081/api/v1/runs \
+  -H 'Content-Type: application/json' -d '{"target_base_url": "http://<system-host>:8080"}'
+```
+
+- The response is a report: `result` (`pass` / `fail` / `error`), a summary, and each check with
+  expected vs actual and the response excerpt. `GET /api/v1/runs/{run_id}` fetches it again
+  (the last 50 runs are kept in memory).
+- **A run calls the target's `POST /api/v1/test/reset` at the start and the end, so it wipes the
+  target's data.** The target needs its test endpoints enabled.
+- *Required* checks come from the shared contract and AC-01..AC-03 and decide pass/fail.
+  *Informational* checks cover our provisional pod decisions (`docs/decisions.md`) and never fail
+  a run.
+- Error messages for rejected input appear in the report for the human inspection AC-03 asks for.
+
 ## Deployment (Google Compute Engine)
 
-Evaluation deployment: `http://136.116.160.182:8080` (static IP, test endpoints on, synthetic
-data only). One `e2-medium` Debian 12 VM in `us-central1-a` runs the compose stack above;
+| | URL |
+|---|---|
+| System base URL | `http://136.116.160.182:8080` (test endpoints on, synthetic data only) |
+| Tester base URL | `http://136.116.160.182:8081` |
+| Intra-pod specification | `docs/openapi.yaml` |
+
+One `e2-medium` Debian 12 VM in `us-central1-a` (static IP) runs the compose stack above;
 `deploy/gcp-startup.sh` installs Docker and starts it on every boot.
 
 ```bash
 PROJECT=<gcp-project-id> bash deploy/gcp.sh update   # pull latest main on the VM and rebuild
-PROJECT=<gcp-project-id> bash deploy/gcp.sh status   # VM state, base URL, /health
+PROJECT=<gcp-project-id> bash deploy/gcp.sh status   # VM state, /health of system and tester
 ```
 
-`create` built the VM, static IP and the firewall rule that opens only TCP 8080; it is a
+`create` built the VM, static IP and the firewall rules that open only TCP 8080 and 8081; it is a
 one-time step.

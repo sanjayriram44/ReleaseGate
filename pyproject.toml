@@ -9,6 +9,7 @@ dependencies = [
     "jsonschema>=4.23",
     "referencing>=0.35",
     "cyclonedx-python-lib[json-validation]>=11.12.0",
+    "httpx>=0.27",
 ]
 
 [dependency-groups]
@@ -32,7 +33,7 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["app"]
+files = ["app", "tester"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

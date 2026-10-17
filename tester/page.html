@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReleaseGate Tester</title>
+<style>
+  :root { --bg:#fff; --fg:#1d2433; --muted:#5b6475; --line:#d9dee7; --pass:#1a7f37; --fail:#c62828; --info:#8a6d00; --box:#f6f8fa; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171c; --fg:#e6e9ef; --muted:#9aa3b2; --line:#2c323c; --pass:#4ac26b; --fail:#ff6b6b; --info:#e3b341; --box:#1c2028; } }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif; }
+  main { max-width:1000px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  p { color:var(--muted); margin:4px 0 16px; }
+  form { display:flex; gap:8px; flex-wrap:wrap; }
+  input { flex:1 1 320px; padding:9px 11px; border:1px solid var(--line); border-radius:6px; background:var(--box); color:var(--fg); font:inherit; }
+  button { padding:9px 18px; border:0; border-radius:6px; background:#2b4c7e; color:#fff; font:inherit; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:wait; }
+  .warn { font-size:13px; }
+  #summary { margin:20px 0 8px; font-weight:600; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .pass { color:var(--pass); font-weight:600; } .fail { color:var(--fail); font-weight:600; } .info { color:var(--info); font-weight:600; }
+  code { font-size:12px; word-break:break-all; color:var(--muted); }
+  .wrap { overflow-x:auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>ReleaseGate Tester</h1>
+  <p>Runs the shared AC-01, AC-02 and AC-03 checks over HTTP against any system that implements the pod contract.</p>
+  <form id="f">
+    <input id="url" type="url" required placeholder="http://136.116.160.182:8080" aria-label="System base URL">
+    <button id="go">Run tests</button>
+  </form>
+  <p class="warn">A run calls <code>POST /api/v1/test/reset</code> on the target, so it clears the target's data. JSON API: <code>POST /api/v1/runs {"target_base_url": "…"}</code> · <a href="/docs">/docs</a></p>
+  <div id="summary"></div>
+  <div class="wrap"><table id="t" hidden>
+    <thead><tr><th>Result</th><th>AC</th><th>Check</th><th>Expected</th><th>Actual</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+</main>
+<script>
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const url = document.getElementById("url");
+url.value = new URLSearchParams(location.search).get("target") || "";
+document.getElementById("f").addEventListener("submit", async e => {
+  e.preventDefault();
+  const go = document.getElementById("go"), sum = document.getElementById("summary"), t = document.getElementById("t");
+  go.disabled = true; sum.textContent = "Running…"; t.hidden = true;
+  try {
+    const r = await fetch("/api/v1/runs", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({target_base_url: url.value})});
+    const d = await r.json();
+    if (!r.ok) { sum.innerHTML = `<span class="fail">${esc(d.error?.message || r.status)}</span>`; return; }
+    const s = d.summary;
+    sum.innerHTML = `<span class="${d.result === "pass" ? "pass" : "fail"}">${d.result.toUpperCase()}</span> — required ${s.required_passed}/${s.required_passed + s.required_failed} passed, informational ${s.informational_passed}/${s.informational_passed + s.informational_failed} · ${esc(d.run_id)} · ${d.duration_ms} ms` + (d.error ? `<br><span class="fail">${esc(d.error)}</span>` : "");
+    t.tBodies[0].innerHTML = d.checks.map(c => {
+      const cls = c.passed ? "pass" : (c.required ? "fail" : "info");
+      const label = c.passed ? "PASS" : (c.required ? "FAIL" : "INFO");
+      return `<tr><td class="${cls}">${label}</td><td>${esc(c.ac)}</td><td>${esc(c.title)}${c.request ? `<br><code>${esc(c.request)}</code>` : ""}</td><td>${esc(c.expected)}</td><td>${esc(c.actual)}${c.response && !c.passed ? `<br><code>${esc(c.response)}</code>` : ""}</td></tr>`;
+    }).join("");
+    t.hidden = false;
+  } catch (err) { sum.innerHTML = `<span class="fail">${esc(err)}</span>`; }
+  finally { go.disabled = false; }
+});
+</script>
+</body>
+</html>
