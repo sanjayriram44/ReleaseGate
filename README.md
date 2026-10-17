@@ -59,7 +59,8 @@ curl -X POST http://<tester-host>:8081/api/v1/runs \
 ## Models (as delivered in Phase 3)
 
 The Phase 2 report (`docs/phase2_report.pdf`, Section 3.2) has the full information and
-behavior models. Where its diagrams show an external timer service, that design was dropped:
+behavior models (SVGs in `docs/diagrams/`, with notes on what changed). Where its
+diagrams show an external timer service, that design was dropped:
 deadlines (Phase 4) will be computed on read from stored timestamps.
 
 **Data.** `releases` (product, version, support_end_date; product+version unique) has many
