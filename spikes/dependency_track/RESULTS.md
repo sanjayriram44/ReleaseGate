@@ -1,18 +1,65 @@
 # Dependency-Track spike: results
 
-Risk 1 in the Phase 2 report (Q9.1), CLAUDE.md §8. Run on 2026-10-17 on a
-Mac (Docker Desktop, Docker Engine 29.6.2, 8 CPUs and 11.7 GiB for Docker) against
-**Dependency-Track 4.14.5**, the API server only, with its embedded H2 database.
-The raw evidence is in `results/`.
+## Why this spike exists
+
+The Phase 2 report commits Team 6 to this spike before the **Phase 3 milestone**
+(§6.1):
+
+- **§9.1, Risk 1 (highest):** "Dependency-Track matching, replacement, and fault
+  behavior". The report plans to set up a test instance, upload the shared
+  25-component SBOM, replace it with a second SBOM for the same release, reset,
+  and run five seeded CVE queries. It names four pieces of evidence needed
+  before Phase 4: query results within AC-04's 10 s right after upload, no
+  stale components after replace or reset, 100% recall, and an unknown CVE that
+  is distinguishable from "no matches". If those can't be shown, the fallback is
+  local matching in SQLite against a vulnerability table loaded from the shared
+  test data or a saved OSV feed.
+- **§9.2:** the pod has to agree on related points. Before the Phase 3
+  milestone, it must decide whether a new SBOM fully replaces a release's
+  components. Before Phase 4, it must decide whether REQ-03 and AC-04 match on
+  full package identifiers (purl) or on name and version.
+
+So this spike **decides whether Phase 4's CVE query (REQ-03/REQ-04,
+AC-04/AC-05) uses Dependency-Track (DT) or the local-matching fallback.** See
+CLAUDE.md §8 as well.
+
+## Setup
+
+- **Deployment method.** The setup follows the official Docker guide the report
+  cites as reference [2],
+  <https://docs.dependencytrack.org/getting-started/deploy-docker/>, using its
+  Docker Compose method.
+- **Which compose file.** The guide's quickstart URL,
+  `https://dependencytrack.org/docker-compose.yml`, now serves the DT 5.2.0
+  stack. So `docker-compose.yml` here is the compose file DT ships for
+  **4.14.5**, the newest 4.x release
+  (`src/main/docker/docker-compose.yml` at tag 4.14.5). It runs:
+  - the API server on port 8081;
+  - the frontend on port 8080;
+  - PostgreSQL 17.
+- **Deviations from that file** (each marked `spike:` in the YAML):
+  - images pinned to exact versions and digests;
+  - ports bound to `127.0.0.1` only;
+  - an 8 GB memory limit, which is the guide's recommended size.
+- **Where it ran.** Locally on Docker Desktop: a Mac with Docker Engine 29.6.2,
+  8 CPUs, and 11.7 GiB of memory for Docker.
+  - It did not run on the e2-medium GCP VM. That VM has 4 GB of RAM, below the
+    8 GB DT recommends.
+  - The report's §7.3 assumed a VM with at least 8 GB of RAM and 4 cores for DT,
+    so if DT stays in the plan, the deployment host needs to be upgraded.
+- **Raw evidence.** All results are in `results/`.
+  - `results/h2-embedded/` holds an earlier round that used the API server
+    alone with its embedded H2 database. It gave the same answers and is kept
+    for comparison.
 
 ## Short answer
 
-With both the NVD mirror and the OSV PyPI mirror loaded, Dependency-Track (DT)
-met all four checks the report asked for, on every run:
+With both the NVD mirror and the OSV PyPI mirror loaded, DT met all four §9.1
+checks on every run:
 
-| Check (Q9.1) | Result |
+| Check (§9.1) | Result (PostgreSQL setup, 7 runs) |
 |---|---|
-| Query within AC-04's 10 s right after upload | Correct answers 0.44–3.38 s after the upload started; one CVE query took ≤ 0.11 s |
+| Query within AC-04's 10 s right after upload | Correct answers 0.78–2.56 s after the upload started; one CVE query took ≤ 0.10 s |
 | No stale components after replace or reset | 0 stale components and 0 stale findings after replace; 0 projects and 0 components after reset |
 | 100% recall on the seeded list | 5/5 after upload and 2/2 after replace; precision was also 100% |
 | Unknown CVE is distinguishable from "no matches" | Yes: `CVE-2099-0001` has no DT record, while `CVE-2019-11324` has a record but no affected project |
@@ -20,16 +67,18 @@ met all four checks the report asked for, on every run:
 That only holds under three conditions, and the third affects whether the team
 can run deterministic tests (next section):
 
-1. **The app must wait for DT to finish processing.** DT analyses an upload in
-   the background. Queries sent while it was still working gave wrong answers in
-   every run: missed CVEs after an upload, and a stale werkzeug match after a
-   replace. They were correct as soon as DT's processing token cleared, 0.38–3.22 s
-   after the upload.
-2. **The NVD mirror is required, not just OSV.** Without NVD, DT has no record
-   named by the CVE ID; the GHSA and PYSEC records carry the CVE only as an
-   alias, and no DT endpoint searches aliases. On an OSV-only instance, recall
-   was 0/5 and the unknown CVE could not be told apart from a known one. A full
-   NVD mirror takes about 7 minutes and 13 GB of disk.
+1. **The app must wait for DT to finish processing.**
+   - DT analyses an upload in the background. Queries sent while it was still
+     working gave wrong answers in every run: missed CVEs after an upload, and a
+     stale werkzeug match after a replace.
+   - The answers were correct as soon as DT's processing token cleared, 0.36–2.43
+     s after the upload. No answer was wrong after that point.
+2. **The NVD mirror is required, not just OSV.**
+   - Without NVD, DT has no record named by the CVE ID. The GHSA and PYSEC
+     records carry the CVE only as an alias, and no DT endpoint searches aliases.
+   - On an OSV-only instance, recall was 0/5 and the unknown CVE could not be told
+     apart from a known one.
+   - Loading NVD into PostgreSQL took 15.3 minutes.
 3. **Matching on CPEs adds a false positive.** The fixture's Syft-generated
    CPEs match NVD data incorrectly for one component (details below). When the
    SBOMs were uploaded without `cpe` fields, DT's results were identical to OSV's.
@@ -44,25 +93,31 @@ needs team and pod agreement before anyone builds on it.
 
 `spike.py run` does the following against a running DT:
 
-1. **Upload.** Creates two projects (releases) of `spike-example-gateway`,
-   `1.0.0` (A) and `1.1.0` (B), and uploads `fixtures/sbom_25_components.json`
-   to A only. It polls DT's processing token and the CVE queries every 0.25 s
-   until both are done and all answers match.
-2. **Replace.** Uploads a second SBOM to A, generated by `spike.py`'s
-   `replacement_sbom()`. It upgrades werkzeug to 2.2.3, flask to 2.2.5 and
-   requests to 2.31.0 (the fixed versions), drops pyyaml and adds tomli 2.0.1.
-   It then checks that A's components exactly match the new SBOM and that no
-   finding refers to a removed component.
-3. **Reset.** Deletes both projects. It then checks that no project remains,
-   that no component exists for any purl from either SBOM, and that the CVE
-   queries return no releases.
+1. **Upload.**
+   - Creates two projects (releases) of `spike-example-gateway`: `1.0.0` (A) and
+     `1.1.0` (B).
+   - Uploads `fixtures/sbom_25_components.json` to A only.
+   - Polls DT's processing token and the CVE queries every 0.25 s, until both are
+     done and all answers match.
+2. **Replace.**
+   - Uploads a second SBOM to A, generated by `spike.py`'s `replacement_sbom()`.
+     It upgrades werkzeug to 2.2.3, flask to 2.2.5 and requests to 2.31.0 (the
+     fixed versions), drops pyyaml, and adds tomli 2.0.1.
+   - Checks that A's components exactly match the new SBOM, and that no finding
+     refers to a removed component.
+3. **Reset.** Deletes both projects, then checks that:
+   - no project remains;
+   - no component exists for any purl from either SBOM;
+   - the CVE queries return no releases.
 4. **Unknown CVE.** Compares `CVE-2099-0001`, which does not exist, with
    `CVE-2019-11324`, which is real but does not affect the fixture.
 
 The CVE query is what `GET /vulnerabilities/{cveId}/affected-releases` would do
-on top of DT. It looks up `NVD/CVE-…` and takes the GHSA and PYSEC IDs from that
-record's aliases. It then asks DT which projects each of those records affects
-and combines the answers. If there is no NVD record, the CVE is unknown.
+on top of DT:
+
+1. Look up the record `NVD/CVE-…`. If there is none, the CVE is unknown.
+2. Take the GHSA and PYSEC IDs from that record's aliases.
+3. Ask DT which projects each of those records affects, and combine the answers.
 
 ### The five CVEs (spike inputs, not pod ground truth)
 
@@ -82,79 +137,112 @@ version ranges are copied into `expected.json`. Before anything here goes into
 
 ## Measurements
 
-All 10 runs are in `results/run-*.json`. Times are in seconds from the start of
-the upload request. "Done" means DT's processing token had cleared.
+Times are in seconds from the start of the upload request. "Done" means DT's
+processing token had cleared.
+
+**PostgreSQL setup** (`docker-compose.yml`), `results/run-*-pg-*.json`, all
+taken with the NVD and OSV mirrors fully loaded:
 
 | Run | Upload: done / correct | Replace: done / correct | Slowest single query | Recall / precision (upload, replace, reset) |
 |---|---|---|---|---|
-| 205426Z (NVD mirror still loading) | 1.35 / – | 0.63 / – | 0.104 | 100% / 100% |
-| 205510Z (NVD mirror still loading) | 0.47 / 0.57 | 0.57 / 0.68 | 0.092 | 100% / 100% |
-| full-1 (EPSS mirror running) | 3.22 / 3.38 | 1.03 / 1.15 | 0.093 | 100% / 100% |
-| full-2 … full-5 | 0.38–0.51 / 0.44–0.64 | 0.38–0.49 / 0.45–0.62 | 0.063 | 100% / 100% |
-| nocpe (SBOMs without `cpe`) | 0.40 / 0.52 | 0.38 / 0.47 | 0.035 | 100% / 100% |
-| after-restart | 1.39 / 1.58 | 0.56 / 0.66 | 0.071 | 100% / 100% |
-| osv-only (fresh instance, no NVD) | 0.75 / never | 0.29 / never | – | **0% / –**, unknown CVE not distinguishable |
+| pg-1 (first run after mirroring) | 2.43 / 2.56 | 0.81 / 0.91 | 0.076 | 100% / 100% |
+| pg-2 … pg-5 | 0.70–0.81 / 0.78–0.92 | 0.36–0.42 / 0.43–0.49 | 0.052 | 100% / 100% |
+| pg-nocpe (SBOMs without `cpe`) | 0.76 / 0.84 | 0.36 / 0.46 | 0.032 | 100% / 100% |
+| pg-after-restart | 1.80 / 1.96 | 1.07 / 1.29 | 0.100 | 100% / 100% |
 
-The first run did not record the per-poll answers. Every later run did, and
-each one had wrong answers while DT was still processing: at 0.12–1.13 s, up to
-5 of the 6 queries were wrong. This is condition 1 above.
+**Earlier H2 round** (`results/h2-embedded/`): the API server alone with its
+embedded H2 database. Its compose file was replaced by the guide-aligned one.
 
-**Stale data.** No run left any stale data. After replace, A's 25 components
-exactly matched the replacement SBOM, findings dropped from 153 to 144, and none
-referred to a removed version. After reset, 0 projects and 0 components were
-left, and a project deletion took ≤ 0.1 s. B never had any components.
+- 8 runs with NVD loaded or loading: upload 0.44–3.38 s to correct, replace
+  0.45–1.15 s. All runs had 100% recall and precision, and no stale data.
+- 1 run on a fresh **OSV-only** instance (`setup --no-nvd`): the CVE queries never
+  became correct. Recall was 0% and the unknown CVE was not distinguishable.
+  This is condition 2 above.
 
-**Persistence.** After `docker compose restart`, DT answered again after 25 s
-and the full run passed.
+**Wrong answers while DT is processing.** In every run that recorded per-poll
+answers, some queries were wrong while DT was still processing:
 
-**Unreachable source (AC-05).** With DT stopped, the client got a
-`ConnectError` after 0.05 s. A host that does not answer gave a
-`ConnectTimeout` when the client's timeout ran out (5 s in the test). In both
-cases the app can return 503 within AC-05's 15 s.
+- PostgreSQL setup: at 0.10–1.68 s after the upload, up to 5 of the 6 queries
+  were wrong.
+- H2 round: at 0.12–1.13 s after the upload, up to 5 of the 6 queries were wrong.
+
+No query was wrong after the processing token had cleared. This is condition 1
+above.
+
+**Stale data.** No run left any stale data.
+
+- After replace, A's 25 components exactly matched the replacement SBOM, and
+  findings dropped from 153 to 144, none of them referring to a removed version.
+- After reset, 0 projects and 0 components were left. A project deletion took
+  ≤ 0.1 s.
+- B never had any components.
+
+**Persistence.** `docker compose restart apiserver` stopped the server at
+21:27:34, it was ready again at 21:27:46, and the full run passed.
+
+**Unreachable source (AC-05).** With the API server stopped, the client got a
+`ConnectError` after 0.05 s.
+
+- In the H2 round, a host that does not answer gave a `ConnectTimeout` when the
+  client's timeout ran out (5 s).
+- In both cases the app can return 503 within AC-05's 15 s.
 
 ### Recall and precision beyond the five CVEs
 
 `spike.py crosscheck` compares the CVEs DT reported for each component with
-what the OSV API returns for the same purl (`results/crosscheck-*.json`):
+what the OSV API returns for the same purl (`results/crosscheck-*.json`). Both
+setups gave the same results.
 
-- With CPEs in the SBOM: DT found 66 CVEs and OSV 65. Every OSV CVE was found.
-  The extra one is **CVE-2018-17175 on marshmallow 3.19.0**, which is a false
-  positive. It came from DT's NVD CPE matching:
-  NVD's configuration is `cpe:…:marshmallow_project:marshmallow:*:…:python` with
-  `versionStartIncluding 3.0` and `versionEndExcluding 3.0.0b9`, and DT treats
-  3.19.0 as inside that range. When the same component is uploaded without its
-  `cpe`, the finding does not appear.
-- Without CPEs: DT and OSV both found 65, with no differences.
+- **With CPEs in the SBOM:** DT found 66 CVEs and OSV 65, and every OSV CVE was
+  found. The extra one is **CVE-2018-17175 on marshmallow 3.19.0**, a false
+  positive from DT's NVD CPE matching:
+  - NVD's configuration is `cpe:…:marshmallow_project:marshmallow:*:…:python`,
+    with `versionStartIncluding 3.0` and `versionEndExcluding 3.0.0b9`.
+  - DT treats 3.19.0 as inside that range.
+  - When the same component is uploaded without its `cpe`, the finding does not
+    appear.
+- **Without CPEs:** DT and OSV both found 65, with no differences.
 
 ## Populating the vulnerability data
 
 Times are from the DT logs.
 
-| Source | How it is enabled | First load | Volume |
+| Source | How it is enabled | First load | Disk |
 |---|---|---|---|
-| NVD (CVE records and CPE ranges) | On by default; downloads the yearly NVD JSON 2.0 feeds (2002–2026) | About 7 min of mirroring (61 s before a restart plus 349 s after; DT resumed after the restart). Downloading took 7 s and parsing 320 s. | DT data volume reached 13 GB in total. Some CPE strings in the NVD data fail to parse and DT logs them. |
-| OSV, PyPI ecosystem | Config property `vuln-source/google.osv.enabled = PyPI`. It only starts at startup or on the 24 h schedule, so it needs one restart after the property is set. | 31 s (2 s to download `PyPI/all.zip`, 29 s to parse 26,379 advisories) | 383 MB on an OSV-only instance |
+| NVD (CVE records and CPE ranges) | On by default; downloads the yearly NVD JSON 2.0 feeds (2002–2026) | **PostgreSQL: 918 s (15.3 min)**: 8 s to download, 869 s to parse. H2: about 7 min. | PostgreSQL setup: 3.0 GB of database and 3.6 GB of DT data (6.6 GB in total). The H2 round used 13 GB. |
+| OSV, PyPI ecosystem | Config property `vuln-source/google.osv.enabled = PyPI`. It only starts at startup or on the 24 h schedule, so it needs one restart after the property is set. | 32 s: 1 s to download `PyPI/all.zip`, 31 s to parse 26,379 advisories | 383 MB on the OSV-only H2 instance |
 | GitHub advisories | Needs a GitHub token (`github.advisories.access.token`) | Not tried. The OSV PyPI feed already includes the GHSA records. | |
 | OSS Index | On by default | Turned off: it now needs Sonatype credentials and calls an external service for each component | |
 
-- From a fresh volume to fully loaded NVD and OSV mirrors took about **9 min**
-  (`up` at 20:48:17, NVD finished at 20:57:23), including one restart.
-- An OSV-only instance was ready in **54 s**, but it cannot answer CVE-ID
-  queries (condition 2 above).
-- Every mirror refreshes every 24 h by default (`task-scheduler/*.cadence`).
-  Results for the same SBOM can therefore change from one day to the next. For
-  example, the OSV data already lists CVE-2026-* records against these 2023
-  versions.
+Some CPE strings in the NVD data fail to parse, and DT logs them.
 
-**Making DT deterministic for tests.** The contract's
-`PUT /test/vulnerability-source` sends `{cve_id, affected_purls}` records.
-`spike.py inject` showed that DT can store such a record as an INTERNAL
-vulnerability with a CVE-shaped ID (`CVE-2099-424242`) and an exact purl.
-DT matched it on upload, and it was reported through
-`/vulnerability/source/INTERNAL/vuln/{id}/projects`. When the record was created
-after the upload, DT only matched it after an explicit
-`POST /finding/project/{uuid}/analyze` (0.2 s). For seeded tests, the app would
-then have to:
+- **Cold start for the PostgreSQL setup.**
+  - `docker compose up` began at 21:09:18 and DT was ready at 21:09:32.
+  - The OSV mirror finished at 21:10:25.
+  - The NVD mirror finished at 21:26:00.
+  - So it took about **17 minutes** before CVE IDs resolved.
+- **Memory.** Spot checks after mirroring showed about 0.9 GB for the API
+  server and 0.6 GB for PostgreSQL. Peak memory was not measured.
+- **OSV only.** An OSV-only instance was ready in 54 s, but it cannot answer
+  CVE-ID queries (condition 2 above).
+- **Daily refresh.** Every mirror refreshes every 24 h by default
+  (`task-scheduler/*.cadence`). Results for the same SBOM can therefore change
+  from one day to the next. For example, the OSV data already lists CVE-2026-*
+  records against these 2023 versions.
+
+### Making DT deterministic for tests
+
+The contract's `PUT /test/vulnerability-source` sends `{cve_id, affected_purls}`
+records. `spike.py inject` tested whether DT can serve them.
+
+- DT can store such a record as an INTERNAL vulnerability with a CVE-shaped ID
+  (`CVE-2099-424242`) and an exact purl.
+- DT matched it on upload and reported it through
+  `/vulnerability/source/INTERNAL/vuln/{id}/projects`.
+- When the record was created after the upload (tested in the H2 round), DT only
+  matched it after an explicit `POST /finding/project/{uuid}/analyze` (0.2 s).
+
+For seeded tests, the app would then have to:
 
 - look up only INTERNAL records, or turn the mirrors off. Otherwise the real
   NVD and GHSA records for the same CVE IDs add matches the fixture does not
@@ -169,48 +257,52 @@ then have to:
 the components already stored in SQLite, using a vulnerability table loaded from
 the shared test data.
 
-- The graded path (AC-04, AC-05, and Team 2's tests) runs on
-  `PUT /test/vulnerability-source` records, which are exact `cve_id → purl`
-  lists. In SQLite that is a join on purl inside the same transaction as the
-  components. Several things become simple:
+- **Why the fallback fits the graded path.** AC-04, AC-05 and Team 2's tests run
+  on `PUT /test/vulnerability-source` records, which are exact `cve_id → purl`
+  lists. In SQLite that is a join on purl, inside the same transaction as the
+  components. As a result:
   - there is no background processing to wait for;
   - replace and reset are already atomic;
   - "unknown CVE" means the CVE ID is not in the table;
   - "unreachable" is a flag;
   - results stay the same every day.
-- DT passed the spike, but using it on the graded path means extra work:
+- **What DT would add on that path.** DT passed the spike, but using it for the
+  graded tests means extra work:
   - waiting on the processing token for every upload;
   - keeping two data stores in sync;
   - injecting INTERNAL vulnerabilities and re-analysing projects;
   - turning off or ignoring the mirrors in test mode;
-  - running an NVD mirror that takes about 7 min and 13 GB to load (plus the
-    8 GB of RAM DT recommends) only so that CVE IDs resolve.
+  - running a third and fourth container (DT and PostgreSQL), which need an
+    8 GB host instead of the current 4 GB e2-medium;
+  - an NVD mirror that takes about 15 min to load, only so that CVE IDs resolve.
 
   None of this improves the AC-04 or AC-05 results.
-- **For real vulnerability data** (beyond the seeded tests), the same table can
-  later be filled from OSV's `PyPI/all.zip`. Downloading it took 2 s. The
-  work is comparing PyPI version ranges (PEP 440, using the `packaging`
-  library) and recording aliases so that CVE IDs resolve. If the team wants DT
-  for production data anyway, the spike shows it can work behind the same
-  interface, with these rules:
+- **Real vulnerability data later.** Beyond the seeded tests, the same table can
+  be filled from OSV's `PyPI/all.zip`, which downloaded in 1–2 s. The work is:
+  - comparing PyPI version ranges (PEP 440, using the `packaging` library);
+  - recording aliases so that CVE IDs resolve.
+- **If the team wants DT for production data anyway.** The spike shows it can
+  work behind the same interface, with these rules:
   - mirror NVD and OSV PyPI;
   - strip `cpe` fields before uploading;
   - block `PUT /sbom` until DT's processing token clears;
   - map a missing NVD record to `404 CVE_UNKNOWN`;
-  - map connection errors to `503`.
-- DT 5.x has been released since the Phase 2 report (5.0.0 on 2026-06-07; 5.2.0
-  is current). This spike only tested 4.14.5. If DT comes back into the plan,
-  decide between 4.x and 5.x first.
+  - map connection errors to `503`;
+  - size the host to at least 8 GB.
+- **DT 5.x.** It has been released since the Phase 2 report (5.0.0 on
+  2026-06-07; 5.2.0 is current), and the guide's quickstart URL now installs it.
+  This spike only tested 4.14.5. If DT comes back into the plan, decide between
+  4.x and 5.x first.
 
-**Needs a decision:**
+### Needs a decision
 
 - [ ] Team 6 agrees on the recommendation.
 - [ ] The pod agrees, because DT was a pod-wide Phase 1 choice. Record the
   outcome in `docs/decisions.md`.
-- [ ] The pod settles the matching key (CLAUDE.md §7.5). This spike matched on
-  purl.
+- [ ] The pod settles the §9.2 matching key (CLAUDE.md §7.5). This spike
+  matched on purl.
 
-**Human check of the spike inputs:**
+### Human check of the spike inputs
 
 - [ ] Someone checked each row of the CVE table against the linked advisory.
   This includes confirming that the fixture version is in the affected range,
@@ -220,17 +312,23 @@ the shared test data.
 
 ## Re-running
 
+Run these locally, not on the 4 GB VM:
+
 ```bash
 docker compose -f spikes/dependency_track/docker-compose.yml up -d
 .venv/bin/python spikes/dependency_track/spike.py setup         # add --no-nvd for OSV only
-docker compose -f spikes/dependency_track/docker-compose.yml restart   # starts the OSV mirror
-.venv/bin/python spikes/dependency_track/spike.py mirror        # repeat until all five resolve
+docker compose -f spikes/dependency_track/docker-compose.yml restart apiserver   # starts the OSV mirror
+.venv/bin/python spikes/dependency_track/spike.py mirror        # repeat until all five resolve (~17 min cold)
 .venv/bin/python spikes/dependency_track/spike.py run
 .venv/bin/python spikes/dependency_track/spike.py crosscheck    # needs internet access (OSV API)
 .venv/bin/python spikes/dependency_track/spike.py inject
 ```
 
-`setup` replaces DT's default admin password with a random one and saves it in
-`.dt-admin-password`, which git ignores. DT listens on `127.0.0.1` only. To
-remove the instance and its 13 GB volume, run
-`docker compose -f spikes/dependency_track/docker-compose.yml down -v`.
+- **Credentials.** `setup` replaces DT's default admin password with a random
+  one and saves it in `.dt-admin-password`, which git ignores. The PostgreSQL
+  credentials are the guide's defaults, and the database is not published
+  outside the Docker network.
+- **Ports.** The frontend is at <http://localhost:8080>. If the app is also
+  running on 8080, set `DT_FRONTEND_PORT`.
+- **Cleanup.** To remove the containers and their 6.6 GB of volumes, run
+  `docker compose -f spikes/dependency_track/docker-compose.yml down -v`.

@@ -486,6 +486,9 @@ def cmd_inject() -> None:
     log(f"findings for {cve}: {[f['component']['purl'] for f in hits]}")
     log(f"NVD lookup for {cve}: {dt.get(f'/v1/vulnerability/source/NVD/vuln/{cve}').status_code}")
     dt.delete_project(uuid)
+    # What /test/reset would have to do as well.
+    vuln_uuid = dt.get(f"/v1/vulnerability/source/INTERNAL/vuln/{cve}").json()["uuid"]
+    log(f"delete internal vuln: {dt.http.delete(f'/v1/vulnerability/{vuln_uuid}').status_code}")
 
 
 def cmd_crosscheck() -> None:

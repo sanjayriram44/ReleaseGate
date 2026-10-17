@@ -1,31 +1,77 @@
 # Dependency-Track spike (Risk 1, CLAUDE.md §8). Not part of the app stack.
+# Run locally on Docker Desktop, not on the e2-medium deployment VM (4 GB).
 #
 #   docker compose -f spikes/dependency_track/docker-compose.yml up -d
-#   .venv/bin/python spikes/dependency_track/spike.py
+#   .venv/bin/python spikes/dependency_track/spike.py setup
 #
-# API server only; the frontend is not needed for the spike. Uses the embedded
-# H2 database, which Dependency-Track supports for evaluation only (a real
-# deployment would add PostgreSQL).
+# Follows the official guide the Phase 2 report cites as [2],
+# https://docs.dependencytrack.org/getting-started/deploy-docker/, using the
+# compose file Dependency-Track ships for 4.14.5
+# (src/main/docker/docker-compose.yml at tag 4.14.5): API server on 8081,
+# frontend on 8080, PostgreSQL. The quickstart URL in the guide
+# (https://dependencytrack.org/docker-compose.yml) now serves the 5.x stack,
+# so it is not used here. Differences from the 4.14.5 file are marked "spike:".
+name: dt-spike
+
 services:
   apiserver:
-    # 4.14.5 is the newest 4.x release (2026-10-05). Pinned by digest too.
+    # spike: exact version and digest instead of the untagged image.
     image: dependencytrack/apiserver:4.14.5@sha256:4d41f29ce886a7fcb94a424b3eb2bfd17497ba92d48d43896c48e87a69bcf335
-    ports:
-      # Only reachable from this machine.
-      - "127.0.0.1:${DT_PORT:-8081}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      # Heap as a share of the container limit (DT's default is 90%).
-      EXTRA_JAVA_OPTIONS: "-XX:MaxRAMPercentage=80.0"
+      ALPINE_DATABASE_MODE: "external"
+      ALPINE_DATABASE_URL: "jdbc:postgresql://postgres:5432/dtrack"
+      ALPINE_DATABASE_DRIVER: "org.postgresql.Driver"
+      ALPINE_DATABASE_USERNAME: "dtrack"
+      ALPINE_DATABASE_PASSWORD: "dtrack"
     deploy:
       resources:
         limits:
-          # DT recommends 8 GB; Docker Desktop here has ~12 GB in total.
+          # spike: the guide's recommended 8 GB (the 4.14.5 file uses 4g, the
+          # guide's example 12288m, which is more than Docker Desktop has here).
           memory: 8g
-        reservations:
-          memory: 4608m
+      restart_policy:
+        condition: on-failure
+    ports:
+      # spike: bound to this machine only.
+      - "127.0.0.1:8081:8080"
     volumes:
-      - dt-data:/data
-    restart: "no"
+      - "dtrack-data:/data"
+    restart: unless-stopped
+
+  frontend:
+    image: dependencytrack/frontend:4.14.5@sha256:d675efbd80facddb696c21c82e1973d0dc83ae38b3c896d1c87bf78a26a6c9eb
+    depends_on:
+      apiserver:
+        condition: service_healthy
+    environment:
+      # Read by the browser, not by the container.
+      API_BASE_URL: "http://localhost:8081"
+    ports:
+      # spike: bound to this machine only. The app's own compose also defaults
+      # to 8080; set DT_FRONTEND_PORT to run both.
+      - "127.0.0.1:${DT_FRONTEND_PORT:-8080}:8080"
+    restart: unless-stopped
+
+  postgres:
+    # spike: exact 17.x tag and digest.
+    image: postgres:17.11-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    environment:
+      # Local, unpublished database for throwaway spike data only.
+      POSTGRES_DB: "dtrack"
+      POSTGRES_USER: "dtrack"
+      POSTGRES_PASSWORD: "dtrack"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    volumes:
+      - "postgres-data:/var/lib/postgresql/data"
+    restart: unless-stopped
 
 volumes:
-  dt-data:
+  dtrack-data: {}
+  postgres-data: {}
