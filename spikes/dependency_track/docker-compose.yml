@@ -1,0 +1,31 @@
+# Dependency-Track spike (Risk 1, CLAUDE.md §8). Not part of the app stack.
+#
+#   docker compose -f spikes/dependency_track/docker-compose.yml up -d
+#   .venv/bin/python spikes/dependency_track/spike.py
+#
+# API server only; the frontend is not needed for the spike. Uses the embedded
+# H2 database, which Dependency-Track supports for evaluation only (a real
+# deployment would add PostgreSQL).
+services:
+  apiserver:
+    # 4.14.5 is the newest 4.x release (2026-10-05). Pinned by digest too.
+    image: dependencytrack/apiserver:4.14.5@sha256:4d41f29ce886a7fcb94a424b3eb2bfd17497ba92d48d43896c48e87a69bcf335
+    ports:
+      # Only reachable from this machine.
+      - "127.0.0.1:${DT_PORT:-8081}:8080"
+    environment:
+      # Heap as a share of the container limit (DT's default is 90%).
+      EXTRA_JAVA_OPTIONS: "-XX:MaxRAMPercentage=80.0"
+    deploy:
+      resources:
+        limits:
+          # DT recommends 8 GB; Docker Desktop here has ~12 GB in total.
+          memory: 8g
+        reservations:
+          memory: 4608m
+    volumes:
+      - dt-data:/data
+    restart: "no"
+
+volumes:
+  dt-data:

@@ -1,0 +1,53 @@
+{
+  "_note": "Spike inputs only, not pod ground truth (fixtures/ground_truth.json is still to be built and checked by people). Each range was copied from the OSV record on 2026-10-17 and is cited in RESULTS.md; a team member still needs to tick the checklist there. affects_release_a_after lists the spike steps after which release A should be reported: 'upload' = fixtures/sbom_25_components.json, 'replace' = spike.py's replacement SBOM (werkzeug 2.2.3, flask 2.2.5, requests 2.31.0, pyyaml removed, tomli 2.0.1 added).",
+  "cves": [
+    {
+      "cve": "CVE-2023-25577",
+      "ghsa": "GHSA-xg9f-g7g7-2323",
+      "package": "werkzeug",
+      "fixture_version": "2.2.2",
+      "osv_range": "introduced 0, fixed 2.2.3",
+      "affects_release_a_after": ["upload"]
+    },
+    {
+      "cve": "CVE-2023-32681",
+      "ghsa": "GHSA-j8r2-6x86-q33q",
+      "package": "requests",
+      "fixture_version": "2.28.2",
+      "osv_range": "introduced 2.3.0, fixed 2.31.0",
+      "affects_release_a_after": ["upload"]
+    },
+    {
+      "cve": "CVE-2023-30861",
+      "ghsa": "GHSA-m2qf-hxjv-5gpq",
+      "package": "flask",
+      "fixture_version": "2.2.2",
+      "osv_range": "introduced 0, fixed 2.2.5; introduced 2.3.0, fixed 2.3.2",
+      "affects_release_a_after": ["upload"]
+    },
+    {
+      "cve": "CVE-2023-23931",
+      "ghsa": "GHSA-w7pp-m8wf-vj6r",
+      "package": "cryptography",
+      "fixture_version": "39.0.0",
+      "osv_range": "introduced 1.8, fixed 39.0.1",
+      "affects_release_a_after": ["upload", "replace"]
+    },
+    {
+      "cve": "CVE-2023-37920",
+      "ghsa": "GHSA-xqr8-7jwr-rhp7",
+      "package": "certifi",
+      "fixture_version": "2022.12.7",
+      "osv_range": "introduced 2015.4.28, fixed 2023.7.22",
+      "affects_release_a_after": ["upload", "replace"]
+    }
+  ],
+  "known_no_match": {
+    "cve": "CVE-2019-11324",
+    "ghsa": "GHSA-mh33-7rrq-662w",
+    "package": "urllib3",
+    "fixture_version": "1.26.14",
+    "osv_range": "introduced 0, fixed 1.24.2"
+  },
+  "unknown_cve": "CVE-2099-0001"
+}

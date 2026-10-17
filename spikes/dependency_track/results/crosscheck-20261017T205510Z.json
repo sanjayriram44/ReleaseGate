@@ -1,0 +1,164 @@
+{
+  "run": "run-20261017T205510Z.json",
+  "checked": "2026-10-17T20:55:10.968922Z",
+  "components": {
+    "certifi@2022.12.7": {
+      "osv": 2,
+      "dt": 2,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "cffi@1.15.1": {
+      "osv": 0,
+      "dt": 0,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "charset-normalizer@3.0.1": {
+      "osv": 0,
+      "dt": 0,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "click@8.1.3": {
+      "osv": 0,
+      "dt": 0,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "cryptography@39.0.0": {
+      "osv": 10,
+      "dt": 10,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "flask@2.2.2": {
+      "osv": 2,
+      "dt": 2,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "gunicorn@20.1.0": {
+      "osv": 2,
+      "dt": 2,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "idna@3.4": {
+      "osv": 2,
+      "dt": 2,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "itsdangerous@2.1.2": {
+      "osv": 0,
+      "dt": 0,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "jinja2@3.1.2": {
+      "osv": 5,
+      "dt": 5,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "markupsafe@2.1.1": {
+      "osv": 0,
+      "dt": 0,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "marshmallow@3.19.0": {
+      "osv": 1,
+      "dt": 2,
+      "only_osv": [],
+      "only_dt": [
+        "CVE-2018-17175"
+      ]
+    },
+    "packaging@23.0": {
+      "osv": 0,
+      "dt": 0,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "pycparser@2.21": {
+      "osv": 0,
+      "dt": 0,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "pydantic@1.10.4": {
+      "osv": 1,
+      "dt": 1,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "pyjwt@2.6.0": {
+      "osv": 13,
+      "dt": 13,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "python-dateutil@2.8.2": {
+      "osv": 0,
+      "dt": 0,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "pyyaml@6.0": {
+      "osv": 0,
+      "dt": 0,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "requests@2.28.2": {
+      "osv": 4,
+      "dt": 4,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "setuptools@66.0.0": {
+      "osv": 3,
+      "dt": 3,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "six@1.16.0": {
+      "osv": 0,
+      "dt": 0,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "sqlalchemy@1.4.46": {
+      "osv": 0,
+      "dt": 0,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "typing-extensions@4.4.0": {
+      "osv": 0,
+      "dt": 0,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "urllib3@1.26.14": {
+      "osv": 10,
+      "dt": 10,
+      "only_osv": [],
+      "only_dt": []
+    },
+    "werkzeug@2.2.2": {
+      "osv": 10,
+      "dt": 10,
+      "only_osv": [],
+      "only_dt": []
+    }
+  },
+  "totals": {
+    "only_osv": 0,
+    "only_dt": 1,
+    "osv": 65,
+    "dt": 66
+  }
+}

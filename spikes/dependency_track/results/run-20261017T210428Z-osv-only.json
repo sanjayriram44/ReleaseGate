@@ -1,0 +1,470 @@
+{
+  "started": "2026-10-17T21:00:27.262386Z",
+  "dt_version": "4.14.5",
+  "dt_port": "http://127.0.0.1:8082/api",
+  "strip_cpe": false,
+  "label": "osv-only",
+  "vulnerabilities_in_dt": "25762",
+  "upload": {
+    "timed_out": true,
+    "token_done_s": 0.7527823339987663,
+    "rounds": [
+      {
+        "at_s": 0.17,
+        "processing": true,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-25577",
+          "CVE-2023-30861",
+          "CVE-2023-32681",
+          "CVE-2023-37920"
+        ]
+      },
+      {
+        "at_s": 0.49,
+        "processing": true,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-25577",
+          "CVE-2023-30861",
+          "CVE-2023-32681",
+          "CVE-2023-37920"
+        ]
+      },
+      {
+        "at_s": 0.79,
+        "processing": false,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-25577",
+          "CVE-2023-30861",
+          "CVE-2023-32681",
+          "CVE-2023-37920"
+        ]
+      },
+      {
+        "at_s": 1.08,
+        "processing": false,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-25577",
+          "CVE-2023-30861",
+          "CVE-2023-32681",
+          "CVE-2023-37920"
+        ]
+      },
+      {
+        "at_s": 1.36,
+        "processing": false,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-25577",
+          "CVE-2023-30861",
+          "CVE-2023-32681",
+          "CVE-2023-37920"
+        ]
+      },
+      {
+        "at_s": 118.76,
+        "processing": false,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-25577",
+          "CVE-2023-30861",
+          "CVE-2023-32681",
+          "CVE-2023-37920"
+        ]
+      },
+      {
+        "at_s": 119.05,
+        "processing": false,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-25577",
+          "CVE-2023-30861",
+          "CVE-2023-32681",
+          "CVE-2023-37920"
+        ]
+      },
+      {
+        "at_s": 119.36,
+        "processing": false,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-25577",
+          "CVE-2023-30861",
+          "CVE-2023-32681",
+          "CVE-2023-37920"
+        ]
+      },
+      {
+        "at_s": 119.66,
+        "processing": false,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-25577",
+          "CVE-2023-30861",
+          "CVE-2023-32681",
+          "CVE-2023-37920"
+        ]
+      },
+      {
+        "at_s": 119.97,
+        "processing": false,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-25577",
+          "CVE-2023-30861",
+          "CVE-2023-32681",
+          "CVE-2023-37920"
+        ]
+      }
+    ],
+    "answers": {
+      "CVE-2023-25577": {
+        "known": false,
+        "records": [],
+        "projects": [],
+        "latency_s": 0.009
+      },
+      "CVE-2023-32681": {
+        "known": false,
+        "records": [],
+        "projects": [],
+        "latency_s": 0.008
+      },
+      "CVE-2023-30861": {
+        "known": false,
+        "records": [],
+        "projects": [],
+        "latency_s": 0.022
+      },
+      "CVE-2023-23931": {
+        "known": false,
+        "records": [],
+        "projects": [],
+        "latency_s": 0.003
+      },
+      "CVE-2023-37920": {
+        "known": false,
+        "records": [],
+        "projects": [],
+        "latency_s": 0.002
+      },
+      "CVE-2019-11324": {
+        "known": false,
+        "records": [],
+        "projects": [],
+        "latency_s": 0.002
+      }
+    },
+    "components_a_match_fixture": true,
+    "component_count_a": 25,
+    "component_count_b": 0,
+    "findings_a": 132,
+    "cves_by_component": {
+      "certifi@2022.12.7": [
+        "CVE-2023-37920",
+        "CVE-2024-39689"
+      ],
+      "cryptography@39.0.0": [
+        "CVE-2023-0286",
+        "CVE-2023-23931",
+        "CVE-2023-49083",
+        "CVE-2023-50782",
+        "CVE-2024-0727",
+        "CVE-2024-26130",
+        "CVE-2026-26007",
+        "CVE-2026-34073",
+        "CVE-2026-69248",
+        "CVE-2026-69249"
+      ],
+      "flask@2.2.2": [
+        "CVE-2023-30861",
+        "CVE-2026-27205"
+      ],
+      "gunicorn@20.1.0": [
+        "CVE-2024-1135",
+        "CVE-2024-6827"
+      ],
+      "idna@3.4": [
+        "CVE-2024-3651",
+        "CVE-2026-45409"
+      ],
+      "jinja2@3.1.2": [
+        "CVE-2024-22195",
+        "CVE-2024-34064",
+        "CVE-2024-56201",
+        "CVE-2024-56326",
+        "CVE-2025-27516"
+      ],
+      "marshmallow@3.19.0": [
+        "CVE-2025-68480"
+      ],
+      "pydantic@1.10.4": [
+        "CVE-2024-3772"
+      ],
+      "pyjwt@2.6.0": [
+        "CVE-2025-45768",
+        "CVE-2026-101917",
+        "CVE-2026-101918",
+        "CVE-2026-102267",
+        "CVE-2026-102268",
+        "CVE-2026-102269",
+        "CVE-2026-102270",
+        "CVE-2026-102271",
+        "CVE-2026-102275",
+        "CVE-2026-32597",
+        "CVE-2026-48522",
+        "CVE-2026-48524",
+        "CVE-2026-48526"
+      ],
+      "requests@2.28.2": [
+        "CVE-2023-32681",
+        "CVE-2024-35195",
+        "CVE-2024-47081",
+        "CVE-2026-25645"
+      ],
+      "setuptools@66.0.0": [
+        "CVE-2024-6345",
+        "CVE-2025-47273",
+        "CVE-2026-59890"
+      ],
+      "urllib3@1.26.14": [
+        "CVE-2023-43804",
+        "CVE-2023-45803",
+        "CVE-2024-37891",
+        "CVE-2025-50181",
+        "CVE-2025-66418",
+        "CVE-2025-66471",
+        "CVE-2026-21441",
+        "CVE-2026-44431",
+        "CVE-2026-97687",
+        "CVE-2026-97689"
+      ],
+      "werkzeug@2.2.2": [
+        "CVE-2023-23934",
+        "CVE-2023-25577",
+        "CVE-2023-46136",
+        "CVE-2024-34069",
+        "CVE-2024-49766",
+        "CVE-2024-49767",
+        "CVE-2025-66221",
+        "CVE-2026-102598",
+        "CVE-2026-21860",
+        "CVE-2026-27199"
+      ]
+    },
+    "score": {
+      "true_pos": 0,
+      "false_pos": 0,
+      "false_neg": 5,
+      "recall": 0.0,
+      "precision": 1.0
+    },
+    "rounds_total": 401
+  },
+  "replace": {
+    "timed_out": true,
+    "token_done_s": 0.2860581249988172,
+    "rounds": [
+      {
+        "at_s": 0.03,
+        "processing": true,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-37920"
+        ]
+      },
+      {
+        "at_s": 0.3,
+        "processing": false,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-37920"
+        ]
+      },
+      {
+        "at_s": 0.58,
+        "processing": false,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-37920"
+        ]
+      },
+      {
+        "at_s": 0.85,
+        "processing": false,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-37920"
+        ]
+      },
+      {
+        "at_s": 1.13,
+        "processing": false,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-37920"
+        ]
+      },
+      {
+        "at_s": 118.68,
+        "processing": false,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-37920"
+        ]
+      },
+      {
+        "at_s": 118.96,
+        "processing": false,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-37920"
+        ]
+      },
+      {
+        "at_s": 119.25,
+        "processing": false,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-37920"
+        ]
+      },
+      {
+        "at_s": 119.56,
+        "processing": false,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-37920"
+        ]
+      },
+      {
+        "at_s": 119.85,
+        "processing": false,
+        "wrong": [
+          "CVE-2023-23931",
+          "CVE-2023-37920"
+        ]
+      }
+    ],
+    "answers": {
+      "CVE-2023-25577": {
+        "known": false,
+        "records": [],
+        "projects": [],
+        "latency_s": 0.006
+      },
+      "CVE-2023-32681": {
+        "known": false,
+        "records": [],
+        "projects": [],
+        "latency_s": 0.006
+      },
+      "CVE-2023-30861": {
+        "known": false,
+        "records": [],
+        "projects": [],
+        "latency_s": 0.007
+      },
+      "CVE-2023-23931": {
+        "known": false,
+        "records": [],
+        "projects": [],
+        "latency_s": 0.004
+      },
+      "CVE-2023-37920": {
+        "known": false,
+        "records": [],
+        "projects": [],
+        "latency_s": 0.003
+      },
+      "CVE-2019-11324": {
+        "known": false,
+        "records": [],
+        "projects": [],
+        "latency_s": 0.003
+      }
+    },
+    "components_a_match_replacement": true,
+    "stale_components": [],
+    "missing_components": [],
+    "findings_a": 124,
+    "stale_findings": [],
+    "score": {
+      "true_pos": 0,
+      "false_pos": 0,
+      "false_neg": 2,
+      "recall": 0.0,
+      "precision": 1.0
+    },
+    "rounds_total": 405
+  },
+  "reset": {
+    "delete_s": 0.06,
+    "projects_left": 0,
+    "components_left": 0,
+    "answers": {
+      "CVE-2023-25577": {
+        "known": false,
+        "records": [],
+        "projects": [],
+        "latency_s": 0.002
+      },
+      "CVE-2023-32681": {
+        "known": false,
+        "records": [],
+        "projects": [],
+        "latency_s": 0.002
+      },
+      "CVE-2023-30861": {
+        "known": false,
+        "records": [],
+        "projects": [],
+        "latency_s": 0.002
+      },
+      "CVE-2023-23931": {
+        "known": false,
+        "records": [],
+        "projects": [],
+        "latency_s": 0.002
+      },
+      "CVE-2023-37920": {
+        "known": false,
+        "records": [],
+        "projects": [],
+        "latency_s": 0.002
+      },
+      "CVE-2019-11324": {
+        "known": false,
+        "records": [],
+        "projects": [],
+        "latency_s": 0.003
+      }
+    },
+    "score": {
+      "true_pos": 0,
+      "false_pos": 0,
+      "false_neg": 0,
+      "recall": 1.0,
+      "precision": 1.0
+    }
+  },
+  "unknown_cve": {
+    "CVE-2099-0001": {
+      "known": false,
+      "records": [],
+      "projects": [],
+      "latency_s": 0.003
+    },
+    "CVE-2019-11324": {
+      "known": false,
+      "records": [],
+      "projects": [],
+      "latency_s": 0.002
+    },
+    "distinguishable": false
+  },
+  "finished": "2026-10-17T21:04:28.244131Z"
+}
