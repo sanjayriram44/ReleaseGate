@@ -107,3 +107,12 @@ PROJECT=<gcp-project-id> bash deploy/gcp.sh status   # VM state, /health of syst
 
 `create` built the VM, static IP and the firewall rules that open only TCP 8080 and 8081; it is a
 one-time step.
+
+## Contributors
+
+ECE 30861, Team 6:
+
+- Daksh Agarwal
+- Sanjay Sriram
+- Sathvik Valluri
+- Donovan Baran
