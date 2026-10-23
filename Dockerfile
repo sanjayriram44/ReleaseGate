@@ -3,12 +3,15 @@ FROM python:3.12-slim
 COPY --from=ghcr.io/astral-sh/uv:0.9 /uv /usr/local/bin/uv
 
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PYTHONUNBUFFERED=1 \
-    DB_PATH=/data/releasegate.db PORT=8080
+    DB_PATH=/data/releasegate.db PORT=8080 TESTER_FIXTURES_DIR=/srv/fixtures
 
 WORKDIR /srv
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project
 COPY app ./app
+# /test/run self-test uses the shared check suite and fixtures.
+COPY tester ./tester
+COPY fixtures/releases.json fixtures/sbom_25_components.json ./fixtures/
 
 # Non-root user; /data is the persistent volume mount point for the SQLite file.
 RUN useradd --system --uid 10001 app && mkdir /data && chown app /data

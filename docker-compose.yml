@@ -23,6 +23,9 @@ services:
       dockerfile: tester/Dockerfile
     ports:
       - "${TESTER_PORT:-8081}:8081"
+    environment:
+      # /test/setup without a target_base_url tests our own system.
+      TESTER_DEFAULT_TARGET: http://api:8080
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8081/health')"]

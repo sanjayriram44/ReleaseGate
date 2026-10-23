@@ -461,6 +461,364 @@ paths:
       responses:
         "200":
           description: Test vulnerability source configured
+  /test:
+    get:
+      summary: Describe this service and its autograder endpoints
+      description: 'Course autograder harness, served at the same paths on both base URLs: the system (http://<host>:8080)
+        and the tester (http://<host>:8081). No authentication; no X-User-Id needed.'
+      tags:
+      - autograder harness
+      responses:
+        '200':
+          description: What this service is and its /test endpoints
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - service
+                - role
+                - endpoints
+                properties:
+                  service:
+                    type: string
+                  role:
+                    type: string
+                    enum:
+                    - system
+                    - tester
+                  description:
+                    type: string
+                  endpoints:
+                    type: object
+                    additionalProperties:
+                      type: string
+  /test/setup:
+    post:
+      summary: Start a test session
+      description: 'Course autograder harness, served at the same paths on both base URLs: the system (http://<host>:8080)
+        and the tester (http://<host>:8081). No authentication; no X-User-Id needed.
+
+
+        System: resets all data (releases, components, audit log) and the clock; optional `now` sets the
+        reference clock. Tester: selects the system to test from `target_base_url` (default: our deployed
+        system). Returns the `session_id` used by run and report.'
+      tags:
+      - autograder harness
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Optional. All fields optional; query parameters with the same names also work.
+              properties:
+                session_id:
+                  type: string
+                  description: 'Setup: use this id instead of a generated one. Run: which session.'
+                target_base_url:
+                  type: string
+                  description: 'Tester only: system base URL to test. Defaults to our deployed system.'
+                now:
+                  type: string
+                  format: date-time
+                  description: 'System only: set the reference clock (UTC, trailing Z) after reset.'
+      responses:
+        '200':
+          description: Session created; state reset
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - session_id
+                - status
+                - role
+                properties:
+                  session_id:
+                    type: string
+                  status:
+                    type: string
+                    enum:
+                    - ready
+                  role:
+                    type: string
+                    enum:
+                    - system
+                    - tester
+                  created_at:
+                    type: string
+                    format: date-time
+                  target_base_url:
+                    type:
+                    - string
+                    - 'null'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - error
+                properties:
+                  error:
+                    type: object
+                    required:
+                    - code
+                    - message
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+  /test/run:
+    post:
+      summary: Run the AC-01..AC-03 suite for a session
+      description: 'Course autograder harness, served at the same paths on both base URLs: the system (http://<host>:8080)
+        and the tester (http://<host>:8081). No authentication; no X-User-Id needed.
+
+
+        Runs synchronously (well under 30 s) and returns the outcome. System: runs the suite against itself.
+        Tester: runs it over HTTP against the session''s target, which resets that system''s data. Without
+        a prior setup, run sets up a session first.'
+      tags:
+      - autograder harness
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Optional. All fields optional; query parameters with the same names also work.
+              properties:
+                session_id:
+                  type: string
+                  description: 'Setup: use this id instead of a generated one. Run: which session.'
+                target_base_url:
+                  type: string
+                  description: 'Tester only: system base URL to test. Defaults to our deployed system.'
+                now:
+                  type: string
+                  format: date-time
+                  description: 'System only: set the reference clock (UTC, trailing Z) after reset.'
+      responses:
+        '200':
+          description: Suite finished; full result at /test/report
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - session_id
+                - status
+                - result
+                properties:
+                  session_id:
+                    type: string
+                  status:
+                    type: string
+                    enum:
+                    - completed
+                  result:
+                    type: string
+                    enum:
+                    - pass
+                    - fail
+                    - error
+                  summary:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                    description: required_passed, required_failed, informational_passed, informational_failed
+                  report_url:
+                    type: string
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - error
+                properties:
+                  error:
+                    type: object
+                    required:
+                    - code
+                    - message
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+        '404':
+          description: Unknown session_id
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - error
+                properties:
+                  error:
+                    type: object
+                    required:
+                    - code
+                    - message
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+        '409':
+          description: A run is already in progress
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - error
+                properties:
+                  error:
+                    type: object
+                    required:
+                    - code
+                    - message
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+  /test/report:
+    get:
+      summary: Get a session's result
+      description: 'Course autograder harness, served at the same paths on both base URLs: the system (http://<host>:8080)
+        and the tester (http://<host>:8081). No authentication; no X-User-Id needed.
+
+
+        `status` is `ready` until run finishes, then `completed` with `result` (pass/fail/error), a summary
+        and every check (expected vs actual). Without `session_id`, returns the latest session.'
+      tags:
+      - autograder harness
+      parameters:
+      - name: session_id
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Session result
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - session_id
+                - status
+                - role
+                - checks
+                properties:
+                  session_id:
+                    type: string
+                  status:
+                    type: string
+                    enum:
+                    - ready
+                    - completed
+                  role:
+                    type: string
+                    enum:
+                    - system
+                    - tester
+                  target_base_url:
+                    type:
+                    - string
+                    - 'null'
+                  result:
+                    type:
+                    - string
+                    - 'null'
+                    enum:
+                    - pass
+                    - fail
+                    - error
+                    - null
+                  summary:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                    description: required_passed, required_failed, informational_passed, informational_failed
+                  error:
+                    type:
+                    - string
+                    - 'null'
+                  started_at:
+                    type:
+                    - string
+                    - 'null'
+                  finished_at:
+                    type:
+                    - string
+                    - 'null'
+                  duration_ms:
+                    type:
+                    - integer
+                    - 'null'
+                  checks:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - id
+                      - ac
+                      - title
+                      - required
+                      - passed
+                      - expected
+                      - actual
+                      properties:
+                        id:
+                          type: string
+                        ac:
+                          type: string
+                        title:
+                          type: string
+                        required:
+                          type: boolean
+                        passed:
+                          type: boolean
+                        expected:
+                          type: string
+                        actual:
+                          type: string
+                        request:
+                          type: string
+                        response:
+                          type: string
+                        note:
+                          type: string
+        '404':
+          description: Unknown session_id, or no session yet
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - error
+                properties:
+                  error:
+                    type: object
+                    required:
+                    - code
+                    - message
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+
 components:
   parameters:
     UserId:

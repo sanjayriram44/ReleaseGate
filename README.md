@@ -56,6 +56,22 @@ curl -X POST http://<tester-host>:8081/api/v1/runs \
   a run.
 - Error messages for rejected input appear in the report for the human inspection AC-03 asks for.
 
+## Autograder endpoints (`/test`)
+
+Both base URLs (system `:8080`, tester `:8081`) serve the course autograder harness, documented
+in `docs/openapi.yaml` under "autograder harness". No authentication.
+
+| Call | System | Tester |
+|---|---|---|
+| `GET /test` | describes the service | describes the service |
+| `POST /test/setup` | resets all data; optional `{"now": "…Z"}` sets the clock | optional `{"target_base_url": "…"}`; default is our system |
+| `POST /test/run` | runs AC-01..AC-03 against itself | runs AC-01..AC-03 against the target over HTTP |
+| `GET /test/report?session_id=…` | result and every check | result and every check |
+
+`setup` returns a `session_id`; `run` and `report` take it (in the JSON body or query string;
+without it they use the latest session). `run` is synchronous and finishes in a few seconds.
+The system's `/test` endpoints exist only when `ENABLE_TEST_ENDPOINTS=true`.
+
 ## Models (as delivered in Phase 3)
 
 The Phase 2 report (`docs/phase2_report.pdf`, Section 3.2) has the full information and

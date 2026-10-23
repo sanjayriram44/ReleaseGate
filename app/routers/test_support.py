@@ -31,13 +31,18 @@ def reset(db: DbDep, clock: ClockDep) -> Response:
     return Response(status_code=204)
 
 
-@router.put("/clock", response_model=ClockState)
-def set_clock(body: ClockBody, clock: ClockDep) -> ClockState:
-    if not _UTC_TS.match(body.now):
+def parse_utc(value: str) -> datetime:
+    """A UTC timestamp with a trailing Z, or ApiError(400)."""
+    if not _UTC_TS.match(value):
         raise ApiError(400, "INVALID_REQUEST", "now must be a UTC timestamp ending in Z")
     try:
-        dt = datetime.fromisoformat(body.now).astimezone(UTC)
+        return datetime.fromisoformat(value).astimezone(UTC)
     except ValueError as exc:
         raise ApiError(400, "INVALID_REQUEST", "now is not a valid timestamp") from exc
+
+
+@router.put("/clock", response_model=ClockState)
+def set_clock(body: ClockBody, clock: ClockDep) -> ClockState:
+    dt = parse_utc(body.now)
     clock.set(dt)
     return ClockState(now=format_utc(dt))

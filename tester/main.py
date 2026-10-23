@@ -22,6 +22,10 @@ from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from tester.checks import Fixtures, Report, run
+from tester.harness import HarnessError, make_router
+
+# Accepted names for the system under test in /test/setup and /test/run.
+TARGET_KEYS = ("target_base_url", "system_base_url", "base_url", "system_url", "target")
 
 ClientFactory = Callable[[str], httpx.Client]
 HostCheck = Callable[[str], None]
@@ -72,8 +76,10 @@ def create_app(
     fixtures_dir: str | None = None,
     client_factory: ClientFactory = default_client,
     host_check: HostCheck = reject_link_local,
+    default_target: str | None = None,
 ) -> FastAPI:
     app = FastAPI(title="ReleaseGate Tester", version="1.0.0")
+    default_target = default_target or os.environ.get("TESTER_DEFAULT_TARGET") or None
     fixtures = Fixtures.load(
         Path(fixtures_dir or os.environ.get("TESTER_FIXTURES_DIR", "fixtures"))
     )
@@ -101,18 +107,22 @@ def create_app(
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    @app.post("/api/v1/runs", status_code=201, response_model=None)
-    def start_run(body: RunRequest) -> dict[str, Any] | JSONResponse:
+    def checked_target(url: str) -> str:
         try:
-            target = normalize_target(body.target_base_url)
+            target = normalize_target(url)
             host_check(target)
         except BadTarget as exc:
-            return _error(400, "INVALID_TARGET", str(exc))
+            raise HarnessError(400, "INVALID_TARGET", str(exc)) from exc
+        return target
+
+    def execute(target: str) -> Report:
         with runs_lock:
             lock = target_locks.setdefault(target, threading.Lock())
         # One run per target at a time: each run resets the target's data.
         if not lock.acquire(blocking=False):
-            return _error(409, "RUN_IN_PROGRESS", f"a run against {target} is already in progress")
+            raise HarnessError(
+                409, "RUN_IN_PROGRESS", f"a run against {target} is already in progress"
+            )
         try:
             with client_factory(target) as client:
                 report = run(client, fixtures, target)
@@ -122,7 +132,36 @@ def create_app(
             runs[report.run_id] = report
             while len(runs) > MAX_RUNS_KEPT:
                 runs.popitem(last=False)
-        return report.to_dict()
+        return report
+
+    @app.post("/api/v1/runs", status_code=201, response_model=None)
+    def start_run(body: RunRequest) -> dict[str, Any] | JSONResponse:
+        try:
+            return execute(checked_target(body.target_base_url)).to_dict()
+        except HarnessError as exc:
+            return _error(exc.status, exc.code, exc.message)
+
+    def harness_setup(params: dict[str, Any]) -> dict[str, Any]:
+        url = next((params[k] for k in TARGET_KEYS if params.get(k)), None) or default_target
+        if not url:
+            raise HarnessError(
+                400, "INVALID_TARGET", "give target_base_url (the system base URL to test)"
+            )
+        return {"target_base_url": checked_target(str(url))}
+
+    def harness_run(params: dict[str, Any], session: dict[str, Any]) -> Report:
+        return execute(session["target_base_url"])
+
+    app.include_router(
+        make_router(
+            "tester",
+            "ReleaseGate tester. setup selects the system to test (target_base_url, default: our "
+            "deployed system); run executes AC-01..AC-03 against it over HTTP, resetting its "
+            "data; report returns every check.",
+            harness_setup,
+            harness_run,
+        )
+    )
 
     @app.get("/api/v1/runs")
     def list_runs() -> dict[str, Any]:

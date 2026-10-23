@@ -6,6 +6,7 @@ from app.clock import Clock
 from app.config import Settings
 from app.db import Database
 from app.errors import install_error_handlers
+from app.harness import build_router as build_harness_router
 from app.routers import audit, health, releases, sbom, test_support
 
 
@@ -44,4 +45,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(audit.router)
     if settings.enable_test_endpoints:
         app.include_router(test_support.router)
+        app.include_router(build_harness_router(app))
     return app
