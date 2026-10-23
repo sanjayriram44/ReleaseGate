@@ -8,6 +8,7 @@ from app.db import Database
 from app.errors import install_error_handlers
 from app.harness import build_router as build_harness_router
 from app.routers import audit, health, releases, sbom, test_support
+from tester.harness import CollapseSlashes
 
 
 def _require_user_id_in_schema(app: FastAPI) -> None:
@@ -37,6 +38,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.clock = Clock()
     app.state.db = Database(settings.db_path)
     app.state.db.init_schema()
+    app.add_middleware(CollapseSlashes)
     install_error_handlers(app)
     _require_user_id_in_schema(app)
     app.include_router(health.router)

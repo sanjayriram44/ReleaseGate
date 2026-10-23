@@ -6,6 +6,7 @@ schemas below are the single source for both the routes and docs/openapi.yaml.
 """
 
 import json
+import re
 import threading
 import uuid
 from collections import OrderedDict
@@ -16,10 +17,26 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from tester.checks import Report
 
 MAX_SESSIONS = 50
+
+
+class CollapseSlashes:
+    """ASGI middleware: //test/setup -> /test/setup, so a base URL registered with a trailing
+    slash still reaches every route when a client appends "/test/..." to it."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and "//" in scope["path"]:
+            path = re.sub(r"/{2,}", "/", scope["path"])
+            scope = {**scope, "path": path, "raw_path": path.encode()}
+        await self.app(scope, receive, send)
+
 
 ERROR_SCHEMA: dict[str, Any] = {
     "type": "object",

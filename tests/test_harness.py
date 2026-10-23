@@ -138,3 +138,13 @@ def test_tester_uses_default_target_and_alternate_names(tmp_path: Path) -> None:
 def test_tester_rejects_bad_target(tmp_path: Path) -> None:
     r = make_tester(tmp_path).post("/test/setup", json={"target_base_url": "ftp://x"})
     assert r.status_code == 400 and r.json()["error"]["code"] == "INVALID_TARGET"
+
+
+def test_base_url_with_trailing_slash_still_works(tmp_path: Path) -> None:
+    """A registered base URL ending in "/" makes clients call //test/... ."""
+    for c in (system(tmp_path), make_tester(tmp_path, default_target="http://our-system:8080")):
+        base = str(c.base_url).rstrip("/")
+        assert c.get(f"{base}//test").status_code == 200
+        sid = c.post(f"{base}//test/setup").json()["session_id"]
+        assert c.post(f"{base}//test/run", json={"session_id": sid}).json()["result"] == "pass"
+        assert c.get(f"{base}//test/report", params={"session_id": sid}).status_code == 200

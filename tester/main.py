@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from tester.checks import Fixtures, Report, run
-from tester.harness import HarnessError, make_router
+from tester.harness import CollapseSlashes, HarnessError, make_router
 
 # Accepted names for the system under test in /test/setup and /test/run.
 TARGET_KEYS = ("target_base_url", "system_base_url", "base_url", "system_url", "target")
@@ -79,6 +79,7 @@ def create_app(
     default_target: str | None = None,
 ) -> FastAPI:
     app = FastAPI(title="ReleaseGate Tester", version="1.0.0")
+    app.add_middleware(CollapseSlashes)
     default_target = default_target or os.environ.get("TESTER_DEFAULT_TARGET") or None
     fixtures = Fixtures.load(
         Path(fixtures_dir or os.environ.get("TESTER_FIXTURES_DIR", "fixtures"))
