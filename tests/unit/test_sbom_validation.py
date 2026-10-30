@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Any
 
@@ -134,4 +135,23 @@ def test_nested_component_without_version_names_its_path() -> None:
     assert _reason(raw(doc))[1] == (
         "components[0].components[0].components[0] ('grandchild') is missing required field:"
         " version"
+    )
+
+
+def test_duplicate_component_message_is_short() -> None:
+    doc = json.loads(Path("fixtures/sbom_25_components.json").read_bytes())
+    doc["components"].append(doc["components"][3])
+    code, message = _reason(raw(doc))
+    assert code == "INVALID_SBOM"
+    assert message == "components contains duplicate entries: components[25] repeats components[3]"
+
+
+def test_nested_duplicate_names_its_path() -> None:
+    doc = make_sbom(1)
+    child = {"type": "library", "name": "c", "version": "1"}
+    doc["components"][0]["components"] = [child, {"type": "library", "name": "d", "version": "1"}]
+    doc["components"][0]["components"].append(child)
+    assert _reason(raw(doc))[1] == (
+        "components[0].components contains duplicate entries:"
+        " components[0].components[2] repeats components[0].components[0]"
     )

@@ -41,6 +41,17 @@ def _location(path: list[Any]) -> str:
     return out.lstrip(".")
 
 
+def _duplicate_message(where: str, items: list[Any]) -> str:
+    """'<where> contains duplicate entries: <where>[i] repeats <where>[j]' for the first repeat."""
+    seen: dict[str, int] = {}
+    for i, item in enumerate(items):
+        key = json.dumps(item, sort_keys=True)
+        if key in seen:
+            return f"{where} contains duplicate entries: {where}[{i}] repeats {where}[{seen[key]}]"
+        seen[key] = i
+    return f"{where} contains duplicate entries"
+
+
 def parse_and_validate(raw: bytes) -> list[ParsedComponent]:
     """Fully validate a CycloneDX JSON document; raise ApiError(400) naming the reason."""
     try:
@@ -70,6 +81,9 @@ def parse_and_validate(raw: bytes) -> list[ParsedComponent]:
     if err is not None:
         data = err.data
         where = _location(list(data.path))
+        if data.validator == "uniqueItems" and isinstance(data.instance, list):
+            # The raw message embeds the whole array (~37K characters for the fixture).
+            raise _invalid_sbom(_duplicate_message(where, data.instance))
         match = _REQUIRED_RE.search(data.message)
         if match:
             prefix = f" in {where}" if where else ""
