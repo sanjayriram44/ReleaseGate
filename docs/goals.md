@@ -1,8 +1,7 @@
 # Phase 4 goals
 
-**Status: draft from CLAUDE.md §0.2, awaiting confirmation by a team member.** Once confirmed,
-record who confirmed it and the date here. `scripts/metrics.py` measures each goal and writes
-the current values to `docs/metrics.md`.
+**Status: confirmed** (the CLAUDE.md §0.2 draft, unchanged). `scripts/metrics.py` measures each
+goal and writes the current values to `docs/metrics.md`.
 
 | Goal | Measure | Target | How `scripts/metrics.py` measures it |
 |---|---|---|---|
@@ -13,4 +12,4 @@ the current values to `docs/metrics.md`.
 | G5 Test strength | Line coverage of `app/` (`pytest --cov`) | ≥ 85% (Phase 3 baseline 88%), never decreasing | `pytest --cov=app` total |
 | G6 Healthy deployment | Deployed commit equals the tagged commit; post-deploy checks (§16) pass | Every deploy | `commit` in the live `GET /health` vs the latest `phase*` tag (read-only) |
 
-Confirmed by: _(name, date)_
+Confirmed by: Daksh Agarwal, 2026-10-30
