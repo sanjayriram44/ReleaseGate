@@ -23,6 +23,7 @@ pick up here. **Read `CLAUDE.md` (the Phase 4 handoff) first**, then this file, 
 | 3 §4 carry-over 1–8 | All done, one commit each: threadpool SBOM upload, nested-component flattening, offset/fraction timestamps, short duplicate error, blank names → 400, Content-Type message, no 422 in the generated OpenAPI (the contract test now fails on extra codes), smoke test in `tmp_path`. `scripts/smoke.sh` was updated for offsets too. |
 | 4 Shared time parsing and formatting | Done as part of §4 item 3: `parse_utc(value, field)` and `format_utc` in `app/clock.py`. Use them for `awareness_at`, `fix_available_at` and `submitted_at`. |
 | 5 onwards | **Not started; blocked on the human answers below.** |
+| Unblocked extras (session 2, 2026-10-30) | `/health` reports the built commit (`GIT_SHA` build arg → `Settings.commit`, `unknown` when unset; §16.1). CI stage E `docker-build` builds both images tagged with the SHA and checks the commit inside the system image; shown to fail on a throwaway branch without `ENV GIT_SHA` (deleted). The live VM still runs `136c05a`, so G6 stays unmeasurable until a redeploy with `deploy/gcp.sh update`, which now passes `GIT_SHA`. |
 
 ### Human tasks still open
 
@@ -85,6 +86,8 @@ review them before anything depends on them.
   (`status` checks health). It pulls main on the VM, rebuilds and keeps the data volume. Ask
   before every deploy and before anything that writes to or resets the live system. A tester or
   harness run (`/test/setup`, `/test/run`) resets the data, so re-seed the demo release afterwards.
+
+- **On Windows** (the second session ran there): the venv is `.venv/Scripts/`, not `.venv/bin/`; pytest's default temp dir may be unwritable, so pass `--basetemp=<scratch dir>` (for `metrics.py`, set `PYTEST_ADDOPTS=--basetemp=...`); run Python file edits with `PYTHONUTF8=1` so `§` stays UTF-8; and there is no local Docker, so the image is checked by CI stage E. Shell scripts are committed with LF even though `core.autocrlf` is on.
 
 ## Things to watch in the next steps
 
