@@ -26,7 +26,14 @@ def error_response(
     return JSONResponse(status_code=status, content={"error": body})
 
 
-def _validation_message(exc: RequestValidationError) -> str:
+def _is_json(content_type: str | None) -> bool:
+    media = (content_type or "").split(";")[0].strip().lower()
+    return media == "application/json" or (
+        media.startswith("application/") and media.endswith("+json")
+    )
+
+
+def _validation_message(exc: RequestValidationError, content_type: str | None) -> str:
     errors = exc.errors()
     if not errors:
         return "invalid request"
@@ -36,6 +43,9 @@ def _validation_message(exc: RequestValidationError) -> str:
     if err["type"] == "missing":
         return f"{field} is required" if field else "request body is required"
     if err["type"] in ("json_invalid", "model_attributes_type"):
+        # FastAPI only parses JSON bodies, so a JSON body labelled text/plain lands here too.
+        if not _is_json(content_type):
+            return "Content-Type must be application/json"
         return "request body is not valid JSON"
     if err["type"] == "value_error" and "error" in err.get("ctx", {}):
         # Our own validators' messages read as a sentence: "product must not be blank".
@@ -54,9 +64,10 @@ def install_error_handlers(app: FastAPI) -> None:
         return error_response(exc.status, exc.code, exc.message, exc.details)
 
     @app.exception_handler(RequestValidationError)
-    async def _validation(_: Request, exc: RequestValidationError) -> JSONResponse:
+    async def _validation(request: Request, exc: RequestValidationError) -> JSONResponse:
         # The shared contract uses 400, not FastAPI's default 422.
-        return error_response(400, "INVALID_REQUEST", _validation_message(exc))
+        message = _validation_message(exc, request.headers.get("content-type"))
+        return error_response(400, "INVALID_REQUEST", message)
 
     @app.exception_handler(StarletteHTTPException)
     async def _http(_: Request, exc: StarletteHTTPException) -> JSONResponse:

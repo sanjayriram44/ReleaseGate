@@ -108,3 +108,22 @@ def test_names_are_stored_exactly_as_sent(client: TestClient) -> None:
     assert r.status_code == 201
     got = client.get(f"/api/v1/releases/{r.json()['release_id']}").json()
     assert (got["product"], got["version"]) == (" Router ", "1.0 ")
+
+
+@pytest.mark.parametrize("content_type", ["text/plain", "application/x-www-form-urlencoded", None])
+def test_json_body_with_wrong_content_type_says_so(
+    client: TestClient, content_type: str | None
+) -> None:
+    body = b'{"product": "Router", "version": "1.0", "support_end_date": "2030-01-01"}'
+    headers = {**H, "Content-Type": content_type} if content_type else H
+    r = client.post("/api/v1/releases", content=body, headers=headers)
+    assert r.status_code == 400
+    want = {"code": "INVALID_REQUEST", "message": "Content-Type must be application/json"}
+    assert r.json() == {"error": want}
+
+
+def test_invalid_json_with_json_content_type_is_still_invalid_json(client: TestClient) -> None:
+    headers = {**H, "Content-Type": "application/json"}
+    r = client.post("/api/v1/releases", content=b"{not json", headers=headers)
+    assert r.status_code == 400
+    assert r.json()["error"]["message"] == "request body is not valid JSON"
