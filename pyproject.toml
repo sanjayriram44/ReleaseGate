@@ -27,6 +27,10 @@ dev = [
 line-length = 100
 target-version = "py312"
 
+[tool.ruff.format]
+# The handoffs are copied verbatim; don't reformat the Python snippets inside them.
+exclude = ["CLAUDE.md", "docs/PHASE3_HANDOFF.md"]
+
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 

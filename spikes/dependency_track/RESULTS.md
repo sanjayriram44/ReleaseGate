@@ -21,7 +21,7 @@ The Phase 2 report commits Team 6 to this spike before the **Phase 3 milestone**
 
 So this spike **decides whether Phase 4's CVE query (REQ-03/REQ-04,
 AC-04/AC-05) uses Dependency-Track (DT) or the local-matching fallback.** See
-CLAUDE.md §8 as well.
+docs/PHASE3_HANDOFF.md §8 as well.
 
 ## Setup
 
@@ -299,7 +299,7 @@ the shared test data.
 - [ ] Team 6 agrees on the recommendation.
 - [ ] The pod agrees, because DT was a pod-wide Phase 1 choice. Record the
   outcome in `docs/decisions.md`.
-- [ ] The pod settles the §9.2 matching key (CLAUDE.md §7.5). This spike
+- [ ] The pod settles the §9.2 matching key (docs/PHASE3_HANDOFF.md §7.5). This spike
   matched on purl.
 
 ### Human check of the spike inputs

@@ -2,7 +2,8 @@
 
 Release/SBOM registry and (later) CRA deadline tracker. Implements the shared contract in
 `docs/openapi.yaml`. Phase 3 scope: releases, CycloneDX SBOM ingestion, audit log, test
-endpoints. See `CLAUDE.md` (the Phase 3 handoff) for rules and open questions.
+endpoints. See `CLAUDE.md` (the Phase 4 handoff; Phase 3's is `docs/PHASE3_HANDOFF.md`) for
+rules and open questions.
 
 ## Run locally
 
