@@ -2,9 +2,9 @@
 
 Each line carries the request ID, X-User-Id, method, path, status, latency, and the clock value
 when the request arrived (and whether the test clock overrode it), so a failing test can be
-replayed (report §7.4). Error responses add their error code and message, which gives the error rates,
-the 503 rate and the SBOM rejection reasons. The request ID is echoed in X-Request-Id; a
-caller's own ID is kept when it's short and safe.
+replayed (report §7.4). Error responses add their error code and message, which gives the
+error rates, the 503 rate and the SBOM rejection reasons. The request ID is echoed in
+X-Request-Id; a caller's own ID is kept when it's short and safe.
 """
 
 import json
