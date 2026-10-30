@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 H = {"X-User-Id": "alice"}
@@ -88,3 +89,22 @@ def test_timestamp_in_test_clock_must_have_a_zone(client: TestClient) -> None:
     assert r.status_code == 400
     r = client.put("/api/v1/test/clock", json={"now": "2026-06-15T12:00:00Z"})
     assert r.json() == {"now": "2026-06-15T12:00:00Z"}
+
+
+@pytest.mark.parametrize("field", ["product", "version"])
+@pytest.mark.parametrize("value", ["", " ", "\t \n"])
+def test_blank_product_or_version_is_400(client: TestClient, field: str, value: str) -> None:
+    body = {"product": "Router", "version": "1.0", "support_end_date": "2030-01-01", field: value}
+    r = client.post("/api/v1/releases", json=body, headers=H)
+    assert r.status_code == 400
+    want = {"code": "INVALID_REQUEST", "message": f"{field} must not be blank"}
+    assert r.json() == {"error": want}
+    assert client.get("/api/v1/audit-logs").json()["events"] == []
+
+
+def test_names_are_stored_exactly_as_sent(client: TestClient) -> None:
+    body = {"product": " Router ", "version": "1.0 ", "support_end_date": "2030-01-01"}
+    r = client.post("/api/v1/releases", json=body, headers=H)
+    assert r.status_code == 201
+    got = client.get(f"/api/v1/releases/{r.json()['release_id']}").json()
+    assert (got["product"], got["version"]) == (" Router ", "1.0 ")

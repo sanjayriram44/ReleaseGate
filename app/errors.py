@@ -37,6 +37,10 @@ def _validation_message(exc: RequestValidationError) -> str:
         return f"{field} is required" if field else "request body is required"
     if err["type"] in ("json_invalid", "model_attributes_type"):
         return "request body is not valid JSON"
+    if err["type"] == "value_error" and "error" in err.get("ctx", {}):
+        # Our own validators' messages read as a sentence: "product must not be blank".
+        reason = str(err["ctx"]["error"])
+        return f"{field} {reason}" if field else reason
     msg = str(err["msg"])
     return f"{field}: {msg}" if field else msg
 

@@ -2,7 +2,7 @@ import re
 from datetime import date
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, BeforeValidator, ConfigDict, Field
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -21,12 +21,21 @@ def _parse_date(value: Any) -> date:
 IsoDate = Annotated[date, BeforeValidator(_parse_date)]
 
 
+def _not_blank(value: str) -> str:
+    if not value.strip():
+        raise ValueError("must not be blank")
+    return value  # stored exactly as sent
+
+
+NonBlank = Annotated[str, AfterValidator(_not_blank)]
+
+
 class ReleaseCreate(BaseModel):
     # strict: no coercion (ints for strings, datetimes for dates); dates must be YYYY-MM-DD.
     model_config = ConfigDict(strict=True, extra="ignore")
 
-    product: str = Field(min_length=1)
-    version: str = Field(min_length=1)
+    product: NonBlank
+    version: NonBlank
     support_end_date: IsoDate
 
 
