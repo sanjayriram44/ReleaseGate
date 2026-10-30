@@ -1,6 +1,7 @@
 from typing import Any
 
 from fastapi import APIRouter, Request
+from starlette.concurrency import run_in_threadpool
 
 from app.clock import Clock
 from app.db import Database
@@ -34,7 +35,9 @@ async def put_sbom(
     releaseId: str, request: Request, user_id: UserDep, db: DbDep, clock: ClockDep
 ) -> SbomStored:
     raw = await request.body()
-    return _store(releaseId, raw, user_id, db, clock)
+    # Validation and SQLite block; keep them off the event loop so other requests still run.
+    # BEGIN IMMEDIATE in db.transaction() serialises concurrent writers.
+    return await run_in_threadpool(_store, releaseId, raw, user_id, db, clock)
 
 
 def _store(release_id: str, raw: bytes, user_id: str, db: Database, clock: Clock) -> SbomStored:

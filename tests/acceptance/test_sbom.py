@@ -1,9 +1,13 @@
 import json
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 
+from app.routers import sbom as sbom_router
 from tests.sbom_helpers import make_sbom, raw
 
 H = {"X-User-Id": "alice"}
@@ -150,3 +154,31 @@ def test_upload_works_on_database_created_by_older_schema(tmp_path: Path) -> Non
     with TestClient(create_app(Settings(db_path=str(path)))) as c:
         r = put(c, "r1", (FIXTURES / "sbom_25_components.json").read_bytes())
         assert r.status_code == 200 and r.json()["component_count"] == 25
+
+
+def test_health_answers_during_slow_sbom_upload(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A long validation must not block the event loop (Phase 3 review finding 1)."""
+    started, health_done = threading.Event(), threading.Event()
+    real = sbom_router.parse_and_validate
+
+    def slow(body: bytes) -> Any:
+        started.set()
+        health_done.wait(timeout=3)  # held until /health has answered, or 3 s
+        return real(body)
+
+    monkeypatch.setattr(sbom_router, "parse_and_validate", slow)
+    rid = release(client)
+    result: dict[str, Any] = {}
+    upload = threading.Thread(target=lambda: result.update(r=put(client, rid, raw(make_sbom(2)))))
+    upload.start()
+    assert started.wait(timeout=3)
+    t0 = time.monotonic()
+    h = client.get("/health")
+    elapsed = time.monotonic() - t0
+    health_done.set()
+    upload.join(timeout=5)
+    assert h.status_code == 200
+    assert elapsed < 1, f"/health took {elapsed:.1f} s during an upload"
+    assert result["r"].status_code == 200
