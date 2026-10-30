@@ -40,7 +40,8 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] `/health` reports the built commit (`GIT_SHA` build arg; `unknown` when unset) — proof: `tests/acceptance/test_test_support.py::test_health_reports_the_built_commit`
 - [ ] Reset clears incidents, submissions and vulnerability records; `/health` reports source mode — proof: acceptance tests. **blocked: §10 Q8**
 - [ ] Tester checks and harness `/test/run` for AC-04..AC-07 — proof: `tests/tester`, `tests/test_harness.py`
-- [ ] Structured JSON request logs and signals (§8) — proof: unit test on the log line
+- [x] Structured JSON request logs (§8): one line per request, request ID echoed in `X-Request-Id`, error code/message on 4xx/5xx, uvicorn access log off — proof: `tests/unit/test_request_log.py`
+- [ ] Log signals for the source and deadlines (§8): source error detail on 503 lines, overdue-deadline counts — proof: tests with the CVE query and incidents. **blocked: §10 Q2, Q6–Q8**
 - [ ] Nightly SQLite backup cron, 7 copies (§8) — proof: script test
 - [ ] `scripts/post_deploy_check.sh`, `deploy/gcp.sh` build-from-tag and `rollback` (§16) — proof: run against the live URL (non-destructive mode)
 - [ ] Deploy, cross-team runs both ways in `docs/test-reports/`, tag `phase4` — proof: §14.4

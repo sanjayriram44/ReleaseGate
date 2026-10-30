@@ -58,6 +58,11 @@ class Clock:
                 return self._override
         return datetime.now(UTC)
 
+    def overridden(self) -> bool:
+        """True while the test clock has set the time."""
+        with self._lock:
+            return self._override is not None
+
     def set(self, dt: datetime) -> None:
         if dt.tzinfo is None:
             raise ValueError("clock time must be timezone-aware")

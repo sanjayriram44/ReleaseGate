@@ -23,4 +23,5 @@ ARG GIT_SHA=unknown
 ENV GIT_SHA=${GIT_SHA}
 
 EXPOSE 8080
-CMD ["sh", "-c", "exec /srv/.venv/bin/uvicorn app.main:create_app --factory --host 0.0.0.0 --port ${PORT}"]
+# app/request_log.py writes one JSON line per request, so uvicorn's access log is off.
+CMD ["sh", "-c", "exec /srv/.venv/bin/uvicorn app.main:create_app --factory --host 0.0.0.0 --port ${PORT} --no-access-log"]

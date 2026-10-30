@@ -7,6 +7,7 @@ from app.config import Settings
 from app.db import Database
 from app.errors import install_error_handlers
 from app.harness import build_router as build_harness_router
+from app.request_log import RequestLog, configure_logging
 from app.routers import audit, health, releases, sbom, test_support
 from tester.harness import CollapseSlashes
 
@@ -46,6 +47,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.clock = Clock()
     app.state.db = Database(settings.db_path)
     app.state.db.init_schema()
+    configure_logging()
+    # The last middleware added runs first, so the log sees the collapsed path.
+    app.add_middleware(RequestLog, clock=app.state.clock)
     app.add_middleware(CollapseSlashes)
     install_error_handlers(app)
     _align_schema_with_contract(app)

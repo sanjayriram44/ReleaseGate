@@ -10,7 +10,7 @@ rules and open questions.
 ```bash
 uv sync
 ENABLE_TEST_ENDPOINTS=true DB_PATH=./data/releasegate.db \
-  uv run uvicorn app.main:create_app --factory --port 8080
+  uv run uvicorn app.main:create_app --factory --port 8080 --no-access-log
 ```
 
 ## Test
