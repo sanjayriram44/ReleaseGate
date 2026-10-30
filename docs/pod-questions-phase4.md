@@ -1,42 +1,6 @@
 # Phase 4 pod questions: Team 6 to Team 2
 
-Sent 2026-10-30 by Team 6 (ReleaseGate). Please reply by: ____
-
-## Why we're asking
-
-Both teams build the same shared specification, and from Phase 4 each team's suite runs against
-the other's service for a grade. For Phase 4 (CVE query with fault injection, incident deadlines)
-the contract in `docs/openapi.yaml` leaves the questions below open. If we answer them
-differently, the cross-team runs will fail on differences that aren't bugs.
-
-For each question, please reply **agree** or give a **counter-proposal**. We record every answer,
-with its date, in `docs/decisions.md`. Answers that change the contract go into
-`docs/openapi.yaml` in a single commit that both teams approve.
-
-We haven't built the incident endpoints or the CVE query yet. We're waiting on these answers.
-
-## Summary
-
-| # | Topic | Our proposal | Contract change? | Blocks |
-|---|---|---|---|---|
-| Q1 | Timestamp format | Accept `Z` or a numeric offset; always return UTC `Z` | Section 5 wording | Sign-off only (already built) |
-| Q2 | Late submission | Stays `overdue`, with `submitted_at` set | No (yes if you prefer a `late` status) | Deadline status |
-| Q3 | Duplicate or not-applicable submission | Duplicate: 409. Not applicable: 400 | Yes, for 409 | Submissions |
-| Q4 | Timestamps before awareness | 400. Future times allowed | No | PATCH, submissions |
-| Q5 | Fix time set twice, or on a voluntary case | Overwrite (audited). Voluntary: store it, deadlines stay `not_applicable` | No | PATCH |
-| Q6 | Malformed CVE ID | 400 `INVALID_REQUEST` | Yes, adds 400 | CVE query |
-| Q7 | Purl matching | Exact match after dropping qualifiers and subpath | No | CVE query |
-| Q8 | Vulnerability source after reset | `available`, zero records; each PUT replaces all records | No | Test endpoints |
-| Q9 | `cve_id` on an incident | Format check only | No | Create incident |
-| Q10 | Production vulnerability source | Local OSV snapshot (needs instructor sign-off) | Report §2.2, not the API | Production only |
-| Q11 | Deadline alerts | None in Phase 4; status shown on every read | Report diagrams only | Diagrams |
-| Q12 | Deadline boundaries | Submitted exactly at the deadline: `met`. Unsubmitted at the deadline: `pending`; 1 s later: `overdue` | No | AC-07 |
-| Q13 | Order of affected releases | Tests compare as sets; both teams also sort the same way | No | AC-04 tests |
-| F | AC-04 fixtures | We draft them from our spike; both teams check the expected values | New shared fixtures | AC-04 |
-
-## Questions
-
-### Q1. Timestamp format (Section 5 amendment)
+## Q1. Timestamp format (Section 5 amendment)
 
 **Question:** Which timestamp forms do the timestamp fields accept, and how are they returned?
 
@@ -57,7 +21,7 @@ This is live on our service as of 2026-10-30.
 
 **Team 2 answer:** ____
 
-### Q2. Submission after its deadline
+## Q2. Submission after its deadline
 
 **Question:** What is a stage's status once its report was submitted after the deadline?
 
@@ -71,7 +35,7 @@ diagrams either way.
 
 **Team 2 answer:** ____
 
-### Q3. Duplicate submissions, and submissions for a stage that doesn't apply
+## Q3. Duplicate submissions, and submissions for a stage that doesn't apply
 
 **Question:** What happens when `POST /api/v1/incidents/{id}/submissions` is sent:
 1. a second time for the same stage?
@@ -90,7 +54,7 @@ first.
 
 **Team 2 answer:** ____
 
-### Q4. Timestamp sanity checks
+## Q4. Timestamp sanity checks
 
 **Question:** Should we reject `submitted_at` or `fix_available_at` earlier than the incident's
 `awareness_at`? And should we reject times later than the clock's current time?
@@ -100,7 +64,7 @@ the clock's now, because the test clock can be set anywhere and tests move it fo
 
 **Team 2 answer:** ____
 
-### Q5. Setting `fix_available_at` more than once, or on a voluntary case
+## Q5. Setting `fix_available_at` more than once, or on a voluntary case
 
 **Our proposal:**
 - **Mandatory case:** a second `PATCH` overwrites the value, the final-report deadline moves to
@@ -109,7 +73,7 @@ the clock's now, because the test clock can be set anywhere and tests move it fo
 
 **Team 2 answer:** ____
 
-### Q6. Malformed CVE ID in the query
+## Q6. Malformed CVE ID in the query
 
 **Question:** What does `GET /api/v1/vulnerabilities/{cveId}/affected-releases` return for an ID
 that doesn't match `^CVE-[0-9]{4}-[0-9]+$`, such as `CVE-26-1` or `abc`?
@@ -123,7 +87,7 @@ that doesn't match `^CVE-[0-9]{4}-[0-9]+$`, such as `CVE-26-1` or `abc`?
 
 **Team 2 answer:** ____
 
-### Q7. How a component's purl matches an affected purl
+## Q7. How a component's purl matches an affected purl
 
 **Question:** When does a stored component match an entry in a fixture's `affected_purls`?
 
@@ -141,7 +105,7 @@ happens with other SBOMs, where a qualifier would otherwise hide a real match.
 
 **Team 2 answer:** ____
 
-### Q8. Vulnerability source after a reset, and what a PUT does
+## Q8. Vulnerability source after a reset, and what a PUT does
 
 **Our proposal:**
 - After `POST /api/v1/test/reset`, the source is `available` with zero records, so every CVE is
@@ -153,7 +117,7 @@ happens with other SBOMs, where a qualifier would otherwise hide a real match.
 
 **Team 2 answer:** ____
 
-### Q9. `cve_id` on an incident
+## Q9. `cve_id` on an incident
 
 **Question:** If `POST /api/v1/incidents` includes a `cve_id`, must the vulnerability source know
 that CVE?
@@ -163,7 +127,7 @@ opened before any source knows the CVE.
 
 **Team 2 answer:** ____
 
-### Q10. Production vulnerability source
+## Q10. Production vulnerability source
 
 **Question:** Where do CVE matches come from outside tests?
 
@@ -179,7 +143,7 @@ way, so this doesn't affect cross-team results.
 
 **Team 2 answer:** ____
 
-### Q11. Deadline alerts
+## Q11. Deadline alerts
 
 **Our proposal:** No push alerts in Phase 4. Every `GET /api/v1/incidents/{id}` shows each stage's
 status, including `overdue`. REQ-06 doesn't require alerts.
@@ -189,7 +153,7 @@ behavior model, or agree on a reminder mechanism for later.
 
 **Team 2 answer:** ____
 
-### Q12. Deadline boundaries (AC-07, 0 s tolerance)
+## Q12. Deadline boundaries (AC-07, 0 s tolerance)
 
 **Our proposal:**
 - **Deadlines:** `early_warning` = `awareness_at` + 24 h; `vulnerability_notification` =
@@ -203,7 +167,7 @@ behavior model, or agree on a reminder mechanism for later.
 
 **Team 2 answer:** ____
 
-### Q13. Order of affected releases
+## Q13. Order of affected releases
 
 **Question:** May cross-team tests depend on the order of `supported`, `unsupported` and
 `matched_components`?
@@ -213,7 +177,7 @@ version, then `release_id`, and components by name, then version, so responses a
 
 **Team 2 answer:** ____
 
-### F. AC-04 shared fixtures
+## F. AC-04 shared fixtures
 
 AC-04 needs four new shared files:
 - `fixtures/sbom_patched.json`
@@ -244,14 +208,3 @@ adds tomli 2.0.1. The dataset gives some affected releases a support end date af
 clock (`supported`) and some before it (`unsupported`).
 
 **Team 2 answer (who checks, and by when):** ____
-
-## Logistics
-
-- **Every run resets the target's data:** `/test/setup` and the tester call
-  `POST /api/v1/test/reset`. Please tell us before running your suite against our service, and
-  we'll do the same.
-- **Ready for a rerun:** our Phase 3 timestamp fix is live, and we'd welcome a rerun of your suite
-  once our redeploy is done. Our system is at `http://136.116.160.182:8080` and our tester at
-  `http://136.116.160.182:8081`.
-- **Recording results:** we log each cross-team run in `docs/test-reports/`: date, passed and run
-  counts, the main problem and its owner.
