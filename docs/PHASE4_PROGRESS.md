@@ -19,7 +19,7 @@ pick up here. **Read `CLAUDE.md` (the Phase 4 handoff) first**, then this file, 
 | Step | State |
 |---|---|
 | 1 Goal audit | Done. `docs/goals.md` was confirmed by Daksh Agarwal on 2026-10-30. `scripts/metrics.py` writes `docs/metrics.md`. Tasks are in `docs/issues.md` (`gh` isn't authenticated). |
-| 2 CI stages A–B | Done. Jobs `static` → `unit` → `test`. The 85% coverage gate runs on the full suite in `test`, because unit tests alone cover 72%; move it once stages C–D split the suites. |
+| 2 CI stages A–E | Done. Jobs `static` → `unit` → (`acceptance` (C), `tester` (D)) → `coverage`, plus `docker-build` (E) after `static`. Each suite job saves its coverage data; `coverage` combines them and fails below 85%, so G5 is still the whole suite. `tests/unit/test_ci_split.py` checks every test file runs in exactly one job, so put new test files under an existing directory or add them to a job. Stage F waits for the incident endpoints. |
 | 3 §4 carry-over 1–8 | All done, one commit each: threadpool SBOM upload, nested-component flattening, offset/fraction timestamps, short duplicate error, blank names → 400, Content-Type message, no 422 in the generated OpenAPI (the contract test now fails on extra codes), smoke test in `tmp_path`. `scripts/smoke.sh` was updated for offsets too. |
 | 4 Shared time parsing and formatting | Done as part of §4 item 3: `parse_utc(value, field)` and `format_utc` in `app/clock.py`. Use them for `awareness_at`, `fix_available_at` and `submitted_at`. |
 | 5 onwards | **Not started; blocked on the human answers below.** |
@@ -110,7 +110,5 @@ review them before anything depends on them.
 - **Harness descriptions:** the harness text in `docs/openapi.yaml` (and `tester/harness.py`) still
   says `now` is "UTC, trailing Z". That's still accepted, so it was left alone; changing that text
   is a contract edit.
-- **Coverage gate:** when stages C–D split the suites (§15), coverage has to be combined across
-  jobs, or kept on one full-suite job, because G5 is measured on the whole suite.
 - **Stage F:** `container-smoke` needs the incident endpoints for its restart/persistence check,
   so build it after step 6, as §14.1 orders.

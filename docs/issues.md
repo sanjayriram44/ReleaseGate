@@ -12,7 +12,8 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] CI stage A `static` job — proof: job green, and fails on a deliberate lint error
 - [x] CI stage B `unit` job with coverage gate — proof: job green, and fails below the G5 threshold
 - [x] CI stage E `docker-build` (both images, tagged with the SHA; the system image reports it) — proof: job green, and fails on a throwaway branch without `ENV GIT_SHA`
-- [ ] CI stages C, D, F (acceptance, tester, container-smoke) — proof: each job green and shown to fail. F needs the incident endpoints
+- [x] CI stages C `acceptance` and D `tester`, with the G5 gate in a `coverage` job that combines all three suites' data — proof: jobs green; throwaway branches failed only in `acceptance`, only in `tester`, and in `coverage` at `--fail-under=100`; `tests/unit/test_ci_split.py` fails if a test file runs in no job or two
+- [ ] CI stage F `container-smoke` — proof: job green and shown to fail. Needs the incident endpoints for its restart check
 
 ## Phase 3 carry-over (CLAUDE.md §4)
 
