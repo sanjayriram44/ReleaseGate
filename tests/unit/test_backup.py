@@ -1,6 +1,8 @@
 """Nightly SQLite backup with the online backup API, keeping 7 copies (CLAUDE.md §8)."""
 
+import runpy
 import sqlite3
+import sys
 from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
@@ -86,3 +88,14 @@ def test_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert backup.main([str(tmp_path / "absent.db"), str(out)]) == 1
     assert "backup failed" in capsys.readouterr().err
     assert backup.main([str(db), str(out), "--keep", "0"]) == 2
+
+
+@pytest.mark.filterwarnings("ignore:.app.backup. found in sys.modules:RuntimeWarning")
+def test_runs_as_a_module(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """deploy/backup.sh calls `python -m app.backup <db> /backups`."""
+    db = make_db(tmp_path / "live.db")
+    out = tmp_path / "backups"
+    monkeypatch.setattr(sys, "argv", ["app.backup", str(db), str(out)])
+    with pytest.raises(SystemExit) as exit_info:
+        runpy.run_module("app.backup", run_name="__main__", alter_sys=True)
+    assert exit_info.value.code == 0 and len(list(out.iterdir())) == 1
