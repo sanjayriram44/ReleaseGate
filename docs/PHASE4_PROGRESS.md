@@ -24,6 +24,7 @@ pick up here. **Read `CLAUDE.md` (the Phase 4 handoff) first**, then this file, 
 | 4 Shared time parsing and formatting | Done as part of §4 item 3: `parse_utc(value, field)` and `format_utc` in `app/clock.py`. Use them for `awareness_at`, `fix_available_at` and `submitted_at`. |
 | 5 onwards | **Not started; blocked on the human answers below.** |
 | Unblocked extras (session 2, 2026-10-30) | `/health` reports the built commit (`GIT_SHA` build arg → `Settings.commit`, `unknown` when unset; §16.1). CI stage E `docker-build` builds both images tagged with the SHA and checks the commit inside the system image; shown to fail on a throwaway branch without `ENV GIT_SHA` (deleted). The live VM still runs `136c05a`, so G6 stays unmeasurable until a redeploy with `deploy/gcp.sh update`, which now passes `GIT_SHA`. |
+| Unblocked extras, continued | Structured JSON request logs (§8) in `app/request_log.py`: one line per request to stdout with request ID (echoed in `X-Request-Id`), user, method, path, status, latency, clock on arrival and whether it's overridden, plus error code/message on 4xx/5xx; uvicorn's access log is off. Still to add when those features exist: source error detail on 503 lines, overdue-deadline counts. |
 
 ### Human tasks still open
 

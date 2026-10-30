@@ -97,7 +97,8 @@ replacing the release's previous components and writing its audit entry in one t
   `/api/v1/test/vulnerability-source` (REQ-03 to REQ-07) are not built yet; those contract paths
   return 404. Dependency-Track is not integrated into the app; see `spikes/dependency_track/`.
 - **Large SBOMs are slow.** CycloneDX schema validation grows roughly with the square of the
-  component count (about 10 s at 5,000 components) and blocks other requests while it runs.
+  component count (about 10 s at 5,000 components). It runs in a worker thread, so other
+  requests are still answered meanwhile.
 - **Single instance.** SQLite and the in-memory test clock assume one process; the test clock
   returns to real time when the container restarts.
 - **No authentication.** `X-User-Id` only attributes changes in the audit log. The test

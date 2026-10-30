@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 from fastapi import FastAPI
+from fastapi.responses import PlainTextResponse
 from fastapi.testclient import TestClient
 
 from app.config import Settings
@@ -101,6 +102,22 @@ def test_long_error_message_is_truncated(caplog: pytest.LogCaptureFixture, tmp_p
     with TestClient(app) as c:
         c.get("/boom-long")
     assert make_lines(caplog)[0]["error_message"] == "y" * 300 + "..."
+
+
+def test_error_body_without_the_error_shape_logs_no_code(
+    caplog: pytest.LogCaptureFixture, tmp_path: Path
+) -> None:
+    app = create_app(Settings(db_path=str(tmp_path / "x.db")))
+
+    @app.get("/teapot")
+    def teapot() -> PlainTextResponse:
+        return PlainTextResponse("short and stout", status_code=418)
+
+    caplog.clear()
+    with TestClient(app) as c:
+        assert c.get("/teapot").text == "short and stout"
+    [line] = make_lines(caplog)
+    assert line["status"] == 418 and "error_code" not in line
 
 
 def test_unhandled_exception_is_logged_as_500(
