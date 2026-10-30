@@ -23,7 +23,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] 6 Non-JSON `Content-Type` → `Content-Type must be application/json` — proof: acceptance test
 - [x] 7 No stray 422 in generated OpenAPI; contract test fails on extra codes — proof: contract test
 - [x] 8 Smoke test uses `tmp_path` — proof: `tests/unit/test_smoke.py`
-- [ ] Tag `phase3`, redeploy, ask Team 2 to rerun — proof: human runs the tag; Team 2's report in `docs/test-reports/`
+- [ ] Tag `phase3` (`9c0b191`) and ask Team 2 to rerun (redeployed `136c05a` on 2026-10-30) — proof: human runs the tag; Team 2's report in `docs/test-reports/`
 
 ## Phase 4 features (CLAUDE.md §6)
 
@@ -49,3 +49,4 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [ ] Settle §10 Q1 (timestamp amendment) with Team 2. **blocked: §10 Q1**
 - [ ] Spec housekeeping list in CLAUDE.md §11
 - [ ] Uptime monitor on `/health`
+- [ ] Re-seed the live demo release (ExampleGateway 1.0.0 + `fixtures/sbom_25_components.json`); the live data was empty at the 2026-10-30 deploy
