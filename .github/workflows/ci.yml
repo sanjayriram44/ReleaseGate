@@ -35,3 +35,15 @@ jobs:
         with:
           name: coverage
           path: coverage.xml
+  # Stage E: both images build, tagged with the commit, and the system image reports that commit.
+  docker-build:
+    needs: static
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --build-arg GIT_SHA=${{ github.sha }} -t releasegate:${{ github.sha }} .
+      - run: docker build -f tester/Dockerfile -t releasegate-tester:${{ github.sha }} .
+      - run: >-
+          docker run --rm releasegate:${{ github.sha }} /srv/.venv/bin/python -c
+          "from app.config import Settings; c = Settings.from_env().commit;
+          assert c == '${{ github.sha }}', c"

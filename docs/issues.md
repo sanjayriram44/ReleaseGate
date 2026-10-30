@@ -11,7 +11,8 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] Confirm `docs/goals.md` with a team member — proof: "Confirmed by" filled in
 - [x] CI stage A `static` job — proof: job green, and fails on a deliberate lint error
 - [x] CI stage B `unit` job with coverage gate — proof: job green, and fails below the G5 threshold
-- [ ] CI stages C–F (acceptance, tester, docker-build, container-smoke) — proof: each job green and shown to fail
+- [x] CI stage E `docker-build` (both images, tagged with the SHA; the system image reports it) — proof: job green, and fails on a throwaway branch without `ENV GIT_SHA`
+- [ ] CI stages C, D, F (acceptance, tester, container-smoke) — proof: each job green and shown to fail. F needs the incident endpoints
 
 ## Phase 3 carry-over (CLAUDE.md §4)
 
