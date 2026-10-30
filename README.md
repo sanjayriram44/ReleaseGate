@@ -80,7 +80,8 @@ behavior models. Where its diagrams show an external timer service, that design 
 deadlines (Phase 4) will be computed on read from stored timestamps.
 
 **Data.** `releases` (product, version, support_end_date; product+version unique) has many
-`components` (name, version, purl) from its current SBOM. `audit_log` holds one entry per
+`components` (name, version, purl) from its current SBOM, with nested components flattened in
+document order (`metadata.component` and `metadata.tools` are not stored). `audit_log` holds one entry per
 change (timestamp, user, action, entity); SQLite triggers reject any UPDATE or DELETE on it.
 Support status is never stored: a release is `supported` while the clock's UTC date is on or
 before `support_end_date`.
@@ -95,7 +96,6 @@ replacing the release's previous components and writing its audit entry in one t
 - **Phase 3 scope only.** CVE queries, incidents, deadlines, report generation and
   `/api/v1/test/vulnerability-source` (REQ-03 to REQ-07) are not built yet; those contract paths
   return 404. Dependency-Track is not integrated into the app; see `spikes/dependency_track/`.
-- **Nested components are not stored.** Only top-level `components[]` entries are kept.
 - **Large SBOMs are slow.** CycloneDX schema validation grows roughly with the square of the
   component count (about 10 s at 5,000 components) and blocks other requests while it runs.
 - **Single instance.** SQLite and the in-memory test clock assume one process; the test clock

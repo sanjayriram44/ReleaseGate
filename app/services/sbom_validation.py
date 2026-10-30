@@ -77,12 +77,20 @@ def parse_and_validate(raw: bytes) -> list[ParsedComponent]:
         raise _invalid_sbom(f"{where}: {data.message}" if where else data.message)
 
     components: list[ParsedComponent] = []
-    for i, comp in enumerate(doc.get("components", [])):
+    _flatten(doc.get("components", []), "components", components)
+    return components
+
+
+def _flatten(items: list[Any], path: str, out: list[ParsedComponent]) -> None:
+    """Agreed (docs/decisions.md): store nested components at every depth, in document order
+    (each parent before its children). metadata.component and metadata.tools are not walked."""
+    for i, comp in enumerate(items):
+        where = f"{path}[{i}]"
         name = comp["name"]
         version = comp.get("version")
-        # Provisional: the contract's Component requires a version, so reject the whole SBOM.
+        # Agreed: the contract's Component requires a version, so reject the whole SBOM.
         if not isinstance(version, str) or not version.strip():
-            raise _invalid_sbom(f"components[{i}] ({name!r}) is missing required field: version")
+            raise _invalid_sbom(f"{where} ({name!r}) is missing required field: version")
         purl = comp.get("purl")
-        components.append(ParsedComponent(name, version, purl if isinstance(purl, str) else None))
-    return components
+        out.append(ParsedComponent(name, version, purl if isinstance(purl, str) else None))
+        _flatten(comp.get("components", []), f"{where}.components", out)

@@ -16,7 +16,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 ## Phase 3 carry-over (CLAUDE.md §4)
 
 - [x] 1 Non-blocking SBOM upload — proof: regression test that `/health` answers during a slow upload
-- [ ] 2 Flatten nested components — proof: tests for nested storage, `component_count`, path-named version error
+- [x] 2 Flatten nested components — proof: tests for nested storage, `component_count`, path-named version error
 - [ ] 3 Timestamp parsing with offsets and fractions, moved to `app/clock.py` — proof: unit tests with Team 2's inputs
 - [ ] 4 Short duplicate-component error — proof: test on the fixture with a duplicated component
 - [ ] 5 Blank product/version → 400 `must not be blank` — proof: acceptance test

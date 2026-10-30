@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -103,3 +104,34 @@ def test_wrong_type_for_components() -> None:
     doc = make_sbom(1)
     doc["components"] = "nope"
     assert _reason(raw(doc))[1].startswith("components:")
+
+
+def _nested_sbom() -> dict[str, Any]:
+    doc = make_sbom(2)
+    child = {"type": "library", "name": "child", "version": "1.1.0", "purl": "pkg:npm/child@1.1.0"}
+    grandchild = {"type": "library", "name": "grandchild", "version": "1.2.0"}
+    doc["components"][0]["components"] = [{**child, "components": [grandchild]}]
+    doc["metadata"] = {
+        "component": {"type": "application", "name": "the-product", "version": "9.9.9"},
+        "tools": {"components": [{"type": "application", "name": "syft", "version": "1.0"}]},
+    }
+    return doc
+
+
+def test_nested_components_are_flattened_in_document_order() -> None:
+    comps = parse_and_validate(raw(_nested_sbom()))
+    assert [(c.name, c.version, c.purl) for c in comps] == [
+        ("lib-0", "0.0.0", "pkg:npm/lib-0@0.0.0"),
+        ("child", "1.1.0", "pkg:npm/child@1.1.0"),
+        ("grandchild", "1.2.0", None),
+        ("lib-1", "1.0.0", "pkg:npm/lib-1@1.0.0"),
+    ]
+
+
+def test_nested_component_without_version_names_its_path() -> None:
+    doc = _nested_sbom()
+    del doc["components"][0]["components"][0]["components"][0]["version"]
+    assert _reason(raw(doc))[1] == (
+        "components[0].components[0].components[0] ('grandchild') is missing required field:"
+        " version"
+    )

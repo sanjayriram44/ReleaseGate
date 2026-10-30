@@ -156,6 +156,29 @@ def test_upload_works_on_database_created_by_older_schema(tmp_path: Path) -> Non
         assert r.status_code == 200 and r.json()["component_count"] == 25
 
 
+def test_nested_components_are_stored_and_counted(client: TestClient) -> None:
+    rid = release(client)
+    doc = make_sbom(2)
+    doc["components"][1]["components"] = [
+        {"type": "library", "name": "inner", "version": "3.0.0", "purl": "pkg:npm/inner@3.0.0"}
+    ]
+    doc["metadata"] = {"component": {"type": "application", "name": "Router", "version": "1.0"}}
+    r = put(client, rid, raw(doc))
+    assert r.status_code == 200 and r.json()["component_count"] == 3
+    assert [c["name"] for c in components(client, rid)] == ["lib-0", "lib-1", "inner"]
+
+
+def test_nested_component_without_version_stores_nothing(client: TestClient) -> None:
+    rid = release(client)
+    assert put(client, rid, raw(make_sbom(1))).status_code == 200
+    doc = make_sbom(2)
+    doc["components"][1]["components"] = [{"type": "library", "name": "inner"}]
+    r = put(client, rid, raw(doc))
+    assert r.status_code == 400
+    assert "components[1].components[0]" in r.json()["error"]["message"]
+    assert [c["name"] for c in components(client, rid)] == ["lib-0"]
+
+
 def test_health_answers_during_slow_sbom_upload(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
