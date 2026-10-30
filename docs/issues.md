@@ -22,7 +22,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] 5 Blank product/version → 400 `must not be blank` — proof: acceptance test
 - [x] 6 Non-JSON `Content-Type` → `Content-Type must be application/json` — proof: acceptance test
 - [x] 7 No stray 422 in generated OpenAPI; contract test fails on extra codes — proof: contract test
-- [ ] 8 Smoke test uses `tmp_path` — proof: `tests/unit/test_smoke.py`
+- [x] 8 Smoke test uses `tmp_path` — proof: `tests/unit/test_smoke.py`
 - [ ] Tag `phase3`, redeploy, ask Team 2 to rerun — proof: human runs the tag; Team 2's report in `docs/test-reports/`
 
 ## Phase 4 features (CLAUDE.md §6)
