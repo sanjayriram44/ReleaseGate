@@ -9,8 +9,8 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 ## Goal audit and CI
 
 - [x] Confirm `docs/goals.md` with a team member — proof: "Confirmed by" filled in
-- [ ] CI stage A `static` job — proof: job green, and fails on a deliberate lint error
-- [ ] CI stage B `unit` job with coverage gate — proof: job green, and fails below the G5 threshold
+- [x] CI stage A `static` job — proof: job green, and fails on a deliberate lint error
+- [x] CI stage B `unit` job with coverage gate — proof: job green, and fails below the G5 threshold
 - [ ] CI stages C–F (acceptance, tester, docker-build, container-smoke) — proof: each job green and shown to fail
 
 ## Phase 3 carry-over (CLAUDE.md §4)

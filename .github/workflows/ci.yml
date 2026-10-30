@@ -12,11 +12,26 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy
-  test:
+  unit:
     needs: static
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --locked
-      - run: uv run pytest
+      - run: uv run pytest tests/unit
+  # G5 (docs/goals.md) is coverage of app/ by the whole suite, so the gate runs on all tests
+  # until stages C and D split the acceptance, contract and tester tests into their own jobs.
+  test:
+    needs: unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --locked
+      - run: uv run pytest --cov=app --cov-report=xml --cov-report=term --cov-fail-under=85
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage.xml
