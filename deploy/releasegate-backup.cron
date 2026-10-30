@@ -1,0 +1,5 @@
+# Nightly SQLite backup (CLAUDE.md §8); installed to /etc/cron.d/releasegate-backup by
+# deploy/gcp.sh update and deploy/gcp-startup.sh. The VM's clock is UTC.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+30 3 * * * root /opt/releasegate/deploy/backup.sh >> /var/log/releasegate-backup.log 2>&1

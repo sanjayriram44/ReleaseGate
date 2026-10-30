@@ -132,6 +132,17 @@ and then run the non-destructive post-deploy checks, printing `PASS` or `FAIL` w
 hint. To run the checks by hand from a checkout of the deployed commit:
 `bash scripts/post_deploy_check.sh <base_url> <commit> [--test-endpoints on|off]`.
 
+**Backups.** `update` installs `deploy/releasegate-backup.cron`, which runs `deploy/backup.sh`
+at 03:30 UTC: an online SQLite backup (`app/backup.py`) into `/opt/releasegate/backups`, outside
+the data volume, keeping the newest 7 (log: `/var/log/releasegate-backup.log`). Each copy is one
+self-contained file that passed `PRAGMA integrity_check`. To restore one on the VM:
+
+```bash
+cd /opt/releasegate && sudo docker compose stop api
+sudo docker compose run --rm --no-deps -u 0 api sh -c 'cp /backups/releasegate-<stamp>.db /data/releasegate.db && rm -f /data/releasegate.db-wal /data/releasegate.db-shm && chown 10001 /data/releasegate.db'
+sudo docker compose start api
+```
+
 ## Contributors
 
 ECE 30861, Team 6:

@@ -42,7 +42,8 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [ ] Tester checks and harness `/test/run` for AC-04..AC-07 — proof: `tests/tester`, `tests/test_harness.py`
 - [x] Structured JSON request logs (§8): one line per request, request ID echoed in `X-Request-Id`, error code/message on 4xx/5xx, uvicorn access log off — proof: `tests/unit/test_request_log.py`
 - [ ] Log signals for the source and deadlines (§8): source error detail on 503 lines, overdue-deadline counts — proof: tests with the CVE query and incidents. **blocked: §10 Q2, Q6–Q8**
-- [ ] Nightly SQLite backup cron, 7 copies (§8) — proof: script test
+- [x] Nightly SQLite backup, 7 copies (§8): `app/backup.py` (online backup API, integrity check, prune), `deploy/backup.sh` + `deploy/releasegate-backup.cron` installed by `gcp.sh update` — proof: `tests/unit/test_backup.py`; 5 backups taken during 319 concurrent writes, each consistent
+- [ ] Confirm the backup on the VM after the next deploy: `/etc/cron.d/releasegate-backup` installed, one manual `sudo /opt/releasegate/deploy/backup.sh` writes a copy, and the README restore steps work — proof: note in the deploy report
 - [x] `scripts/post_deploy_check.sh` (non-destructive), `deploy/gcp.sh update [ref]` from an exact commit and `rollback <tag>`, both running the checks (§16) — proof: `tests/unit/test_post_deploy_check.py`; dry run with a stub `gcloud`; run against the live URL on 2026-10-30 (all pass except the commit check: `136c05a` predates `GIT_SHA`)
 - [ ] `post_deploy_check.sh --full` (destructive: tester run, smoke test, restart persistence; §16.2 items 6–8) — proof: run on the evaluation deployment after warning Team 2
 - [ ] Deploy, cross-team runs both ways in `docs/test-reports/`, tag `phase4` — proof: §14.4

@@ -32,3 +32,7 @@ cd "$APP"
 # Evaluation deployment: synthetic data only, so the shared test endpoints are on.
 printf 'ENABLE_TEST_ENDPOINTS=%s\nPORT=8080\n' "$(meta enable-test-endpoints true)" > .env
 GIT_SHA="$(git rev-parse HEAD)" docker compose up -d --build
+
+# Nightly backup (deploy/backup.sh).
+test -x /usr/sbin/cron || { apt-get update && apt-get install -y cron; }
+install -m 0644 deploy/releasegate-backup.cron /etc/cron.d/releasegate-backup

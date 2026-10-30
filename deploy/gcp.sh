@@ -39,7 +39,9 @@ deploy_ref() {
   fi
   echo "Deploying $ref ($sha); previously deployed: $prev"
   vm "cd /opt/releasegate && sudo git checkout --quiet --detach $sha \
-    && sudo GIT_SHA=$sha docker compose up -d --build"
+    && sudo GIT_SHA=$sha docker compose up -d --build \
+    && { test -x /usr/sbin/cron || { sudo apt-get update -qq && sudo apt-get install -y -qq cron; }; } \
+    && sudo install -m 0644 deploy/releasegate-backup.cron /etc/cron.d/releasegate-backup"
   if [ "$(git -C "$HERE/.." rev-parse HEAD)" != "$sha" ]; then
     echo "Note: this checkout isn't at $sha, and the checks read the contract from it."
   fi

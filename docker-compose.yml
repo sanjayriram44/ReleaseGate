@@ -12,6 +12,8 @@ services:
       ENABLE_TEST_ENDPOINTS: ${ENABLE_TEST_ENDPOINTS:-false}
     volumes:
       - releasegate-data:/data
+      # Nightly backups (deploy/backup.sh), kept outside the data volume.
+      - ${BACKUP_DIR:-./backups}:/backups
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8080/health')"]
