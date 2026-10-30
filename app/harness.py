@@ -11,8 +11,8 @@ from typing import Any
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
+from app.clock import parse_utc
 from app.errors import ApiError
-from app.routers.test_support import parse_utc
 from tester.checks import Fixtures, Report, run
 from tester.harness import HarnessError, make_router
 

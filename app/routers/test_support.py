@@ -1,17 +1,11 @@
-import re
-from datetime import UTC, datetime
-
 from fastapi import APIRouter, Response
 from pydantic import BaseModel, ConfigDict
 
-from app.clock import format_utc
+from app.clock import format_utc, parse_utc
 from app.deps import ClockDep, DbDep
-from app.errors import ApiError
 from app.models import DateTimeStr
 
 router = APIRouter(prefix="/api/v1/test", tags=["test"])
-
-_UTC_TS = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$")
 
 
 class ClockBody(BaseModel):
@@ -29,16 +23,6 @@ def reset(db: DbDep, clock: ClockDep) -> Response:
     db.reset()
     clock.reset()
     return Response(status_code=204)
-
-
-def parse_utc(value: str) -> datetime:
-    """A UTC timestamp with a trailing Z, or ApiError(400)."""
-    if not _UTC_TS.match(value):
-        raise ApiError(400, "INVALID_REQUEST", "now must be a UTC timestamp ending in Z")
-    try:
-        return datetime.fromisoformat(value).astimezone(UTC)
-    except ValueError as exc:
-        raise ApiError(400, "INVALID_REQUEST", "now is not a valid timestamp") from exc
 
 
 @router.put("/clock", response_model=ClockState)

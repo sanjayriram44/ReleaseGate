@@ -84,3 +84,15 @@ def test_health_ok_and_leaves_no_data(client: TestClient) -> None:
     r = client.get("/health")
     assert r.status_code == 200 and r.json() == {"status": "ok"}
     assert client.get("/api/v1/audit-logs").json() == {"events": []}
+
+
+def test_clock_accepts_offsets_and_fractions(client: TestClient) -> None:
+    r = client.put("/api/v1/test/clock", json={"now": "2026-11-01T12:00:00.123456+02:00"})
+    assert r.status_code == 200 and r.json() == {"now": "2026-11-01T10:00:00.123456Z"}
+    r = client.put("/api/v1/test/clock", json={"now": "2026-11-01T12:00:00-00:00"})
+    assert r.json() == {"now": "2026-11-01T12:00:00Z"}
+
+
+def test_clock_without_zone_is_400(client: TestClient) -> None:
+    r = client.put("/api/v1/test/clock", json={"now": "2026-11-01T12:00:00"})
+    assert r.status_code == 400 and r.json()["error"]["code"] == "INVALID_REQUEST"

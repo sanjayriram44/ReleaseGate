@@ -81,9 +81,9 @@ def test_invalid_inputs_are_400_with_shared_error_shape(client: TestClient) -> N
     assert r.status_code == 400
 
 
-def test_timestamp_in_test_clock_must_be_utc(client: TestClient) -> None:
+def test_timestamp_in_test_clock_must_have_a_zone(client: TestClient) -> None:
     r = client.put("/api/v1/test/clock", json={"now": "2026-06-15T12:00:00+02:00"})
-    assert r.status_code == 400
+    assert r.json() == {"now": "2026-06-15T10:00:00Z"}
     r = client.put("/api/v1/test/clock", json={"now": "2026-06-15T12:00:00"})
     assert r.status_code == 400
     r = client.put("/api/v1/test/clock", json={"now": "2026-06-15T12:00:00Z"})

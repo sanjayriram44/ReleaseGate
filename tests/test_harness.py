@@ -59,7 +59,7 @@ def test_system_setup_sets_clock_and_keeps_given_session_id(tmp_path: Path) -> N
     assert r.json()["session_id"] == "grader-1"
     rel = {"product": "P", "version": "1", "support_end_date": "2026-11-01"}
     assert c.post("/api/v1/releases", json=rel, headers=H).json()["support_status"] == "supported"
-    bad = c.post("/test/setup", json={"now": "2026-11-01T23:59:59+02:00"})
+    bad = c.post("/test/setup", json={"now": "2026-11-01T23:59:59"})
     assert bad.status_code == 400 and bad.json()["error"]["code"] == "INVALID_REQUEST"
 
 
