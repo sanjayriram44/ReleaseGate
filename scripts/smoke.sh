@@ -29,7 +29,9 @@ NEW_SBOM='{"bomFormat":"CycloneDX","specVersion":"1.6","version":1,"components":
 
 check "reset" 204 -X POST "$B/api/v1/test/reset"
 check "set clock to 2026-11-01T23:59:59Z" 200 -X PUT "$B/api/v1/test/clock" -H "$J" -d '{"now":"2026-11-01T23:59:59Z"}'
-check "clock rejects non-UTC offset" 400 -X PUT "$B/api/v1/test/clock" -H "$J" -d '{"now":"2026-11-01T23:59:59+02:00"}'
+check "clock converts an offset to UTC" 200 -X PUT "$B/api/v1/test/clock" -H "$J" -d '{"now":"2026-11-02T01:59:59+02:00"}'
+expect_in_body '"now":"2026-11-01T23:59:59Z"'
+check "clock rejects a timestamp with no zone" 400 -X PUT "$B/api/v1/test/clock" -H "$J" -d '{"now":"2026-11-01T23:59:59"}'
 
 echo "--- AC-01"
 check "past release" 201 -X POST "$B/api/v1/releases" -H "$H" -H "$J" -d '{"product":"ExampleRouter","version":"1.0.0","support_end_date":"2026-10-31"}'
