@@ -3,7 +3,7 @@ on:
   push:
   pull_request:
 jobs:
-  test:
+  static:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -12,4 +12,11 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy
+  test:
+    needs: static
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --locked
       - run: uv run pytest
