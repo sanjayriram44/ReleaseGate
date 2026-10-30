@@ -5,7 +5,9 @@
 
 Nothing here is destructive: the AC checks run in-process against a throwaway database, and the
 live deployment is only read (GET /health). A tester run against the live URL resets its data,
-so that result comes from docs/test-reports/ instead.
+so live and cross-team results come from docs/test-reports/ instead, named
+YYYY-MM-DD-<cross-team-ours-to-team2 | cross-team-team2-to-ours | deploy>.md, each with a
+"Result: X/Y passed" line and the commit SHA. Coverage above .coverage-baseline raises it.
 """
 
 import argparse
@@ -15,6 +17,7 @@ import subprocess
 import sys
 import tempfile
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -25,7 +28,11 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 LIVE_SYSTEM = "http://136.116.160.182:8080"
+REPORTS = ROOT / "docs/test-reports"
+BASELINE = ROOT / ".coverage-baseline"
 COVERAGE_TARGET = 85.0
+INTEROP_TARGET = 0.95
+NOT_YET = "not measurable yet"
 PHASE4_ACS = ["AC-04", "AC-05", "AC-06", "AC-07"]
 PHASE3_ACS = ["AC-01", "AC-02", "AC-03", "contract"]
 
@@ -98,26 +105,51 @@ def ci_status() -> str:
     return f"{result} on `{run['head_sha'][:7]}` ({run['display_title']})"
 
 
-def deployed_commit() -> str:
+def live_commit() -> str | None:
+    """The commit the live /health reports; None until §16.1 adds it (or if unreachable)."""
     try:
-        health = _get_json(f"{LIVE_SYSTEM}/health")
-    except Exception as exc:
-        return f"unreachable ({type(exc).__name__})"
-    return str(health.get("commit") or "not reported by /health yet")
+        commit = _get_json(f"{LIVE_SYSTEM}/health").get("commit")
+    except Exception:
+        return None
+    return str(commit) if commit else None
 
 
-def latest_phase_tag() -> tuple[str, str]:
-    tag = _git("describe", "--tags", "--match", "phase*", "--abbrev=0")
-    return (tag, _git("rev-list", "-n", "1", tag)) if tag else ("none", "")
+@dataclass(frozen=True)
+class RunReport:
+    name: str
+    passed: int | None
+    total: int | None
+    commit: str | None
+
+    @property
+    def result(self) -> str:
+        if self.passed is None or self.total is None:
+            return f"`{self.name}`: no `Result: X/Y passed` line"
+        return f"`{self.name}`: {self.passed}/{self.total}"
 
 
-def cross_team_reports() -> list[tuple[str, str]]:
-    """(file, result line) for each docs/test-reports/*cross-team*.md, newest first."""
-    out = []
-    for path in sorted((ROOT / "docs/test-reports").glob("*cross-team*.md"), reverse=True):
-        match = re.search(r"^\*\*Result:\*\*\s*(.+)$", path.read_text(), re.MULTILINE)
-        out.append((path.name, match.group(1) if match else "no **Result:** line"))
-    return out
+def latest_report(kind: str) -> RunReport | None:
+    """The newest docs/test-reports/YYYY-MM-DD-<kind>.md, parsed."""
+    paths = sorted(REPORTS.glob(f"????-??-??-{kind}.md"), reverse=True)
+    if not paths:
+        return None
+    text = paths[0].read_text()
+    result = re.search(r"Result:\**\s*(\d+)\s*/\s*(\d+) passed", text)
+    commit = re.search(r"(?i)commit\W+([0-9a-f]{7,40})\b", text)
+    return RunReport(
+        paths[0].name,
+        int(result.group(1)) if result else None,
+        int(result.group(2)) if result else None,
+        commit.group(1) if commit else None,
+    )
+
+
+def coverage_baseline(coverage: float | None) -> float | None:
+    """The stored baseline; raised to the current coverage when coverage rises."""
+    baseline = float(BASELINE.read_text()) if BASELINE.exists() else None
+    if coverage is not None and (baseline is None or round(coverage, 2) > baseline):
+        BASELINE.write_text(f"{coverage:.2f}\n")
+    return baseline
 
 
 def blocked_issues() -> list[str]:
@@ -138,21 +170,87 @@ def _ac_cell(checks: dict[str, tuple[int, int]], ac: str) -> str:
     return f"{passed}/{total}" + (" ✅" if passed == total else " ❌")
 
 
+def _all_pass(checks: dict[str, tuple[int, int]], acs: list[str]) -> bool:
+    return all(ac in checks and checks[ac][0] == checks[ac][1] for ac in acs)
+
+
+def _yes(ok: bool) -> str:
+    return "yes" if ok else "no"
+
+
+def g1(checks: dict[str, tuple[int, int]]) -> tuple[str, str]:
+    value = ", ".join(f"{ac} {_ac_cell(checks, ac)}" for ac in PHASE4_ACS)
+    if not any(ac in checks for ac in PHASE4_ACS):
+        return value, f"{NOT_YET} (AC-04..AC-07 not built)"
+    if not _all_pass(checks, PHASE4_ACS):
+        return value, "no"
+    live = latest_report("deploy")
+    if live is None or live.total is None:
+        return value + "; live: no `--full` deploy report", f"{NOT_YET} (no live run)"
+    return value + f"; live {live.result}", _yes(live.passed == live.total)
+
+
+def g3() -> tuple[str, str]:
+    reports = {d: latest_report(f"cross-team-{d}") for d in ("ours-to-team2", "team2-to-ours")}
+    value = "; ".join(r.result if r else f"{d}: no report" for d, r in reports.items())
+    found = [r for r in reports.values() if r and r.total]
+    if len(found) < len(reports):
+        return value, f"{NOT_YET} (needs a report each way)"
+    ok = all(
+        r.passed is not None and r.total and r.passed / r.total >= INTEROP_TARGET for r in found
+    )
+    return value + " (failure owners: see the reports)", _yes(ok)
+
+
+def g4(checks: dict[str, tuple[int, int]]) -> tuple[str, str]:
+    if "AC-04" not in checks or "AC-05" not in checks:
+        return "AC-04/AC-05 checks not built", NOT_YET
+    return (
+        "in-process run is a lower bound only; see container-smoke and the live `--full` run",
+        f"{NOT_YET} (no container-smoke or live latency recorded)",
+    )
+
+
+def g5(coverage: float | None) -> tuple[str, str]:
+    if coverage is None:
+        return "no pytest-cov", NOT_YET
+    baseline = coverage_baseline(coverage)
+    base = f"{baseline:.2f}%" if baseline is not None else "none stored"
+    ok = coverage >= COVERAGE_TARGET and (baseline is None or round(coverage, 2) >= baseline)
+    return f"{coverage:.2f}% (baseline {base})", _yes(ok)
+
+
+def g6(offline: bool) -> tuple[str, str]:
+    if offline:
+        return "skipped (--offline)", NOT_YET
+    live = live_commit()
+    if live is None:
+        return "live `/health` reports no commit yet (§16.1)", NOT_YET
+    deploy = latest_report("deploy")
+    if deploy is None or deploy.commit is None:
+        return f"live `{live[:7]}`; no deploy report", NOT_YET
+    same = live.startswith(deploy.commit) or deploy.commit.startswith(live)
+    passed = deploy.total is not None and deploy.passed == deploy.total
+    return f"live `{live[:7]}`; {deploy.result}, commit `{deploy.commit[:7]}`", _yes(
+        same and passed
+    )
+
+
 def render(offline: bool) -> str:
     checks = tester_checks()
     summary, coverage = pytest_result()
-    tag, tag_sha = latest_phase_tag()
-    deployed = "skipped (--offline)" if offline else deployed_commit()
     ci = "skipped (--offline)" if offline else ci_status()
-    reports = cross_team_reports()
     head = _git("rev-parse", "--short", "HEAD")
-
-    def all_pass(acs: list[str]) -> bool:
-        return all(ac in checks and checks[ac][0] == checks[ac][1] for ac in acs)
-
-    cov_text = f"{coverage:.1f}%" if coverage is not None else "not measured (no pytest-cov)"
-    cov_ok = coverage is not None and coverage >= COVERAGE_TARGET
-    g6_ok = bool(tag_sha) and deployed.startswith(tag_sha[:7])
+    g2_value = ", ".join(f"{ac} {_ac_cell(checks, ac)}" for ac in PHASE3_ACS)
+    g2_ok = _all_pass(checks, PHASE3_ACS) and "failed" not in summary
+    rows = [
+        ("G1 Phase 4 ACs", *g1(checks), "100% in-process and live"),
+        ("G2 No regressions", f"{g2_value}; pytest: {summary}", _yes(g2_ok), "100%"),
+        ("G3 Interoperability", *g3(), "≥ 95% of in-scope tests each way"),
+        ("G4 Timeliness", *g4(checks), "≤ 10 s; ≤ 15 s"),
+        ("G5 Coverage of `app/`", *g5(coverage), f"≥ {COVERAGE_TARGET:.0f}%, ≥ baseline"),
+        ("G6 Deployment", *g6(offline), "live commit = deployed commit; checks pass"),
+    ]
     lines = [
         "# Metrics",
         "",
@@ -161,29 +259,7 @@ def render(offline: bool) -> str:
         "",
         "| Goal | Current value | Target | Met |",
         "|---|---|---|---|",
-        "| G1 Phase 4 ACs (in-process tester) | "
-        + ", ".join(f"{ac} {_ac_cell(checks, ac)}" for ac in PHASE4_ACS)
-        + " | 100%, also against the live URL | "
-        + ("yes" if all_pass(PHASE4_ACS) else "no")
-        + " |",
-        "| G2 No regressions | "
-        + ", ".join(f"{ac} {_ac_cell(checks, ac)}" for ac in PHASE3_ACS)
-        + f"; pytest: {summary} | 100% | "
-        + ("yes" if all_pass(PHASE3_ACS) and "failed" not in summary else "no")
-        + " |",
-        "| G3 Interoperability | "
-        + ("; ".join(f"`{name}`: {res}" for name, res in reports[:2]) or "no cross-team report")
-        + " | ≥ 95% each way | see reports |",
-        "| G4 Timeliness | measured by the AC-04/AC-05 checks"
-        + ("" if "AC-04" in checks else " (not built yet)")
-        + " | ≤ 10 s; ≤ 15 s | "
-        + ("yes" if all_pass(["AC-04", "AC-05"]) else "no")
-        + " |",
-        f"| G5 Coverage of `app/` | {cov_text} | ≥ {COVERAGE_TARGET:.0f}% |"
-        f" {'yes' if cov_ok else 'no'} |",
-        f"| G6 Deployment | deployed: {deployed}; latest tag: {tag}"
-        + (f" (`{tag_sha[:7]}`)" if tag_sha else "")
-        + f" | deployed = tagged | {'yes' if g6_ok else 'no'} |",
+        *(f"| {goal} | {value} | {target} | {met} |" for goal, value, met, target in rows),
         "",
         f"**Last CI run on main:** {ci}",
         "",
