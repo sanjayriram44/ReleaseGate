@@ -12,24 +12,70 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy
+  # Stages B-D each run part of the suite and keep their coverage data for the G5 gate below.
+  # tests/unit/test_ci_split.py checks that every test file runs in exactly one of them.
   unit:
     needs: static
     runs-on: ubuntu-latest
+    env:
+      COVERAGE_FILE: .coverage.unit
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --locked
-      - run: uv run pytest tests/unit
-  # G5 (docs/goals.md) is coverage of app/ by the whole suite, so the gate runs on all tests
-  # until stages C and D split the acceptance, contract and tester tests into their own jobs.
-  test:
+      - run: uv run pytest tests/unit --cov=app --cov-report=
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-data-unit
+          path: .coverage.unit
+          include-hidden-files: true
+  # Stage C: AC-01..AC-07 and the OpenAPI contract check.
+  acceptance:
     needs: unit
+    runs-on: ubuntu-latest
+    env:
+      COVERAGE_FILE: .coverage.acceptance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --locked
+      - run: uv run pytest tests/acceptance tests/contract --cov=app --cov-report=
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-data-acceptance
+          path: .coverage.acceptance
+          include-hidden-files: true
+  # Stage D: the tester's checks and the autograder harness against the app in-process.
+  tester:
+    needs: unit
+    runs-on: ubuntu-latest
+    env:
+      COVERAGE_FILE: .coverage.tester
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --locked
+      - run: uv run pytest tests/tester tests/test_harness.py --cov=app --cov-report=
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-data-tester
+          path: .coverage.tester
+          include-hidden-files: true
+  # G5 (docs/goals.md) is coverage of app/ by the whole suite: combine the three jobs' data.
+  coverage:
+    needs: [unit, acceptance, tester]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --locked
-      - run: uv run pytest --cov=app --cov-report=xml --cov-report=term --cov-fail-under=85
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-data-*
+          merge-multiple: true
+      - run: uv run coverage combine
+      - run: uv run coverage xml
+      - run: uv run coverage report --fail-under=85
       - uses: actions/upload-artifact@v4
         if: always()
         with:
