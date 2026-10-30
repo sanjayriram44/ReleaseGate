@@ -11,9 +11,13 @@ from app.routers import audit, health, releases, sbom, test_support
 from tester.harness import CollapseSlashes
 
 
-def _require_user_id_in_schema(app: FastAPI) -> None:
-    """X-User-Id is enforced by our own dependency (to return 400, not 422); declare it
-    as required in the generated OpenAPI so it matches the shared contract."""
+def _align_schema_with_contract(app: FastAPI) -> None:
+    """Make the generated OpenAPI say what the app does, as the shared contract does.
+
+    X-User-Id is enforced by our own dependency (to return 400, not 422), so declare it as
+    required. Invalid input is 400 with the shared Error shape, so drop FastAPI's default 422
+    responses and their HTTPValidationError/ValidationError schemas.
+    """
     original = app.openapi
 
     def openapi() -> dict[str, Any]:
@@ -22,10 +26,14 @@ def _require_user_id_in_schema(app: FastAPI) -> None:
         schema = original()  # FastAPI caches this same dict in app.openapi_schema
         for item in schema["paths"].values():
             for op in item.values():
+                op.get("responses", {}).pop("422", None)
                 for param in op.get("parameters", []):
                     if param.get("name") == "X-User-Id":
                         param["required"] = True
                         param["schema"] = {"type": "string", "minLength": 1}
+        schemas = schema.get("components", {}).get("schemas", {})
+        for name in ("HTTPValidationError", "ValidationError"):
+            schemas.pop(name, None)
         return schema
 
     app.openapi = openapi  # type: ignore[method-assign]
@@ -40,7 +48,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.db.init_schema()
     app.add_middleware(CollapseSlashes)
     install_error_handlers(app)
-    _require_user_id_in_schema(app)
+    _align_schema_with_contract(app)
     app.include_router(health.router)
     app.include_router(releases.router)
     app.include_router(sbom.router)

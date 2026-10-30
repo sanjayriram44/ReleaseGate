@@ -114,6 +114,9 @@ def test_implemented_operations_match_contract(docs: tuple[dict[str, Any], dict[
         missing = set(c["responses"]) - set(g["responses"])
         if missing:
             problems.append(f"{tag}: response codes missing {sorted(missing)}")
+        extra = set(g["responses"]) - set(c["responses"])
+        if extra:
+            problems.append(f"{tag}: response codes not in the contract {sorted(extra)}")
 
         c_params = {
             (_resolve(contract, p)["name"].lower(), _resolve(contract, p)["in"]): _resolve(
@@ -155,3 +158,10 @@ def test_implemented_operations_match_contract(docs: tuple[dict[str, Any], dict[
             else:
                 problems += _compare_schema(contract, cs, generated, gs, f"{tag} {code}")
     assert problems == []
+
+
+def test_no_fastapi_validation_schemas(docs: tuple[dict[str, Any], dict[str, Any]]) -> None:
+    """Invalid input is 400 with the shared Error shape, never FastAPI's 422."""
+    _, generated = docs
+    schemas = set(generated.get("components", {}).get("schemas", {}))
+    assert schemas & {"HTTPValidationError", "ValidationError"} == set()
