@@ -18,5 +18,9 @@ RUN useradd --system --uid 10001 app && mkdir /data && chown app /data
 USER app
 VOLUME /data
 
+# Commit the image is built from, reported by /health (deploy/gcp.sh passes it).
+ARG GIT_SHA=unknown
+ENV GIT_SHA=${GIT_SHA}
+
 EXPOSE 8080
 CMD ["sh", "-c", "exec /srv/.venv/bin/uvicorn app.main:create_app --factory --host 0.0.0.0 --port ${PORT}"]

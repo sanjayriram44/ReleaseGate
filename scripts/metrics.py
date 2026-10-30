@@ -106,12 +106,13 @@ def ci_status() -> str:
 
 
 def live_commit() -> str | None:
-    """The commit the live /health reports; None until §16.1 adds it (or if unreachable)."""
+    """The commit the live /health reports; None if it reports none or "unknown" (an image built
+    without GIT_SHA), or if it's unreachable."""
     try:
         commit = _get_json(f"{LIVE_SYSTEM}/health").get("commit")
     except Exception:
         return None
-    return str(commit) if commit else None
+    return str(commit) if commit and commit != "unknown" else None
 
 
 @dataclass(frozen=True)
@@ -225,7 +226,7 @@ def g6(offline: bool) -> tuple[str, str]:
         return "skipped (--offline)", NOT_YET
     live = live_commit()
     if live is None:
-        return "live `/health` reports no commit yet (§16.1)", NOT_YET
+        return "live `/health` reports no commit (redeploy with GIT_SHA, §16.1)", NOT_YET
     deploy = latest_report("deploy")
     if deploy is None or deploy.commit is None:
         return f"live `{live[:7]}`; no deploy report", NOT_YET

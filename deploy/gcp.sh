@@ -38,7 +38,7 @@ case "${1:-}" in
     ;;
   update)
     "${G[@]}" compute ssh "$VM" --zone "$ZONE" --command \
-      'cd /opt/releasegate && sudo git pull --ff-only && sudo docker compose up -d --build && sudo git log -1 --oneline'
+      'cd /opt/releasegate && sudo git pull --ff-only && sudo GIT_SHA="$(sudo git rev-parse HEAD)" docker compose up -d --build && sudo git log -1 --oneline'
     ;;
   status)
     "${G[@]}" compute instances describe "$VM" --zone "$ZONE" --format='value(status)'

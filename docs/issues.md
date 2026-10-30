@@ -36,7 +36,8 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [ ] `GET /api/v1/vulnerabilities/{cveId}/affected-releases` — proof: AC-05, then AC-04. **blocked: §10 Q6, Q7**
 - [ ] AC-04 fixtures (`sbom_patched.json`, `vulnerabilities.json`, `cve_dataset.json`, `ground_truth.json`) human-verified and signed off by Team 2 — proof: date in `docs/decisions.md`. **blocked: §5.2 human verification**
 - [ ] Production vulnerability source — proof: decision in `docs/decisions.md`. **blocked: §10 Q10**
-- [ ] Reset clears incidents, submissions and vulnerability records; `/health` reports source mode and commit — proof: acceptance tests
+- [x] `/health` reports the built commit (`GIT_SHA` build arg; `unknown` when unset) — proof: `tests/acceptance/test_test_support.py::test_health_reports_the_built_commit`
+- [ ] Reset clears incidents, submissions and vulnerability records; `/health` reports source mode — proof: acceptance tests. **blocked: §10 Q8**
 - [ ] Tester checks and harness `/test/run` for AC-04..AC-07 — proof: `tests/tester`, `tests/test_harness.py`
 - [ ] Structured JSON request logs and signals (§8) — proof: unit test on the log line
 - [ ] Nightly SQLite backup cron, 7 copies (§8) — proof: script test

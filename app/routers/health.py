@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from app.deps import DbDep
@@ -7,17 +7,21 @@ router = APIRouter(tags=["health"])
 
 
 @router.get("/health")
-def health(db: DbDep) -> JSONResponse:
-    """Our own endpoint (not in the shared contract): is the database writable?"""
+def health(request: Request, db: DbDep) -> JSONResponse:
+    """Our own endpoint (not in the shared contract): is the database writable, and which
+    commit is running?"""
+    commit = request.app.state.settings.commit
     try:
         with db.transaction() as conn:
             conn.execute("CREATE TABLE IF NOT EXISTS _health_probe (x INTEGER)")
             conn.execute("INSERT INTO _health_probe VALUES (1)")
             raise _Rollback
     except _Rollback:
-        return JSONResponse({"status": "ok"})
+        return JSONResponse({"status": "ok", "commit": commit})
     except Exception as exc:
-        return JSONResponse({"status": "unavailable", "detail": str(exc)}, status_code=503)
+        return JSONResponse(
+            {"status": "unavailable", "commit": commit, "detail": str(exc)}, status_code=503
+        )
 
 
 class _Rollback(Exception):

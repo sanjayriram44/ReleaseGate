@@ -31,4 +31,4 @@ fi
 cd "$APP"
 # Evaluation deployment: synthetic data only, so the shared test endpoints are on.
 printf 'ENABLE_TEST_ENDPOINTS=%s\nPORT=8080\n' "$(meta enable-test-endpoints true)" > .env
-docker compose up -d --build
+GIT_SHA="$(git rev-parse HEAD)" docker compose up -d --build
