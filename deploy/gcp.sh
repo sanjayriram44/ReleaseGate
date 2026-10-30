@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Deploy ReleaseGate to a Google Compute Engine VM.
-#   PROJECT=<id> bash deploy/gcp.sh create   # one time: API, static IP, firewall (8080, 8081), VM
-#   PROJECT=<id> bash deploy/gcp.sh update   # pull latest main on the VM and rebuild; data kept
-#   PROJECT=<id> bash deploy/gcp.sh status   # VM state and /health of system and tester
+#   PROJECT=<id> bash deploy/gcp.sh create           # one time: API, static IP, firewall, VM
+#   PROJECT=<id> bash deploy/gcp.sh update [ref]     # build ref (default origin/main); data kept
+#   PROJECT=<id> bash deploy/gcp.sh rollback <tag>   # build an earlier tag; data kept
+#   PROJECT=<id> bash deploy/gcp.sh status           # VM state and /health of system and tester
+# update and rollback then run scripts/post_deploy_check.sh (non-destructive): PASS or FAIL.
 # Needs: gcloud signed in, PROJECT set to a project with billing enabled.
 set -euo pipefail
 
@@ -16,6 +18,40 @@ G=(gcloud --project "$PROJECT" --quiet)
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
 ip() { "${G[@]}" compute addresses describe "$IP_NAME" --region "$REGION" --format='value(address)'; }
+
+vm() { "${G[@]}" compute ssh "$VM" --zone "$ZONE" --command "$1"; }
+
+# Check out $1 (a tag, a commit or origin/<branch>) on the VM, rebuild with GIT_SHA set to it,
+# then run the post-deploy checks against the new deployment.
+deploy_ref() {
+  local ref="$1" out prev sha
+  if [[ ! "$ref" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+    echo "invalid ref: $ref" >&2
+    exit 2
+  fi
+  out="$(vm "cd /opt/releasegate && sudo git fetch --quiet --tags --force origin \
+    && sudo git rev-parse HEAD && sudo git rev-parse --verify '$ref^{commit}'" | tr -d '\r')"
+  prev="$(sed -n 1p <<<"$out")"
+  sha="$(tail -n 1 <<<"$out")"
+  if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "could not resolve $ref on the VM" >&2
+    exit 1
+  fi
+  echo "Deploying $ref ($sha); previously deployed: $prev"
+  vm "cd /opt/releasegate && sudo git checkout --quiet --detach $sha \
+    && sudo GIT_SHA=$sha docker compose up -d --build"
+  if [ "$(git -C "$HERE/.." rev-parse HEAD)" != "$sha" ]; then
+    echo "Note: this checkout isn't at $sha, and the checks read the contract from it."
+  fi
+  if bash "$HERE/../scripts/post_deploy_check.sh" "http://$(ip):8080" "$sha" \
+    --test-endpoints "${TEST_ENDPOINTS:-on}"; then
+    echo "Deploy of $sha: PASS. Record it in docs/test-reports/; tag it if it's a milestone."
+  else
+    echo "Deploy of $sha: FAIL. Roll back with: bash deploy/gcp.sh rollback <previous tag>" \
+      "(previous commit $prev)" >&2
+    exit 1
+  fi
+}
 
 case "${1:-}" in
   create)
@@ -37,8 +73,10 @@ case "${1:-}" in
     echo "System: http://$(ip):8080  Tester: http://$(ip):8081  (first boot takes ~3-5 min)"
     ;;
   update)
-    "${G[@]}" compute ssh "$VM" --zone "$ZONE" --command \
-      'cd /opt/releasegate && sudo git pull --ff-only && sudo GIT_SHA="$(sudo git rev-parse HEAD)" docker compose up -d --build && sudo git log -1 --oneline'
+    deploy_ref "${2:-origin/main}"
+    ;;
+  rollback)
+    deploy_ref "refs/tags/${2:?usage: deploy/gcp.sh rollback <tag>}"
     ;;
   status)
     "${G[@]}" compute instances describe "$VM" --zone "$ZONE" --format='value(status)'
@@ -49,7 +87,7 @@ case "${1:-}" in
     done
     ;;
   *)
-    sed -n '2,6p' "$0"
+    sed -n '2,8p' "$0"
     exit 1
     ;;
 esac

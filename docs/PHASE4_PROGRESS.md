@@ -25,6 +25,7 @@ pick up here. **Read `CLAUDE.md` (the Phase 4 handoff) first**, then this file, 
 | 5 onwards | **Not started; blocked on the human answers below.** |
 | Unblocked extras (session 2, 2026-10-30) | `/health` reports the built commit (`GIT_SHA` build arg → `Settings.commit`, `unknown` when unset; §16.1). CI stage E `docker-build` builds both images tagged with the SHA and checks the commit inside the system image; shown to fail on a throwaway branch without `ENV GIT_SHA` (deleted). The live VM still runs `136c05a`, so G6 stays unmeasurable until a redeploy with `deploy/gcp.sh update`, which now passes `GIT_SHA`. |
 | Unblocked extras, continued | Structured JSON request logs (§8) in `app/request_log.py`: one line per request to stdout with request ID (echoed in `X-Request-Id`), user, method, path, status, latency, clock on arrival and whether it's overridden, plus error code/message on 4xx/5xx; uvicorn's access log is off. Still to add when those features exist: source error detail on 503 lines, overdue-deadline counts. |
+| Post-deploy checks (§16) | `scripts/post_deploy_check.sh <base_url> <sha>` runs the five non-destructive checks of §16.2; the CVE check skips until the query is built. `deploy/gcp.sh update [ref]` now checks out an exact commit (detached) instead of pulling, `rollback <tag>` builds a tag, and both run the checks and print PASS/FAIL. The not-yet-built list moved to `app/contract_status.py`, shared by the contract test and the checks; remove operations there as they're built. Against the live URL: all pass except `health` (no commit until a redeploy). `--full` isn't built. |
 
 ### Human tasks still open
 
@@ -82,7 +83,7 @@ review them before anything depends on them.
   so `CLAUDE.md` and `docs/PHASE3_HANDOFF.md` are excluded in `pyproject.toml`. pytest collects
   any `test*` helper, so name helpers `make_*`. The shell is zsh. Run local servers on
   `PORT=18080` / `TESTER_PORT=18081`, because old Dependency-Track containers may hold 8080/8081.
-- **Deploy:** run
+- **Deploy** (now `update [ref]` / `rollback <tag>`, both followed by the post-deploy checks): run
   `PATH="$HOME/google-cloud-sdk/bin:$PATH" PROJECT=project-13c0e17b-3f88-45f0-be0 bash deploy/gcp.sh update`
   (`status` checks health). It pulls main on the VM, rebuilds and keeps the data volume. Ask
   before every deploy and before anything that writes to or resets the live system. A tester or

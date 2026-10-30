@@ -119,12 +119,18 @@ One `e2-medium` Debian 12 VM in `us-central1-a` (static IP) runs the compose sta
 `deploy/gcp-startup.sh` installs Docker and starts it on every boot.
 
 ```bash
-PROJECT=<gcp-project-id> bash deploy/gcp.sh update   # pull latest main on the VM and rebuild
-PROJECT=<gcp-project-id> bash deploy/gcp.sh status   # VM state, /health of system and tester
+PROJECT=<gcp-project-id> bash deploy/gcp.sh update [ref]    # build ref (default origin/main), then check
+PROJECT=<gcp-project-id> bash deploy/gcp.sh rollback <tag>  # build an earlier tag, then check
+PROJECT=<gcp-project-id> bash deploy/gcp.sh status          # VM state, /health of system and tester
 ```
 
 `create` built the VM, static IP and the firewall rules that open only TCP 8080 and 8081; it is a
 one-time step.
+
+`update` and `rollback` check out an exact commit on the VM (so `/health` reports it), rebuild,
+and then run the non-destructive post-deploy checks, printing `PASS` or `FAIL` with a rollback
+hint. To run the checks by hand from a checkout of the deployed commit:
+`bash scripts/post_deploy_check.sh <base_url> <commit> [--test-endpoints on|off]`.
 
 ## Contributors
 

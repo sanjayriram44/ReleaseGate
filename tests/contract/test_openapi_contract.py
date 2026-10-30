@@ -1,7 +1,8 @@
 """Compare the app's generated OpenAPI with the shared contract in docs/openapi.yaml.
 
-Phase 3 operations must match; later-phase operations are listed explicitly so the test also
-fails when one appears (or is forgotten) without updating the list.
+Phase 3 operations must match; later-phase operations are listed explicitly (in
+app/contract_status.py) so the test also fails when one appears (or is forgotten) without
+updating the list.
 """
 
 from pathlib import Path
@@ -11,19 +12,10 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
+from app.contract_status import NOT_YET_IMPLEMENTED
+
 METHODS = ("get", "put", "post", "patch", "delete")
 
-# Contract operations deliberately not built yet (Phases 4 and 5).
-NOT_YET_IMPLEMENTED = {
-    ("/api/v1/vulnerabilities/{cveId}/affected-releases", "get"),
-    ("/api/v1/incidents", "post"),
-    ("/api/v1/incidents/{incidentId}", "get"),
-    ("/api/v1/incidents/{incidentId}", "patch"),
-    ("/api/v1/incidents/{incidentId}/submissions", "post"),
-    ("/api/v1/incidents/{incidentId}/report-data/{stage}", "put"),
-    ("/api/v1/incidents/{incidentId}/reports/{stage}", "get"),
-    ("/api/v1/test/vulnerability-source", "put"),
-}
 # Our own endpoints that are not part of the shared contract.
 EXTRA_ENDPOINTS = {("/health", "get")}
 
