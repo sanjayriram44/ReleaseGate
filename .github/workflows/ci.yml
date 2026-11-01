@@ -93,3 +93,44 @@ jobs:
           docker run --rm releasegate:${{ github.sha }} /srv/.venv/bin/python -c
           "from app.config import Settings; c = Settings.from_env().commit;
           assert c == '${{ github.sha }}', c"
+  # Stage F: the compose stack with test endpoints on. Smoke test, the tester (from the host, from
+  # the tester container and the system's own /test/run), then a restart must keep the release,
+  # components, incident, computed deadlines and audit entries (AC-10 for REQ-01/02/05/06).
+  container-smoke:
+    needs: [docker-build, acceptance, tester]
+    runs-on: ubuntu-latest
+    env:
+      ENABLE_TEST_ENDPOINTS: "true"
+      GIT_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --locked
+      - run: docker compose up -d --build
+      - name: Wait for /health on both services (60 s)
+        run: |
+          for i in $(seq 1 60); do
+            curl -fsS localhost:8080/health && curl -fsS localhost:8081/health && exit 0
+            sleep 1
+          done
+          exit 1
+      - run: curl -fsS localhost:8080/health | grep -q "\"commit\":\"$GIT_SHA\""
+      - run: bash scripts/smoke.sh localhost:8080
+      - run: uv run python scripts/container_smoke.py tester http://localhost:8080
+      - name: Tester container and system self-test (/test/run) pass
+        run: |
+          for port in 8081 8080; do
+            curl -fsS -X POST localhost:$port/test/run | tee run.json
+            python3 -c "import json; r = json.load(open('run.json')); assert r['result'] == 'pass', r"
+          done
+      - run: uv run python scripts/container_smoke.py seed http://localhost:8080 state.json
+      - run: docker compose restart api
+      - name: Wait for /health after the restart (60 s)
+        run: |
+          for i in $(seq 1 60); do curl -fsS localhost:8080/health && exit 0; sleep 1; done
+          exit 1
+      - run: uv run python scripts/container_smoke.py verify http://localhost:8080 state.json
+      - if: failure()
+        run: docker compose logs
+      - if: always()
+        run: docker compose down -v
