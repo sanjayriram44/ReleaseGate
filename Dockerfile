@@ -11,7 +11,7 @@ RUN uv sync --locked --no-dev --no-install-project
 COPY app ./app
 # /test/run self-test uses the shared check suite and fixtures.
 COPY tester ./tester
-COPY fixtures/releases.json fixtures/sbom_25_components.json ./fixtures/
+COPY fixtures/*.json ./fixtures/
 
 # Non-root user; /data is the persistent volume mount point for the SQLite file.
 RUN useradd --system --uid 10001 app && mkdir /data && chown app /data

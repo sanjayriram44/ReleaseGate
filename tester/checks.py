@@ -1,6 +1,6 @@
 """Black-box checks of any ReleaseGate-compatible system over the shared HTTP contract.
 
-Required checks come from docs/openapi.yaml and AC-01..AC-03 and decide pass/fail.
+Required checks come from docs/openapi.yaml and AC-01..AC-07 and decide pass/fail.
 Informational checks cover provisional pod decisions (docs/decisions.md); they are reported
 but never fail a run, so another team is not penalised for a choice the pod has not made.
 """
@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+
+from tester import phase4
 
 USER = {"X-User-Id": "releasegate-tester"}
 JSON = {"Content-Type": "application/json"}
@@ -52,14 +54,40 @@ class Report:
 
 
 @dataclass(frozen=True)
+class CveFixtures:
+    """The Phase 4 CVE fixtures (AC-04, AC-05): a DRAFT until both teams' checkers sign off."""
+
+    dataset: dict[str, Any]
+    records: list[dict[str, Any]]
+    truth: dict[str, Any]
+    sboms: dict[str, bytes]
+
+    @classmethod
+    def load(cls, directory: Path) -> "CveFixtures":
+        dataset = json.loads((directory / "cve_dataset.json").read_text())
+        files = {r["sbom_file"] for r in dataset["releases"] if r["sbom_file"]}
+        return cls(
+            dataset,
+            json.loads((directory / "vulnerabilities.json").read_text())["records"],
+            json.loads((directory / "ground_truth.json").read_text()),
+            {f: (directory / f).read_bytes() for f in sorted(files)},
+        )
+
+
+@dataclass(frozen=True)
 class Fixtures:
     releases: dict[str, Any]
     sbom_bytes: bytes
+    cve: CveFixtures
 
     @classmethod
     def load(cls, directory: Path) -> "Fixtures":
         releases = json.loads((directory / "releases.json").read_text())
-        return cls(releases, (directory / releases["ac02"]["sbom_file"]).read_bytes())
+        return cls(
+            releases,
+            (directory / releases["ac02"]["sbom_file"]).read_bytes(),
+            CveFixtures.load(directory),
+        )
 
     @property
     def sbom_components(self) -> list[tuple[str, str]]:
@@ -495,6 +523,8 @@ def run(client: httpx.Client, fixtures: Fixtures, target: str) -> Report:
             runner.ac01()
             rid = runner.ac02()
             runner.ac03(rid)
+            phase4.ac06_ac07(runner)
+            phase4.ac04_ac05(runner)
             runner.audit_and_reset()
         else:
             report.error = (

@@ -52,7 +52,7 @@ curl -X POST http://<tester-host>:8081/api/v1/runs \
   (the last 50 runs are kept in memory).
 - **A run calls the target's `POST /api/v1/test/reset` at the start and the end, so it wipes the
   target's data.** The target needs its test endpoints enabled.
-- *Required* checks come from the shared contract and AC-01..AC-03 and decide pass/fail.
+- *Required* checks come from the shared contract and AC-01..AC-07 and decide pass/fail.
   *Informational* checks cover our provisional pod decisions (`docs/decisions.md`) and never fail
   a run.
 - Error messages for rejected input appear in the report for the human inspection AC-03 asks for.
@@ -66,7 +66,7 @@ in `docs/openapi.yaml` under "autograder harness". No authentication.
 |---|---|---|
 | `GET /test` | describes the service | describes the service |
 | `POST /test/setup` | resets all data; optional `{"now": "…Z"}` sets the clock | optional `{"target_base_url": "…"}`; default is our system |
-| `POST /test/run` | runs AC-01..AC-03 against itself | runs AC-01..AC-03 against the target over HTTP |
+| `POST /test/run` | runs AC-01..AC-07 against itself | runs AC-01..AC-07 against the target over HTTP |
 | `GET /test/report?session_id=…` | result and every check | result and every check |
 
 `setup` returns a `session_id`; `run` and `report` take it (in the JSON body or query string;

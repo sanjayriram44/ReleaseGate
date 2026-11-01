@@ -9,7 +9,7 @@ WORKDIR /srv
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project
 COPY tester ./tester
-COPY fixtures/releases.json fixtures/sbom_25_components.json ./fixtures/
+COPY fixtures/*.json ./fixtures/
 
 RUN useradd --system --uid 10001 tester
 USER tester

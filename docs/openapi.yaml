@@ -514,7 +514,7 @@ paths:
         and the tester (http://<host>:8081). No authentication; no X-User-Id needed.
 
 
-        System: resets all data (releases, components, audit log) and the clock; optional `now` sets the
+        System: resets all data (releases, components, incidents, vulnerability records, audit log) and the clock; optional `now` sets the
         reference clock. Tester: selects the system to test from `target_base_url` (default: our deployed
         system). Returns the `session_id` used by run and report.'
       tags:
@@ -588,7 +588,7 @@ paths:
                         type: string
   /test/run:
     post:
-      summary: Run the AC-01..AC-03 suite for a session
+      summary: Run the AC-01..AC-07 suite for a session
       description: 'Course autograder harness, served at the same paths on both base URLs: the system (http://<host>:8080)
         and the tester (http://<host>:8081). No authentication; no X-User-Id needed.
 

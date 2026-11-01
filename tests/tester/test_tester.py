@@ -33,8 +33,8 @@ def test_our_system_passes_every_check(tmp_path: Path) -> None:
     assert report.result == "pass"
     assert report.summary["informational_failed"] == 0
     acs = {c.ac for c in report.checks}
-    assert {"AC-01", "AC-02", "AC-03", "contract"} <= acs
-    assert report.summary["required_passed"] >= 25
+    assert {"AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "contract"} <= acs
+    assert report.summary["required_passed"] >= 50
 
 
 def test_run_leaves_target_reset(tmp_path: Path) -> None:
@@ -135,3 +135,34 @@ def test_normalize_target_rejects(url: str) -> None:
 def test_metadata_server_is_refused() -> None:
     with pytest.raises(BadTarget):
         reject_link_local("http://169.254.169.254")
+
+
+def test_wrong_deadlines_and_matches_fail_their_acs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The Phase 4 checks can fail: an off-by-one deadline fails AC-07, and a matcher that
+    ignores the purl version fails AC-04."""
+    from datetime import timedelta
+
+    from app.services import deadlines, matching
+
+    monkeypatch.setattr(deadlines, "EARLY_WARNING", timedelta(hours=24, seconds=-1))
+    monkeypatch.setattr(matching, "normalize_purl", lambda purl: purl.split("@", 1)[0])
+    report = run(system(tmp_path), FIXTURES, "http://testserver")
+    bad = failed(report)
+    assert "ac07.initial" in bad and "ac07.early_warning_met" in bad
+    assert "ac04.CVE-2023-25577" in bad  # werkzeug 2.2.3 now "matches" too
+    assert report.result == "fail"
+
+
+def test_system_without_incidents_fails_ac06(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from fastapi import APIRouter
+
+    import app.main
+
+    monkeypatch.setattr(app.main.incidents, "router", APIRouter())
+    report = run(system(tmp_path), FIXTURES, "http://testserver")
+    assert report.error is None
+    assert {"ac06.mandatory", "ac06.voluntary", "ac07.initial"} <= set(failed(report))

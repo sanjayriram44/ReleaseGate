@@ -1,7 +1,7 @@
 """System side of the course autograder harness (/test, /test/setup, /test/run, /test/report).
 
 setup resets all data (like /api/v1/test/reset) and can set the clock; run executes the shared
-AC-01..AC-03 suite against this system in-process and leaves it reset afterwards.
+AC-01..AC-07 suite against this system in-process and leaves it reset afterwards.
 """
 
 import os
@@ -39,7 +39,7 @@ def build_router(app: FastAPI) -> APIRouter:
     return make_router(
         "system",
         "ReleaseGate system under test. setup resets all data; run executes the shared "
-        "AC-01..AC-03 suite against this system; report returns the result.",
+        "AC-01..AC-07 suite against this system; report returns the result.",
         setup,
         run_self_test,
     )

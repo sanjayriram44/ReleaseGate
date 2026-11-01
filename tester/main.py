@@ -1,4 +1,4 @@
-"""ReleaseGate tester: runs the shared AC-01..AC-03 checks against any system base URL.
+"""ReleaseGate tester: runs the shared AC-01..AC-07 checks against any system base URL.
 
 POST /api/v1/runs {"target_base_url": "http://host:port"} -> report JSON.
 A run calls the target's /api/v1/test/reset, so it wipes the target's data.
@@ -157,7 +157,7 @@ def create_app(
         make_router(
             "tester",
             "ReleaseGate tester. setup selects the system to test (target_base_url, default: our "
-            "deployed system); run executes AC-01..AC-03 against it over HTTP, resetting its "
+            "deployed system); run executes AC-01..AC-07 against it over HTTP, resetting its "
             "data; report returns every check.",
             harness_setup,
             harness_run,
