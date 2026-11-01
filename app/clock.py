@@ -6,9 +6,12 @@ parse_utc / format_utc.
 
 import re
 import threading
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from app.errors import ApiError
+
+# Deadlines add up to 14 days (CRA final report), so later timestamps would overflow datetime.
+LATEST = datetime.max.replace(tzinfo=UTC) - timedelta(days=14)
 
 # Date, time, optional fraction, then Z or a numeric offset up to ±23:59 (fromisoformat alone
 # would read +02:60 as +03:00). A timestamp with no zone is rejected.
@@ -35,7 +38,17 @@ def parse_utc(value: str, field: str = "now") -> datetime:
         dt = datetime.fromisoformat(base + micros + ("+00:00" if zone == "Z" else zone))
     except ValueError as exc:
         raise ApiError(400, "INVALID_REQUEST", f"{field} is not a valid timestamp") from exc
-    return dt.astimezone(UTC)
+    try:
+        utc = dt.astimezone(UTC)
+    except OverflowError:  # e.g. 0001-01-01T00:00:00+01:00 is before year 1 in UTC
+        utc = None
+    if utc is None or utc > LATEST:
+        raise ApiError(
+            400,
+            "INVALID_REQUEST",
+            f"{field} is out of range (0001-01-01T00:00:00Z to {format_utc(LATEST)})",
+        )
+    return utc
 
 
 def format_utc(dt: datetime) -> str:

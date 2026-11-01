@@ -90,3 +90,23 @@ def test_only_clock_module_reads_system_time() -> None:
         if p.name != "clock.py" and pattern.search(p.read_text())
     ]
     assert offenders == []
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "9999-12-31T00:00:00Z",  # + 14 days would overflow
+        "9999-12-18T00:00:00Z",
+        "0001-01-01T00:00:00+01:00",  # converting to UTC would underflow
+    ],
+)
+def test_parse_utc_rejects_timestamps_at_the_calendar_limits(value: str) -> None:
+    with pytest.raises(ApiError) as exc:
+        parse_utc(value, "awareness_at")
+    assert exc.value.status == 400
+    assert exc.value.message.startswith("awareness_at is out of range")
+
+
+def test_parse_utc_accepts_the_last_supported_moment() -> None:
+    assert format_utc(parse_utc("9999-12-17T23:59:59Z")) == "9999-12-17T23:59:59Z"
+    assert format_utc(parse_utc("0001-01-01T00:00:00Z")) == "0001-01-01T00:00:00Z"

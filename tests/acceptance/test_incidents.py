@@ -297,3 +297,16 @@ def test_incidents_survive_a_restart(tmp_path: Any) -> None:
         before = c.get(f"/api/v1/incidents/{iid}").json()
     with TestClient(create_app(settings)) as c:
         assert c.get(f"/api/v1/incidents/{iid}").json() == before
+
+
+def test_extreme_timestamps_are_400_not_500(client: TestClient) -> None:
+    r = make_incident(client, awareness_at="9999-12-31T00:00:00Z")
+    assert r.status_code == 400 and "out of range" in r.json()["error"]["message"]
+    iid = make_incident(client).json()["incident_id"]
+    r = client.patch(
+        f"/api/v1/incidents/{iid}", json={"fix_available_at": "9999-12-25T00:00:00Z"}, headers=H
+    )
+    assert r.status_code == 400
+    r = client.put("/api/v1/test/clock", json={"now": "0001-01-01T00:30:00+01:00"})
+    assert r.status_code == 400
+    assert audit_actions(client) == ["INCIDENT_CREATED"]
