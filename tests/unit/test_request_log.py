@@ -144,3 +144,34 @@ def test_formatter_writes_the_line_with_the_wall_time() -> None:
         "time": "2027-01-01T00:00:00.250000Z",
         "status": 200,
     }
+
+
+def test_503_line_carries_the_source_error_detail(
+    client: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    client.put("/api/v1/test/vulnerability-source", json={"mode": "unreachable"})
+    caplog.clear()
+    client.get("/api/v1/vulnerabilities/CVE-2023-25577/affected-releases")
+    [line] = make_lines(caplog)
+    assert line["status"] == 503
+    assert line["error_code"] == "VULNERABILITY_SOURCE_UNREACHABLE"
+    assert line["error_details"] == {
+        "source": "fixture",
+        "reason": "fixture source is set to unreachable",
+    }
+
+
+def test_incident_lines_count_overdue_deadlines(
+    client: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    client.put("/api/v1/test/clock", json={"now": "2026-11-01T10:00:00Z"})
+    body = {"awareness_at": "2026-11-01T10:00:00Z", "classification": "mandatory", "rationale": "r"}
+    iid = client.post("/api/v1/incidents", json=body, headers=H).json()["incident_id"]
+    client.put("/api/v1/test/clock", json={"now": "2026-11-04T10:00:01Z"})
+    caplog.clear()
+    client.get(f"/api/v1/incidents/{iid}")
+    [line] = make_lines(caplog)
+    assert line["overdue_deadlines"] == 2
+    caplog.clear()
+    client.get("/api/v1/releases/nope")
+    assert "overdue_deadlines" not in make_lines(caplog)[0]

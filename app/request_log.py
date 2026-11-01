@@ -3,7 +3,8 @@
 Each line carries the request ID, X-User-Id, method, path, status, latency, and the clock value
 when the request arrived (and whether the test clock overrode it), so a failing test can be
 replayed (report §7.4). Error responses add their error code and message, which gives the
-error rates, the 503 rate and the SBOM rejection reasons. The request ID is echoed in
+error rates, the 503 rate (with the source's error details) and the SBOM rejection reasons;
+incident responses add overdue_deadlines. The request ID is echoed in
 X-Request-Id; a caller's own ID is kept when it's short and safe.
 """
 
@@ -21,6 +22,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from app.clock import Clock, format_utc
 
 LOGGER_NAME = "releasegate.request"
+LOG_FIELDS = "log_fields"  # request.state key whose dict is merged into the line
 _SAFE_ID = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _MAX_MESSAGE = 300
 _MAX_ERROR_BODY = 64 * 1024
@@ -52,7 +54,7 @@ def _header(scope: Scope, name: bytes) -> str | None:
     return None
 
 
-def _error_fields(body: bytes) -> dict[str, str]:
+def _error_fields(body: bytes) -> dict[str, Any]:
     try:
         error = json.loads(body)["error"]
         code, message = str(error["code"]), str(error["message"])
@@ -60,7 +62,10 @@ def _error_fields(body: bytes) -> dict[str, str]:
         return {}
     if len(message) > _MAX_MESSAGE:
         message = message[:_MAX_MESSAGE] + "..."
-    return {"error_code": code, "error_message": message}
+    fields: dict[str, Any] = {"error_code": code, "error_message": message}
+    if isinstance(error.get("details"), dict):  # e.g. why the vulnerability source failed
+        fields["error_details"] = error["details"]
+    return fields
 
 
 class RequestLog:
@@ -110,4 +115,8 @@ class RequestLog:
             fields["latency_ms"] = round((time.perf_counter() - started) * 1000, 3)
             if error_body:
                 fields.update(_error_fields(bytes(error_body)))
+            # Routes add their own signals (e.g. overdue_deadlines) through request.state.
+            extra = scope.get("state", {}).get(LOG_FIELDS)
+            if isinstance(extra, dict):
+                fields.update(extra)
             logger.info("request", extra={"fields": fields})

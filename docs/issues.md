@@ -13,7 +13,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] CI stage B `unit` job with coverage gate — proof: job green, and fails below the G5 threshold
 - [x] CI stage E `docker-build` (both images, tagged with the SHA; the system image reports it) — proof: job green, and fails on a throwaway branch without `ENV GIT_SHA`
 - [x] CI stages C `acceptance` and D `tester`, with the G5 gate in a `coverage` job that combines all three suites' data — proof: jobs green; throwaway branches failed only in `acceptance`, only in `tester`, and in `coverage` at `--fail-under=100`; `tests/unit/test_ci_split.py` fails if a test file runs in no job or two
-- [ ] CI stage F `container-smoke` — proof: job green and shown to fail. Needs the incident endpoints for its restart check
+- [x] CI stage F `container-smoke` — proof: job green on `c509ef6`; `tests/unit/test_container_smoke.py` shows the restart check notices a change
 
 ## Phase 3 carry-over (CLAUDE.md §4)
 
@@ -43,7 +43,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] Reset clears incidents, submissions and vulnerability records; `/health` reports source mode — proof: acceptance tests
 - [x] Tester checks and harness `/test/run` for AC-04..AC-07 — proof: `tests/tester`, `tests/test_harness.py`
 - [x] Structured JSON request logs (§8): one line per request, request ID echoed in `X-Request-Id`, error code/message on 4xx/5xx, uvicorn access log off — proof: `tests/unit/test_request_log.py`
-- [ ] Log signals for the source and deadlines (§8): source error detail on 503 lines, overdue-deadline counts — proof: tests with the CVE query and incidents.
+- [x] Log signals for the source and deadlines (§8): source error detail on 503 lines, overdue-deadline counts — proof: tests with the CVE query and incidents.
 - [x] Nightly SQLite backup, 7 copies (§8): `app/backup.py` (online backup API, integrity check, prune), `deploy/backup.sh` + `deploy/releasegate-backup.cron` installed by `gcp.sh update` — proof: `tests/unit/test_backup.py`; 5 backups taken during 319 concurrent writes, each consistent
 - [ ] Confirm the backup on the VM after the next deploy: `/etc/cron.d/releasegate-backup` installed, one manual `sudo /opt/releasegate/deploy/backup.sh` writes a copy, and the README restore steps work — proof: note in the deploy report
 - [x] `scripts/post_deploy_check.sh` (non-destructive), `deploy/gcp.sh update [ref]` from an exact commit and `rollback <tag>`, both running the checks (§16) — proof: `tests/unit/test_post_deploy_check.py`; dry run with a stub `gcloud`; run against the live URL on 2026-10-30 (all pass except the commit check: `136c05a` predates `GIT_SHA`)
