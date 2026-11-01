@@ -25,7 +25,8 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] 6 Non-JSON `Content-Type` → `Content-Type must be application/json` — proof: acceptance test
 - [x] 7 No stray 422 in generated OpenAPI; contract test fails on extra codes — proof: contract test
 - [x] 8 Smoke test uses `tmp_path` — proof: `tests/unit/test_smoke.py`
-- [ ] Tag `phase3` (`9c0b191`, tagged 2026-11-01) and ask Team 2 to rerun (redeployed `136c05a` on 2026-10-30) — proof: human runs the tag; Team 2's report in `docs/test-reports/`
+- [x] Tag `phase3` (`9c0b191`, tagged 2026-11-01)
+- [ ] Ask Team 2 to rerun (redeployed `136c05a` on 2026-10-30) — proof: human runs the tag; Team 2's report in `docs/test-reports/`
 
 ## Phase 4 features (CLAUDE.md §6)
 
@@ -56,7 +57,9 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 
 ## Human tasks (CLAUDE.md §11, §8)
 
-- [ ] Team 2 confirms the adopted answers in `docs/decisions.md` (Q1–Q8), including the two contract additions; update the diagrams for "no push alerts"
+- [x] Team 2 confirms the answers in `docs/decisions.md` (Q1–Q8), including the two contract additions — 2026-11-01
+- [ ] Update the shared diagrams for "no push alerts" and the deadline status names (CLAUDE.md §11)
+- [ ] Name Team 6's AC-04 fixture reviewer (decision Q7) and get Team 2's reviewer to check the same values before the Phase 4 submission
 - [ ] Spec housekeeping list in CLAUDE.md §11
 - [ ] Uptime monitor on `/health`
 - [x] Re-seed the live demo release (ExampleGateway 1.0.0 + `fixtures/sbom_25_components.json`, CVE records, one incident) — 2026-11-01

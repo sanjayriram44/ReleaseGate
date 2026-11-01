@@ -1,9 +1,9 @@
 """Phase 4 checks: incidents and deadlines (AC-06, AC-07) and the CVE query (AC-04, AC-05).
 
-Required checks follow the shared contract and the AC text. Checks that depend on answers Team 6
-adopted but Team 2 hasn't confirmed yet (docs/decisions.md, Q1-Q6) are informational, so they
-never fail another team's run. AC-04's expected results come from fixtures/ground_truth.json,
-which is a DRAFT until one checker per team verifies it (decision Q7).
+Required checks follow the shared contract and the AC text. Checks of the pod's Phase 4 answers
+(docs/decisions.md, Q1-Q6; agreed with Team 2 on 2026-11-01) are informational, like the
+Phase 3 decision checks, so they never fail another team's run. AC-04's expected results come
+from fixtures/ground_truth.json, a DRAFT until one reviewer per team verifies it (decision Q7).
 """
 
 import json

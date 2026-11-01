@@ -14,3 +14,10 @@
    - Proposed answer: One person per team, before the Phase 4 milestone; no, tests compare them as sets.
 8. Should the production vulnerability source stay Dependency-Track or switch to matching against a local OSV snapshot, and are there push alerts for deadlines in Phase 4, or is the status only shown when an incident is read?
    - Proposed answer: Switch to a local OSV snapshot (needs instructor sign-off); no push alerts, status is shown on read.
+
+## Team 2's answers (2026-11-01)
+
+Team 2 agreed to the proposed answers for questions 1–7, preferring 409 for a duplicate submission
+now that the contract lists it. On question 8 they agreed there are no push alerts in Phase 4 and
+said they are open to switching to a local OSV snapshot (which still needs instructor sign-off).
+The outcomes are recorded in `docs/decisions.md`.
