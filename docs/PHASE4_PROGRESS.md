@@ -60,13 +60,13 @@ with CI green, and `68011ca` is deployed (`docs/test-reports/2026-11-01-deploy.m
 1. ~~Live full run~~ **Done 2026-11-01** (`docs/test-reports/2026-11-01-deploy-full.md`): tester
    52/52 against the live URL, both `/test/run` harnesses pass, smoke.sh and restart persistence
    pass, demo data re-seeded. G1, G2, G4, G5 and G6 are met (`docs/metrics.md`). The answers are
-   accepted for the submission (`docs/decisions.md`). `phase3` and `phase4` (`68011ca`) are tagged.
+   accepted for the submission (`docs/decisions.md`). `phase3` and `phase4` (now `e864340`) are tagged.
 2. **Cross-team runs both ways** (G3), each with its own report. Team 2 first needs the contract
    commit `c249e2c` and the decisions.
 3. **Human checks:** review the deadline code; verify the AC-04 fixtures (one reviewer per team,
    before the submission); instructor sign-off for Q8's OSV source. Team 2 agreed Q1–Q7 and "no
    push alerts" on 2026-11-01, and is open to the OSV switch.
-4. ~~Tags~~ done: `phase3` → `9c0b191`, `phase4` → `68011ca`. If a later fix is deployed, move
+4. ~~Tags~~ done: `phase3` → `9c0b191`, `phase4` → `e864340` (moved from `68011ca` after the calendar-limit fix). If a later fix is deployed, move
    `phase4` only with the team's agreement.
 5. `post_deploy_check.sh --full` is still not built; the live tester run is done by hand.
 

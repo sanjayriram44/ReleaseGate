@@ -51,7 +51,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [ ] `post_deploy_check.sh --full` (destructive: tester run, smoke test, restart persistence; §16.2 items 6–8) — proof: run on the evaluation deployment after warning Team 2
 - [x] Deploy Phase 4 (`68011ca`, 2026-11-01) — proof: `docs/test-reports/2026-11-01-deploy.md`
 - [x] Live full run: tester 52/52, both harnesses, smoke.sh, restart persistence; demo re-seeded — proof: `docs/test-reports/2026-11-01-deploy-full.md`
-- [x] Tag `phase4` on the deployed commit `68011ca` — proof: `git ls-remote --tags origin`
+- [x] Tag `phase4` on the deployed commit `e864340` (first `68011ca`) — proof: `git ls-remote --tags origin`
 - [ ] Cross-team runs both ways in `docs/test-reports/` (G3) — proof: `YYYY-MM-DD-cross-team-<direction>.md` with `Result:`
 - [ ] A team member reviews the deadline logic (`0f2e32e`, needs-human-review) and its tests
 
