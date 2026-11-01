@@ -147,3 +147,37 @@ class Incident(BaseModel):
     rationale: str
     fix_available_at: DateTimeStr | None = None
     deadlines: Deadlines
+
+
+class AffectedRelease(BaseModel):
+    release_id: str
+    product: str
+    version: str
+    support_end_date: date
+    matched_components: list[Component]
+
+
+class AffectedReleaseResult(BaseModel):
+    cve_id: str
+    supported: list[AffectedRelease]
+    unsupported: list[AffectedRelease]
+
+
+class VulnerabilityFixture(BaseModel):
+    model_config = ConfigDict(strict=True, extra="ignore")
+
+    cve_id: str
+    affected_purls: list[str]
+
+
+class VulnerabilitySourceConfig(BaseModel):
+    model_config = ConfigDict(strict=True, extra="ignore")
+
+    mode: Literal["available", "unreachable"]
+    # Decision Q6: the records replace all existing ones; omitted means none.
+    records: list[VulnerabilityFixture] = []
+
+
+class VulnerabilitySourceState(BaseModel):
+    mode: Literal["available", "unreachable"]
+    cve_count: int

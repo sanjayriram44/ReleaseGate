@@ -42,6 +42,18 @@ CREATE TABLE IF NOT EXISTS submissions (
     recorded_at TEXT NOT NULL,
     PRIMARY KEY (incident_id, stage)
 );
+-- The fixture vulnerability source, filled by PUT /api/v1/test/vulnerability-source.
+CREATE TABLE IF NOT EXISTS vulnerability_records (cve_id TEXT PRIMARY KEY);
+CREATE TABLE IF NOT EXISTS vulnerability_purls (
+    cve_id TEXT NOT NULL REFERENCES vulnerability_records(cve_id) ON DELETE CASCADE,
+    purl TEXT NOT NULL,
+    PRIMARY KEY (cve_id, purl)
+);
+CREATE TABLE IF NOT EXISTS vulnerability_source_state (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    mode TEXT NOT NULL CHECK (mode IN ('available', 'unreachable'))
+);
+INSERT OR IGNORE INTO vulnerability_source_state(id, mode) VALUES (1, 'available');
 CREATE TABLE IF NOT EXISTS audit_log (
     seq INTEGER PRIMARY KEY AUTOINCREMENT,
     event_id TEXT NOT NULL UNIQUE,
@@ -120,6 +132,9 @@ class Database:
         with self.transaction() as conn:
             conn.execute("DROP TRIGGER IF EXISTS audit_no_update")
             conn.execute("DROP TRIGGER IF EXISTS audit_no_delete")
+            conn.execute("DELETE FROM vulnerability_purls")
+            conn.execute("DELETE FROM vulnerability_records")
+            conn.execute("UPDATE vulnerability_source_state SET mode = 'available'")
             conn.execute("DELETE FROM submissions")
             conn.execute("DELETE FROM incidents")
             conn.execute("DELETE FROM components")

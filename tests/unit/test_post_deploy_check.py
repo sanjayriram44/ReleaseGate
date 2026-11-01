@@ -53,7 +53,7 @@ def test_healthy_deployment_passes(system: TestClient) -> None:
         "openapi": "PASS",
         "test-endpoints": "PASS",
         "malformed-request": "PASS",
-        "cve-query": "SKIP",  # not built yet (app/contract_status.py)
+        "cve-query": "PASS",  # 404 CVE_UNKNOWN: the source has no records
     }
     # Non-destructive: nothing was written.
     assert system.get("/api/v1/audit-logs").json() == {"events": []}
@@ -77,7 +77,7 @@ def test_test_endpoints_must_match_the_expectation(system: TestClient, tmp_path:
             "openapi": "PASS",  # test paths aren't expected when they're off
             "test-endpoints": "PASS",
             "malformed-request": "PASS",
-            "cve-query": "SKIP",
+            "cve-query": "PASS",
         }
         checks = run_checks(make_fetch(off), SHA, True, CONTRACT, wait_s=0)
         assert outcomes(checks)["test-endpoints"] == "FAIL"

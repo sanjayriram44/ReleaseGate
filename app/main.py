@@ -8,7 +8,15 @@ from app.db import Database
 from app.errors import install_error_handlers
 from app.harness import build_router as build_harness_router
 from app.request_log import RequestLog, configure_logging
-from app.routers import audit, health, incidents, releases, sbom, test_support
+from app.routers import (
+    audit,
+    health,
+    incidents,
+    releases,
+    sbom,
+    test_support,
+    vulnerabilities,
+)
 from tester.harness import CollapseSlashes
 
 
@@ -42,6 +50,11 @@ def _align_schema_with_contract(app: FastAPI) -> None:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
+    if settings.vuln_source != "fixture":
+        raise ValueError(
+            f"VULN_SOURCE={settings.vuln_source!r} is not built; only 'fixture' is"
+            " (the production source waits for sign-off, docs/decisions.md Q8)"
+        )
     app = FastAPI(title="CRA Vulnerability Response Service", version="1.0.0")
     app.state.settings = settings
     app.state.clock = Clock()
@@ -56,6 +69,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(releases.router)
     app.include_router(sbom.router)
+    app.include_router(vulnerabilities.router)
     app.include_router(incidents.router)
     app.include_router(audit.router)
     if settings.enable_test_endpoints:

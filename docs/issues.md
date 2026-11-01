@@ -34,12 +34,12 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] `GET /api/v1/incidents/{incidentId}` — proof: AC-06, AC-07
 - [x] `PATCH /api/v1/incidents/{incidentId}` + audit `FIX_AVAILABLE_RECORDED` — proof: AC-07
 - [x] `POST /api/v1/incidents/{incidentId}/submissions` + audit `SUBMISSION_RECORDED` — proof: AC-07
-- [ ] `PUT /api/v1/test/vulnerability-source` + `FixtureSource` — proof: acceptance tests
+- [x] `PUT /api/v1/test/vulnerability-source` + `FixtureSource` — proof: acceptance tests
 - [ ] `GET /api/v1/vulnerabilities/{cveId}/affected-releases` — proof: AC-05, then AC-04
 - [ ] AC-04 fixtures (`sbom_patched.json`, `vulnerabilities.json`, `cve_dataset.json`, `ground_truth.json`) human-verified and signed off by Team 2 — proof: date in `docs/decisions.md`. **blocked: one checker per team (Q7) must verify the draft values**
 - [ ] Production vulnerability source — proof: decision in `docs/decisions.md`. **blocked: instructor sign-off for the OSV snapshot (Q8)**
 - [x] `/health` reports the built commit (`GIT_SHA` build arg; `unknown` when unset) — proof: `tests/acceptance/test_test_support.py::test_health_reports_the_built_commit`
-- [ ] Reset clears incidents, submissions and vulnerability records; `/health` reports source mode — proof: acceptance tests
+- [x] Reset clears incidents, submissions and vulnerability records; `/health` reports source mode — proof: acceptance tests
 - [ ] Tester checks and harness `/test/run` for AC-04..AC-07 — proof: `tests/tester`, `tests/test_harness.py`
 - [x] Structured JSON request logs (§8): one line per request, request ID echoed in `X-Request-Id`, error code/message on 4xx/5xx, uvicorn access log off — proof: `tests/unit/test_request_log.py`
 - [ ] Log signals for the source and deadlines (§8): source error detail on 503 lines, overdue-deadline counts — proof: tests with the CVE query and incidents.

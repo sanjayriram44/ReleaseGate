@@ -83,7 +83,11 @@ def test_test_endpoints_absent_unless_enabled(tmp_path: Path) -> None:
 
 def test_health_ok_and_leaves_no_data(client: TestClient) -> None:
     r = client.get("/health")
-    assert r.status_code == 200 and r.json() == {"status": "ok", "commit": "unknown"}
+    assert r.status_code == 200 and r.json() == {
+        "status": "ok",
+        "commit": "unknown",
+        "source_mode": "available",
+    }
     assert client.get("/api/v1/audit-logs").json() == {"events": []}
 
 
@@ -91,7 +95,7 @@ def test_health_reports_the_built_commit(tmp_path: Path, monkeypatch: MonkeyPatc
     monkeypatch.setenv("GIT_SHA", "0123abc")
     monkeypatch.setenv("DB_PATH", str(tmp_path / "x.db"))
     with TestClient(create_app()) as c:
-        assert c.get("/health").json() == {"status": "ok", "commit": "0123abc"}
+        assert c.get("/health").json()["commit"] == "0123abc"
 
 
 def test_health_commit_unknown_when_git_sha_blank(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
