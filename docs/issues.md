@@ -48,7 +48,9 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [ ] Confirm the backup on the VM after the next deploy: `/etc/cron.d/releasegate-backup` installed, one manual `sudo /opt/releasegate/deploy/backup.sh` writes a copy, and the README restore steps work — proof: note in the deploy report
 - [x] `scripts/post_deploy_check.sh` (non-destructive), `deploy/gcp.sh update [ref]` from an exact commit and `rollback <tag>`, both running the checks (§16) — proof: `tests/unit/test_post_deploy_check.py`; dry run with a stub `gcloud`; run against the live URL on 2026-10-30 (all pass except the commit check: `136c05a` predates `GIT_SHA`)
 - [ ] `post_deploy_check.sh --full` (destructive: tester run, smoke test, restart persistence; §16.2 items 6–8) — proof: run on the evaluation deployment after warning Team 2
-- [ ] Deploy, cross-team runs both ways in `docs/test-reports/`, tag `phase4` — proof: §14.4
+- [x] Deploy Phase 4 (`68011ca`, 2026-11-01) — proof: `docs/test-reports/2026-11-01-deploy.md`
+- [ ] Live `--full` tester run (resets live data; needs a go-ahead), cross-team runs both ways in `docs/test-reports/`, tag `phase4` — proof: §14.4
+- [ ] A team member reviews the deadline logic (`0f2e32e`, needs-human-review) and its tests
 
 ## Human tasks (CLAUDE.md §11, §8)
 

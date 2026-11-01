@@ -22,7 +22,7 @@ pick up here. **Read `CLAUDE.md` (the Phase 4 handoff) first**, then this file, 
 | 2 CI stages A–E | Done. Jobs `static` → `unit` → (`acceptance` (C), `tester` (D)) → `coverage`, plus `docker-build` (E) after `static`. Each suite job saves its coverage data; `coverage` combines them and fails below 85%, so G5 is still the whole suite. `tests/unit/test_ci_split.py` checks every test file runs in exactly one job, so put new test files under an existing directory or add them to a job. Stage F waits for the incident endpoints. |
 | 3 §4 carry-over 1–8 | All done, one commit each: threadpool SBOM upload, nested-component flattening, offset/fraction timestamps, short duplicate error, blank names → 400, Content-Type message, no 422 in the generated OpenAPI (the contract test now fails on extra codes), smoke test in `tmp_path`. `scripts/smoke.sh` was updated for offsets too. |
 | 4 Shared time parsing and formatting | Done as part of §4 item 3: `parse_utc(value, field)` and `format_utc` in `app/clock.py`. Use them for `awareness_at`, `fix_available_at` and `submitted_at`. |
-| 5 onwards | **Not started; blocked on the human answers below.** |
+| 5–11 | Done in session 3; see below. |
 | Unblocked extras (session 2, 2026-10-30) | `/health` reports the built commit (`GIT_SHA` build arg → `Settings.commit`, `unknown` when unset; §16.1). CI stage E `docker-build` builds both images tagged with the SHA and checks the commit inside the system image; shown to fail on a throwaway branch without `ENV GIT_SHA` (deleted). The live VM still runs `136c05a`, so G6 stays unmeasurable until a redeploy with `deploy/gcp.sh update`, which now passes `GIT_SHA`. |
 | Unblocked extras, continued | Structured JSON request logs (§8) in `app/request_log.py`: one line per request to stdout with request ID (echoed in `X-Request-Id`), user, method, path, status, latency, clock on arrival and whether it's overridden, plus error code/message on 4xx/5xx; uvicorn's access log is off. Still to add when those features exist: source error detail on 503 lines, overdue-deadline counts. |
 | Post-deploy checks (§16) | `scripts/post_deploy_check.sh <base_url> <sha>` runs the five non-destructive checks of §16.2; the CVE check skips until the query is built. `deploy/gcp.sh update [ref]` now checks out an exact commit (detached) instead of pulling, `rollback <tag>` builds a tag, and both run the checks and print PASS/FAIL. The not-yet-built list moved to `app/contract_status.py`, shared by the contract test and the checks; remove operations there as they're built. Against the live URL: all pass except `health` (no commit until a redeploy). `--full` isn't built. |
@@ -36,29 +36,36 @@ pick up here. **Read `CLAUDE.md` (the Phase 4 handoff) first**, then this file, 
    Coordinate first: their run resets our data.
 3. Re-seed the demo release on the live system (see above).
 
-## Blocked: questions to settle before step 5
+## Session 3 (2026-11-01): Phase 4 features built and deployed
 
-The proposals come from CLAUDE.md §10. Settle each with Team 2, record it in `docs/decisions.md`,
-and only then build on it. Don't guess.
+The proposed answers in `docs/pod-questions-phase4.md` were adopted as Team 6's decisions (rows in
+`docs/decisions.md`, each "awaiting Team 2"). Two of them changed the contract: 400 for a
+malformed CVE ID, and 409 for a duplicate submission. §14.1 steps 5–11 are done, one commit each
+with CI green, and `68011ca` is deployed (`docs/test-reports/2026-11-01-deploy.md`):
 
-| Q | Question | Proposal | Blocks |
-|---|---|---|---|
-| Q1 | Timestamp amendment | Accept `Z` or offsets, always return UTC `Z` with microseconds. **Already built**; recorded as proposed in `decisions.md` | pod sign-off only |
-| Q2 | Submission after its deadline | Stays `overdue`, with `submitted_at` set | `deadlines.py` |
-| Q3 | Duplicate submission for a stage; submission for a `not_applicable` stage | 409 (needs a contract change, otherwise 400); 400 | submissions endpoint |
-| Q4 | Timestamps before `awareness_at`; times after the clock's now | 400; allowed | PATCH, submissions |
-| Q5 | PATCH `fix_available_at` twice, or on a voluntary case | Overwrite (audited); store it but keep deadlines `not_applicable` | PATCH |
-| Q6 | Malformed CVE ID | 400 `INVALID_REQUEST` (adds 400 to the contract) | CVE query |
-| Q7 | Matching key | Exact purl after stripping qualifiers and subpath; no purl → no match | CVE query |
-| Q8 | State after reset | Source `available` with zero records | vulnerability-source, reset |
-| Q9 | Incident `cve_id` | Format check only | create incident |
-| Q10 | Production vulnerability source | Local OSV snapshot (spike recommendation) or Dependency-Track (needs an 8 GB VM, which costs money, and instructor sign-off) | production source only; the graded `FixtureSource` doesn't depend on it |
-| Q11 | Push alerts | None in Phase 4; status is shown on read | diagrams only |
-| §5.2 | AC-04 fixtures | Claude may draft the structure and the spike's candidate values, marked unverified; a team member verifies and Team 2 signs off, with the date in `decisions.md` | AC-04 |
+- `app/services/deadlines.py`: pure deadline functions. The commit is marked
+  **needs-human-review**: a team member still has to review the logic and `tests/unit/test_deadlines.py`.
+- Incidents: `POST /incidents`, `GET`/`PATCH /incidents/{id}`, `POST /incidents/{id}/submissions`,
+  with audit entries (AC-06, AC-07).
+- `PUT /test/vulnerability-source`, `FixtureSource` and the CVE query (AC-05). `VULN_SOURCE=fixture`
+  is the only source built.
+- The AC-04 fixtures are **drafts**: `fixtures/README.md` has the checklist for the two checkers (Q7).
+- The tester and both `/test/run` endpoints run AC-01..AC-07 (`tester/phase4.py`); checks that
+  depend on unconfirmed answers are informational.
+- CI stage F `container-smoke` (compose up, tester, restart persistence), plus log signals
+  (source error details, overdue counts).
 
-When you have answers, continue §14.1 from step 5: `app/services/deadlines.py` as pure functions,
-unit tests first. Mark the deadline commits `needs-human-review` (§14.2), and have a team member
-review them before anything depends on them.
+### Still open
+
+1. **Live `--full` run (destructive):** run the tester against the live URL, write a
+   `YYYY-MM-DD-deploy-full.md` report with `Mode: full` and `Result:`, and re-seed the demo
+   release. Warn Team 2 first. This is what G1's live result needs.
+2. **Cross-team runs both ways** (G3), each with its own report. Team 2 first needs the contract
+   commit `c249e2c` and the decisions.
+3. **Human checks:** review the deadline code, verify the AC-04 fixtures (one checker per team),
+   get Team 2 to confirm Q1–Q7, and instructor sign-off for Q8's OSV source.
+4. **Tags:** `phase3` (`9c0b191`) and, after items 1–2, `phase4` on the deployed commit.
+5. `post_deploy_check.sh --full` is still not built; the live tester run is done by hand.
 
 ## How the work was done (keep doing it this way)
 

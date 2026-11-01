@@ -2,7 +2,7 @@
 
 > **How to use this file:** move the current `CLAUDE.md` (the Phase 3 handoff) to `docs/PHASE3_HANDOFF.md` if it isn't there already, then save this file as `CLAUDE.md` in the repository root. Claude Code reads it automatically. Read Section 0 and Sections 1–5 before writing any code. Follow the order in §14.1: goal audit first, then the first CI stages, then the Phase 3 carry-over (Section 4).
 
-> **Progress (2026-10-30):** §14.1 steps 1–4 are done. See `docs/PHASE4_PROGRESS.md` for where the work stands, what's blocked and how to continue.
+> **Progress (2026-11-01):** §14.1 steps 1–11 are done and deployed. See `docs/PHASE4_PROGRESS.md` for where the work stands, what's blocked and how to continue.
 
 ---
 
