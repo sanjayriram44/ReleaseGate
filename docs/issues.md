@@ -29,11 +29,11 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 
 ## Phase 4 features (CLAUDE.md §6)
 
-- [ ] `deadlines.py` pure functions — proof: `tests/unit/test_deadlines.py` (boundaries, rollover, fractions, offsets, voluntary); human review. (needs-human-review)
-- [ ] `POST /api/v1/incidents` + audit `INCIDENT_CREATED` — proof: AC-06
-- [ ] `GET /api/v1/incidents/{incidentId}` — proof: AC-06, AC-07
-- [ ] `PATCH /api/v1/incidents/{incidentId}` + audit `FIX_AVAILABLE_RECORDED` — proof: AC-07
-- [ ] `POST /api/v1/incidents/{incidentId}/submissions` + audit `SUBMISSION_RECORDED` — proof: AC-07
+- [x] `deadlines.py` pure functions — proof: `tests/unit/test_deadlines.py` (boundaries, rollover, fractions, offsets, voluntary); human review. (needs-human-review)
+- [x] `POST /api/v1/incidents` + audit `INCIDENT_CREATED` — proof: AC-06
+- [x] `GET /api/v1/incidents/{incidentId}` — proof: AC-06, AC-07
+- [x] `PATCH /api/v1/incidents/{incidentId}` + audit `FIX_AVAILABLE_RECORDED` — proof: AC-07
+- [x] `POST /api/v1/incidents/{incidentId}/submissions` + audit `SUBMISSION_RECORDED` — proof: AC-07
 - [ ] `PUT /api/v1/test/vulnerability-source` + `FixtureSource` — proof: acceptance tests
 - [ ] `GET /api/v1/vulnerabilities/{cveId}/affected-releases` — proof: AC-05, then AC-04
 - [ ] AC-04 fixtures (`sbom_patched.json`, `vulnerabilities.json`, `cve_dataset.json`, `ground_truth.json`) human-verified and signed off by Team 2 — proof: date in `docs/decisions.md`. **blocked: one checker per team (Q7) must verify the draft values**

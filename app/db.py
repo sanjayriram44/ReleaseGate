@@ -22,6 +22,26 @@ CREATE TABLE IF NOT EXISTS components (
     purl TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_components_release ON components(release_id, position);
+CREATE INDEX IF NOT EXISTS idx_components_purl ON components(purl);
+-- Incidents store timestamps only; deadline_at and status are computed on every read.
+CREATE TABLE IF NOT EXISTS incidents (
+    incident_id TEXT PRIMARY KEY,
+    cve_id TEXT,
+    awareness_at TEXT NOT NULL,
+    created_by TEXT NOT NULL,
+    classification TEXT NOT NULL CHECK (classification IN ('mandatory', 'voluntary')),
+    rationale TEXT NOT NULL,
+    fix_available_at TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS submissions (
+    incident_id TEXT NOT NULL REFERENCES incidents(incident_id) ON DELETE CASCADE,
+    stage TEXT NOT NULL,
+    submitted_at TEXT NOT NULL,
+    recorded_by TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    PRIMARY KEY (incident_id, stage)
+);
 CREATE TABLE IF NOT EXISTS audit_log (
     seq INTEGER PRIMARY KEY AUTOINCREMENT,
     event_id TEXT NOT NULL UNIQUE,
@@ -100,6 +120,8 @@ class Database:
         with self.transaction() as conn:
             conn.execute("DROP TRIGGER IF EXISTS audit_no_update")
             conn.execute("DROP TRIGGER IF EXISTS audit_no_delete")
+            conn.execute("DELETE FROM submissions")
+            conn.execute("DELETE FROM incidents")
             conn.execute("DELETE FROM components")
             conn.execute("DELETE FROM releases")
             conn.execute("DELETE FROM audit_log")

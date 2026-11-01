@@ -7,10 +7,6 @@ post-deploy check skips or excuses them. Remove each operation as it's built.
 NOT_YET_IMPLEMENTED = frozenset(
     {
         ("/api/v1/vulnerabilities/{cveId}/affected-releases", "get"),
-        ("/api/v1/incidents", "post"),
-        ("/api/v1/incidents/{incidentId}", "get"),
-        ("/api/v1/incidents/{incidentId}", "patch"),
-        ("/api/v1/incidents/{incidentId}/submissions", "post"),
         ("/api/v1/incidents/{incidentId}/report-data/{stage}", "put"),
         ("/api/v1/incidents/{incidentId}/reports/{stage}", "get"),
         ("/api/v1/test/vulnerability-source", "put"),

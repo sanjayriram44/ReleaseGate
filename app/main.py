@@ -8,7 +8,7 @@ from app.db import Database
 from app.errors import install_error_handlers
 from app.harness import build_router as build_harness_router
 from app.request_log import RequestLog, configure_logging
-from app.routers import audit, health, releases, sbom, test_support
+from app.routers import audit, health, incidents, releases, sbom, test_support
 from tester.harness import CollapseSlashes
 
 
@@ -56,6 +56,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(releases.router)
     app.include_router(sbom.router)
+    app.include_router(incidents.router)
     app.include_router(audit.router)
     if settings.enable_test_endpoints:
         app.include_router(test_support.router)

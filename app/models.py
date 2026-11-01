@@ -88,3 +88,62 @@ class ErrorBody(BaseModel):
 
 class Error(BaseModel):
     error: ErrorBody
+
+
+CVE_ID = re.compile(r"^CVE-[0-9]{4}-[0-9]+$")
+
+
+def _cve_format(value: str | None) -> str | None:
+    if value is not None and not CVE_ID.match(value):
+        raise ValueError("must match ^CVE-[0-9]{4}-[0-9]+$ (e.g. CVE-2023-25577)")
+    return value
+
+
+Classification = Literal["mandatory", "voluntary"]
+ReportStage = Literal["early_warning", "vulnerability_notification", "final_report"]
+
+
+class IncidentCreate(BaseModel):
+    model_config = ConfigDict(strict=True, extra="ignore")
+
+    # Format check only; the CVE needn't be known to the source (decision Q4).
+    cve_id: Annotated[str | None, AfterValidator(_cve_format)] = None
+    awareness_at: DateTimeStr  # parsed by app.clock.parse_utc
+    classification: Classification
+    rationale: NonBlank
+
+
+class FixAvailable(BaseModel):
+    model_config = ConfigDict(strict=True, extra="ignore")
+
+    fix_available_at: DateTimeStr
+
+
+class SubmissionCreate(BaseModel):
+    model_config = ConfigDict(strict=True, extra="ignore")
+
+    stage: ReportStage
+    submitted_at: DateTimeStr
+
+
+class Deadline(BaseModel):
+    deadline_at: DateTimeStr | None = None
+    submitted_at: DateTimeStr | None = None
+    status: Literal["pending", "met", "overdue", "not_applicable"]
+
+
+class Deadlines(BaseModel):
+    early_warning: Deadline
+    vulnerability_notification: Deadline
+    final_report: Deadline
+
+
+class Incident(BaseModel):
+    incident_id: str
+    cve_id: str | None = None
+    awareness_at: DateTimeStr
+    created_by: str
+    classification: Classification
+    rationale: str
+    fix_available_at: DateTimeStr | None = None
+    deadlines: Deadlines
