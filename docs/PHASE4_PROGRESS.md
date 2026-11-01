@@ -57,14 +57,16 @@ with CI green, and `68011ca` is deployed (`docs/test-reports/2026-11-01-deploy.m
 
 ### Still open
 
-1. **Live `--full` run (destructive):** run the tester against the live URL, write a
-   `YYYY-MM-DD-deploy-full.md` report with `Mode: full` and `Result:`, and re-seed the demo
-   release. Warn Team 2 first. This is what G1's live result needs.
+1. ~~Live full run~~ **Done 2026-11-01** (`docs/test-reports/2026-11-01-deploy-full.md`): tester
+   52/52 against the live URL, both `/test/run` harnesses pass, smoke.sh and restart persistence
+   pass, demo data re-seeded. G1, G2, G4, G5 and G6 are met (`docs/metrics.md`). The answers are
+   accepted for the submission (`docs/decisions.md`). `phase3` and `phase4` (`68011ca`) are tagged.
 2. **Cross-team runs both ways** (G3), each with its own report. Team 2 first needs the contract
    commit `c249e2c` and the decisions.
 3. **Human checks:** review the deadline code, verify the AC-04 fixtures (one checker per team),
    get Team 2 to confirm Q1–Q7, and instructor sign-off for Q8's OSV source.
-4. **Tags:** `phase3` (`9c0b191`) and, after items 1–2, `phase4` on the deployed commit.
+4. ~~Tags~~ done: `phase3` → `9c0b191`, `phase4` → `68011ca`. If a later fix is deployed, move
+   `phase4` only with the team's agreement.
 5. `post_deploy_check.sh --full` is still not built; the live tester run is done by hand.
 
 ## How the work was done (keep doing it this way)

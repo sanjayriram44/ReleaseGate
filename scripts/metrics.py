@@ -33,6 +33,7 @@ BASELINE = ROOT / ".coverage-baseline"
 COVERAGE_TARGET = 85.0
 INTEROP_TARGET = 0.95
 NOT_YET = "not measurable yet"
+FULL_MODE = re.compile(r"^\*\*Mode:\*\*\s*full\b", re.MULTILINE)
 PHASE4_ACS = ["AC-04", "AC-05", "AC-06", "AC-07"]
 PHASE3_ACS = ["AC-01", "AC-02", "AC-03", "contract"]
 
@@ -135,7 +136,7 @@ def latest_report(kind: str, full_only: bool = False) -> RunReport | None:
     full_only)."""
     paths = sorted(REPORTS.glob(f"????-??-??-{kind}*.md"), reverse=True)
     if full_only:
-        paths = [p for p in paths if re.search(r"Mode:\**\s*full\b", p.read_text())]
+        paths = [p for p in paths if re.search(FULL_MODE, p.read_text())]
     if not paths:
         return None
     text = paths[0].read_text()
@@ -146,7 +147,7 @@ def latest_report(kind: str, full_only: bool = False) -> RunReport | None:
         int(result.group(1)) if result else None,
         int(result.group(2)) if result else None,
         commit.group(1) if commit else None,
-        bool(re.search(r"Mode:\**\s*full\b", text)),
+        bool(re.search(FULL_MODE, text)),
     )
 
 
@@ -209,12 +210,16 @@ def g3() -> tuple[str, str]:
 
 
 def g4(checks: dict[str, tuple[int, int]]) -> tuple[str, str]:
+    """From the latest full live run's "Latency: slowest AC-04 ... X s; slowest AC-05 ... Y s"."""
     if "AC-04" not in checks or "AC-05" not in checks:
         return "AC-04/AC-05 checks not built", NOT_YET
-    return (
-        "in-process run is a lower bound only; see container-smoke and the live `--full` run",
-        f"{NOT_YET} (no container-smoke or live latency recorded)",
-    )
+    live = latest_report("deploy", full_only=True)
+    text = (REPORTS / live.name).read_text() if live else ""
+    found = re.search(r"slowest AC-04[^0-9]*([0-9.]+) s; slowest AC-05[^0-9]*([0-9.]+) s", text)
+    if not live or not found:
+        return "no latency in a `Mode: full` deploy report", f"{NOT_YET} (no live latency)"
+    cve, err = float(found.group(1)), float(found.group(2))
+    return f"live `{live.name}`: AC-04 {cve} s, AC-05 {err} s", _yes(cve <= 10 and err <= 15)
 
 
 def g5(coverage: float | None) -> tuple[str, str]:

@@ -25,7 +25,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] 6 Non-JSON `Content-Type` → `Content-Type must be application/json` — proof: acceptance test
 - [x] 7 No stray 422 in generated OpenAPI; contract test fails on extra codes — proof: contract test
 - [x] 8 Smoke test uses `tmp_path` — proof: `tests/unit/test_smoke.py`
-- [ ] Tag `phase3` (`9c0b191`) and ask Team 2 to rerun (redeployed `136c05a` on 2026-10-30) — proof: human runs the tag; Team 2's report in `docs/test-reports/`
+- [ ] Tag `phase3` (`9c0b191`, tagged 2026-11-01) and ask Team 2 to rerun (redeployed `136c05a` on 2026-10-30) — proof: human runs the tag; Team 2's report in `docs/test-reports/`
 
 ## Phase 4 features (CLAUDE.md §6)
 
@@ -49,7 +49,9 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] `scripts/post_deploy_check.sh` (non-destructive), `deploy/gcp.sh update [ref]` from an exact commit and `rollback <tag>`, both running the checks (§16) — proof: `tests/unit/test_post_deploy_check.py`; dry run with a stub `gcloud`; run against the live URL on 2026-10-30 (all pass except the commit check: `136c05a` predates `GIT_SHA`)
 - [ ] `post_deploy_check.sh --full` (destructive: tester run, smoke test, restart persistence; §16.2 items 6–8) — proof: run on the evaluation deployment after warning Team 2
 - [x] Deploy Phase 4 (`68011ca`, 2026-11-01) — proof: `docs/test-reports/2026-11-01-deploy.md`
-- [ ] Live `--full` tester run (resets live data; needs a go-ahead), cross-team runs both ways in `docs/test-reports/`, tag `phase4` — proof: §14.4
+- [x] Live full run: tester 52/52, both harnesses, smoke.sh, restart persistence; demo re-seeded — proof: `docs/test-reports/2026-11-01-deploy-full.md`
+- [x] Tag `phase4` on the deployed commit `68011ca` — proof: `git ls-remote --tags origin`
+- [ ] Cross-team runs both ways in `docs/test-reports/` (G3) — proof: `YYYY-MM-DD-cross-team-<direction>.md` with `Result:`
 - [ ] A team member reviews the deadline logic (`0f2e32e`, needs-human-review) and its tests
 
 ## Human tasks (CLAUDE.md §11, §8)
@@ -57,4 +59,4 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [ ] Team 2 confirms the adopted answers in `docs/decisions.md` (Q1–Q8), including the two contract additions; update the diagrams for "no push alerts"
 - [ ] Spec housekeeping list in CLAUDE.md §11
 - [ ] Uptime monitor on `/health`
-- [ ] Re-seed the live demo release (ExampleGateway 1.0.0 + `fixtures/sbom_25_components.json`); the live data was empty at the 2026-10-30 deploy
+- [x] Re-seed the live demo release (ExampleGateway 1.0.0 + `fixtures/sbom_25_components.json`, CVE records, one incident) — 2026-11-01
