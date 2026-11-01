@@ -157,6 +157,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AffectedReleaseResult"
+        "400":
+          description: Malformed CVE identifier (it must match ^CVE-[0-9]{4}-[0-9]+$)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "404":
           description: CVE is unknown to the configured vulnerability source
           content:
@@ -255,7 +261,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Incident"
         "400":
-          description: Invalid timestamp
+          description: Invalid timestamp, or fix_available_at earlier than awareness_at
           content:
             application/json:
               schema:
@@ -297,13 +303,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/Incident"
         "400":
-          description: Invalid stage or timestamp
+          description: >
+            Invalid stage or timestamp, a stage that is not_applicable, or a
+            submitted_at earlier than awareness_at
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
         "404":
           description: Incident not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: A submission for this stage is already recorded
           content:
             application/json:
               schema:

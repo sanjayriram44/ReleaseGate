@@ -29,20 +29,20 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 
 ## Phase 4 features (CLAUDE.md §6)
 
-- [ ] `deadlines.py` pure functions — proof: `tests/unit/test_deadlines.py` (boundaries, rollover, fractions, offsets, voluntary); human review. **blocked: §10 Q2**
-- [ ] `POST /api/v1/incidents` + audit `INCIDENT_CREATED` — proof: AC-06. **blocked: §10 Q9**
+- [ ] `deadlines.py` pure functions — proof: `tests/unit/test_deadlines.py` (boundaries, rollover, fractions, offsets, voluntary); human review. (needs-human-review)
+- [ ] `POST /api/v1/incidents` + audit `INCIDENT_CREATED` — proof: AC-06
 - [ ] `GET /api/v1/incidents/{incidentId}` — proof: AC-06, AC-07
-- [ ] `PATCH /api/v1/incidents/{incidentId}` + audit `FIX_AVAILABLE_RECORDED` — proof: AC-07. **blocked: §10 Q4, Q5**
-- [ ] `POST /api/v1/incidents/{incidentId}/submissions` + audit `SUBMISSION_RECORDED` — proof: AC-07. **blocked: §10 Q2, Q3, Q4**
-- [ ] `PUT /api/v1/test/vulnerability-source` + `FixtureSource` — proof: acceptance tests. **blocked: §10 Q8**
-- [ ] `GET /api/v1/vulnerabilities/{cveId}/affected-releases` — proof: AC-05, then AC-04. **blocked: §10 Q6, Q7**
-- [ ] AC-04 fixtures (`sbom_patched.json`, `vulnerabilities.json`, `cve_dataset.json`, `ground_truth.json`) human-verified and signed off by Team 2 — proof: date in `docs/decisions.md`. **blocked: §5.2 human verification**
-- [ ] Production vulnerability source — proof: decision in `docs/decisions.md`. **blocked: §10 Q10**
+- [ ] `PATCH /api/v1/incidents/{incidentId}` + audit `FIX_AVAILABLE_RECORDED` — proof: AC-07
+- [ ] `POST /api/v1/incidents/{incidentId}/submissions` + audit `SUBMISSION_RECORDED` — proof: AC-07
+- [ ] `PUT /api/v1/test/vulnerability-source` + `FixtureSource` — proof: acceptance tests
+- [ ] `GET /api/v1/vulnerabilities/{cveId}/affected-releases` — proof: AC-05, then AC-04
+- [ ] AC-04 fixtures (`sbom_patched.json`, `vulnerabilities.json`, `cve_dataset.json`, `ground_truth.json`) human-verified and signed off by Team 2 — proof: date in `docs/decisions.md`. **blocked: one checker per team (Q7) must verify the draft values**
+- [ ] Production vulnerability source — proof: decision in `docs/decisions.md`. **blocked: instructor sign-off for the OSV snapshot (Q8)**
 - [x] `/health` reports the built commit (`GIT_SHA` build arg; `unknown` when unset) — proof: `tests/acceptance/test_test_support.py::test_health_reports_the_built_commit`
-- [ ] Reset clears incidents, submissions and vulnerability records; `/health` reports source mode — proof: acceptance tests. **blocked: §10 Q8**
+- [ ] Reset clears incidents, submissions and vulnerability records; `/health` reports source mode — proof: acceptance tests
 - [ ] Tester checks and harness `/test/run` for AC-04..AC-07 — proof: `tests/tester`, `tests/test_harness.py`
 - [x] Structured JSON request logs (§8): one line per request, request ID echoed in `X-Request-Id`, error code/message on 4xx/5xx, uvicorn access log off — proof: `tests/unit/test_request_log.py`
-- [ ] Log signals for the source and deadlines (§8): source error detail on 503 lines, overdue-deadline counts — proof: tests with the CVE query and incidents. **blocked: §10 Q2, Q6–Q8**
+- [ ] Log signals for the source and deadlines (§8): source error detail on 503 lines, overdue-deadline counts — proof: tests with the CVE query and incidents.
 - [x] Nightly SQLite backup, 7 copies (§8): `app/backup.py` (online backup API, integrity check, prune), `deploy/backup.sh` + `deploy/releasegate-backup.cron` installed by `gcp.sh update` — proof: `tests/unit/test_backup.py`; 5 backups taken during 319 concurrent writes, each consistent
 - [ ] Confirm the backup on the VM after the next deploy: `/etc/cron.d/releasegate-backup` installed, one manual `sudo /opt/releasegate/deploy/backup.sh` writes a copy, and the README restore steps work — proof: note in the deploy report
 - [x] `scripts/post_deploy_check.sh` (non-destructive), `deploy/gcp.sh update [ref]` from an exact commit and `rollback <tag>`, both running the checks (§16) — proof: `tests/unit/test_post_deploy_check.py`; dry run with a stub `gcloud`; run against the live URL on 2026-10-30 (all pass except the commit check: `136c05a` predates `GIT_SHA`)
@@ -51,8 +51,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 
 ## Human tasks (CLAUDE.md §11, §8)
 
-- [ ] Confirm "no push alerts in Phase 4" with the pod and update diagrams. **blocked: §10 Q11**
-- [ ] Settle §10 Q1 (timestamp amendment) with Team 2. **blocked: §10 Q1**
+- [ ] Team 2 confirms the adopted answers in `docs/decisions.md` (Q1–Q8), including the two contract additions; update the diagrams for "no push alerts"
 - [ ] Spec housekeeping list in CLAUDE.md §11
 - [ ] Uptime monitor on `/health`
 - [ ] Re-seed the live demo release (ExampleGateway 1.0.0 + `fixtures/sbom_25_components.json`); the live data was empty at the 2026-10-30 deploy
