@@ -121,6 +121,7 @@ class RunReport:
     passed: int | None
     total: int | None
     commit: str | None
+    full: bool = False  # a destructive --full run (tester against the live URL), per "Mode: full"
 
     @property
     def result(self) -> str:
@@ -129,9 +130,12 @@ class RunReport:
         return f"`{self.name}`: {self.passed}/{self.total}"
 
 
-def latest_report(kind: str) -> RunReport | None:
-    """The newest docs/test-reports/YYYY-MM-DD-<kind>.md, parsed."""
-    paths = sorted(REPORTS.glob(f"????-??-??-{kind}.md"), reverse=True)
+def latest_report(kind: str, full_only: bool = False) -> RunReport | None:
+    """The newest docs/test-reports/YYYY-MM-DD-<kind>*.md, parsed (only "Mode: full" ones if
+    full_only)."""
+    paths = sorted(REPORTS.glob(f"????-??-??-{kind}*.md"), reverse=True)
+    if full_only:
+        paths = [p for p in paths if re.search(r"Mode:\**\s*full\b", p.read_text())]
     if not paths:
         return None
     text = paths[0].read_text()
@@ -142,6 +146,7 @@ def latest_report(kind: str) -> RunReport | None:
         int(result.group(1)) if result else None,
         int(result.group(2)) if result else None,
         commit.group(1) if commit else None,
+        bool(re.search(r"Mode:\**\s*full\b", text)),
     )
 
 
@@ -185,9 +190,9 @@ def g1(checks: dict[str, tuple[int, int]]) -> tuple[str, str]:
         return value, f"{NOT_YET} (AC-04..AC-07 not built)"
     if not _all_pass(checks, PHASE4_ACS):
         return value, "no"
-    live = latest_report("deploy")
+    live = latest_report("deploy", full_only=True)
     if live is None or live.total is None:
-        return value + "; live: no `--full` deploy report", f"{NOT_YET} (no live run)"
+        return value + "; live: no `Mode: full` deploy report", f"{NOT_YET} (no live run)"
     return value + f"; live {live.result}", _yes(live.passed == live.total)
 
 
