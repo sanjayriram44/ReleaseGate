@@ -133,8 +133,8 @@ replacing the release's previous components and writing its audit entry in one t
   endpoints are unauthenticated, and `POST /api/v1/test/reset` (also called by every tester run)
   wipes all data, so the evaluation deployment holds synthetic data only.
 - **Provisional behavior.** The Phase 4 answers in `docs/decisions.md` (including the 400 for a
-  malformed CVE ID and the 409 for a duplicate submission, both added to the contract) were
-  adopted by Team 6 and still await Team 2's confirmation.
+  malformed CVE ID and the 409 for a duplicate submission, both added to the contract) are
+  accepted for the Phase 4 submission but still await Team 2's confirmation.
 
 ## Deployment (Google Compute Engine)
 
