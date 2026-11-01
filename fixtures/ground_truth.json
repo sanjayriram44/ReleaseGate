@@ -1,0 +1,150 @@
+{
+  "_status": "DRAFT, NOT VERIFIED. Candidate values from spikes/dependency_track (OSV ranges checked 2026-10-17). One checker per team must verify them (decision Q7) before AC-04 counts; record the sign-off in docs/decisions.md and fixtures/README.md.",
+  "_note": "Expected results at reference_clock. Compare release keys and matched purls as sets (decision Q7). Derived mechanically from cve_dataset.json and vulnerabilities.json; checking the affected_purls is what needs a person.",
+  "reference_clock": "2026-11-01T23:59:59Z",
+  "cves": [
+    {
+      "cve_id": "CVE-2023-25577",
+      "expect_status": 200,
+      "supported": [
+        {
+          "release": "gw-1.1.0",
+          "matched_purls": [
+            "pkg:pypi/werkzeug@2.2.2"
+          ]
+        }
+      ],
+      "unsupported": [
+        {
+          "release": "gw-1.0.0",
+          "matched_purls": [
+            "pkg:pypi/werkzeug@2.2.2"
+          ]
+        }
+      ]
+    },
+    {
+      "cve_id": "CVE-2023-32681",
+      "expect_status": 200,
+      "supported": [
+        {
+          "release": "gw-1.1.0",
+          "matched_purls": [
+            "pkg:pypi/requests@2.28.2"
+          ]
+        }
+      ],
+      "unsupported": [
+        {
+          "release": "gw-1.0.0",
+          "matched_purls": [
+            "pkg:pypi/requests@2.28.2"
+          ]
+        }
+      ]
+    },
+    {
+      "cve_id": "CVE-2023-30861",
+      "expect_status": 200,
+      "supported": [
+        {
+          "release": "gw-1.1.0",
+          "matched_purls": [
+            "pkg:pypi/flask@2.2.2"
+          ]
+        }
+      ],
+      "unsupported": [
+        {
+          "release": "gw-1.0.0",
+          "matched_purls": [
+            "pkg:pypi/flask@2.2.2"
+          ]
+        }
+      ]
+    },
+    {
+      "cve_id": "CVE-2023-23931",
+      "expect_status": 200,
+      "supported": [
+        {
+          "release": "gw-1.1.0",
+          "matched_purls": [
+            "pkg:pypi/cryptography@39.0.0"
+          ]
+        },
+        {
+          "release": "gw-1.2.0",
+          "matched_purls": [
+            "pkg:pypi/cryptography@39.0.0"
+          ]
+        },
+        {
+          "release": "gw-2.0.0",
+          "matched_purls": [
+            "pkg:pypi/cryptography@39.0.0"
+          ]
+        }
+      ],
+      "unsupported": [
+        {
+          "release": "gw-1.0.0",
+          "matched_purls": [
+            "pkg:pypi/cryptography@39.0.0"
+          ]
+        }
+      ]
+    },
+    {
+      "cve_id": "CVE-2023-37920",
+      "expect_status": 200,
+      "supported": [
+        {
+          "release": "gw-1.1.0",
+          "matched_purls": [
+            "pkg:pypi/certifi@2022.12.7"
+          ]
+        },
+        {
+          "release": "gw-1.2.0",
+          "matched_purls": [
+            "pkg:pypi/certifi@2022.12.7"
+          ]
+        },
+        {
+          "release": "gw-2.0.0",
+          "matched_purls": [
+            "pkg:pypi/certifi@2022.12.7"
+          ]
+        }
+      ],
+      "unsupported": [
+        {
+          "release": "gw-1.0.0",
+          "matched_purls": [
+            "pkg:pypi/certifi@2022.12.7"
+          ]
+        }
+      ]
+    },
+    {
+      "cve_id": "CVE-2019-11324",
+      "expect_status": 200,
+      "supported": [],
+      "unsupported": [],
+      "_role": "AC-05: known CVE, no stored release affected"
+    }
+  ],
+  "unknown_cve": {
+    "cve_id": "CVE-2099-0001",
+    "expect_status": 404,
+    "expect_code": "CVE_UNKNOWN",
+    "_role": "AC-05: unknown CVE"
+  },
+  "unreachable": {
+    "cve_id": "CVE-2023-25577",
+    "expect_status": 503,
+    "expect_code": "VULNERABILITY_SOURCE_UNREACHABLE",
+    "_role": "AC-05: source mode unreachable"
+  }
+}

@@ -49,3 +49,30 @@ Several of these 2023 versions have since had published vulnerabilities. That ma
 - [x] A Team 6 member checked every expected result in `releases.json` against REQ-01, AC-01 and AC-02.
 - [x] Sent to Team 2; they agreed to use these files unchanged.
 - [x] The decision is recorded in `docs/decisions.md`.
+
+## Phase 4 CVE fixtures (AC-04, AC-05): DRAFT, not verified
+
+> **Status: draft (2026-11-01).** Built by Team 6's Claude Code session from the Dependency-Track
+> spike's candidates (`spikes/dependency_track/expected.json`, OSV ranges checked 2026-10-17).
+> **Nobody has verified the expected values yet.** Per decision Q7, one person per team checks
+> them before the Phase 4 milestone; record their names and the date here and in
+> `docs/decisions.md`, then drop the `_status` fields and `test_fixtures_are_marked_as_drafts`.
+
+| File | Contents |
+|---|---|
+| `sbom_patched.json` | `sbom_25_components.json` with werkzeug 2.2.3, flask 2.2.5 and requests 2.31.0, pyyaml removed and tomli 2.0.1 added: the spike's `replacement_sbom()`, unchanged |
+| `vulnerabilities.json` | `VulnerabilityFixture` records for `PUT /api/v1/test/vulnerability-source`: the five test CVEs, plus CVE-2019-11324 as a known CVE that no release contains |
+| `cve_dataset.json` | Reference clock and five releases: which SBOM each gets and its support-end date, so affected releases fall in both groups (1.0.0 unsupported; 1.1.0, the 1.2.0 boundary release and 2.0.0 supported; 2.1.0 has no SBOM) |
+| `ground_truth.json` | For each CVE, the expected `supported` and `unsupported` release keys with matched purls, compared as sets. Also the unknown CVE (CVE-2099-0001 → 404) and the unreachable case (→ 503) |
+
+`ground_truth.json` was derived mechanically from the other three files. The values a person has
+to check are the `affected_purls`:
+
+- [ ] Each of the five CVEs: the listed fixture version is inside the advisory's affected range
+  (links in `spikes/dependency_track/RESULTS.md`), and the `sbom_patched.json` version is outside
+  it for werkzeug, flask and requests.
+- [ ] CVE-2019-11324: urllib3 1.26.14 is not affected, and 1.24.1 is (affected below 1.24.2).
+- [ ] `sbom_patched.json`: the `syft:cpe23` properties still name the old versions (the spike
+  only rewrote version, purl, bom-ref and cpe). Matching uses purls only, so decide whether that
+  matters.
+- [ ] The supported/unsupported grouping at `reference_clock` follows REQ-01.

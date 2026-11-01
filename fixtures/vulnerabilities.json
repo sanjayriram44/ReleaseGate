@@ -1,0 +1,42 @@
+{
+  "_status": "DRAFT, NOT VERIFIED. Candidate values from spikes/dependency_track (OSV ranges checked 2026-10-17). One checker per team must verify them (decision Q7) before AC-04 counts; record the sign-off in docs/decisions.md and fixtures/README.md.",
+  "_note": "VulnerabilityFixture records for PUT /api/v1/test/vulnerability-source. affected_purls list exact versions only (decision Q5): the versions in the shared SBOMs that fall inside each advisory's affected range, plus for CVE-2019-11324 one affected urllib3 version that no SBOM contains.",
+  "records": [
+    {
+      "cve_id": "CVE-2023-25577",
+      "affected_purls": [
+        "pkg:pypi/werkzeug@2.2.2"
+      ]
+    },
+    {
+      "cve_id": "CVE-2023-32681",
+      "affected_purls": [
+        "pkg:pypi/requests@2.28.2"
+      ]
+    },
+    {
+      "cve_id": "CVE-2023-30861",
+      "affected_purls": [
+        "pkg:pypi/flask@2.2.2"
+      ]
+    },
+    {
+      "cve_id": "CVE-2023-23931",
+      "affected_purls": [
+        "pkg:pypi/cryptography@39.0.0"
+      ]
+    },
+    {
+      "cve_id": "CVE-2023-37920",
+      "affected_purls": [
+        "pkg:pypi/certifi@2022.12.7"
+      ]
+    },
+    {
+      "cve_id": "CVE-2019-11324",
+      "affected_purls": [
+        "pkg:pypi/urllib3@1.24.1"
+      ]
+    }
+  ]
+}
