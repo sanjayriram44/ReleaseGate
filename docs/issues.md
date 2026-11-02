@@ -53,6 +53,13 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] Live full run: tester 52/52, both harnesses, smoke.sh, restart persistence; demo re-seeded — proof: `docs/test-reports/2026-11-01-deploy-full.md`
 - [x] Tag `phase4` on the deployed commit `e864340` (first `68011ca`) — proof: `git ls-remote --tags origin`
 - [ ] Cross-team runs both ways in `docs/test-reports/` (G3) — proof: `YYYY-MM-DD-cross-team-<direction>.md` with `Result:`
+  - [x] Team 2 → ours, 2026-11-02: 341/353 (`2026-11-02-cross-team-team2-to-ours.md`)
+  - [ ] Ours → Team 2
+- [ ] Reject a trailing newline in timestamps and `cve_id` (`$` → `\Z` / fullmatch; Team 2 run, 5 failures) — proof: regression tests with `\n` inputs
+- [ ] Accept lowercase `t`/`z` in timestamps (RFC 3339 §5.6; Team 2 run, 4 failures) — proof: unit + acceptance tests
+- [ ] SBOM upload: 400 for a non-JSON `Content-Type` (contract lists only `application/json`; Team 2 run, 1 failure) — proof: acceptance test
+- [ ] Optional: invalid-UTF-8 SBOM message mentions JSON (Team 2's test checks the wording; 2 failures) — proof: acceptance test
+- [ ] Re-seed the live demo data after Team 2's 2026-11-02 run (it reset the data and froze the clock at 2026-11-01T23:59:59Z)
 - [ ] A team member reviews the deadline logic (`0f2e32e`, needs-human-review) and its tests
 
 ## Human tasks (CLAUDE.md §11, §8)
