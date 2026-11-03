@@ -72,7 +72,7 @@ in `docs/openapi.yaml` under "autograder harness". No authentication.
 | `GET /test` | describes the service | describes the service |
 | `POST /test/setup` (201) | resets all data; optional `{"now": "…Z"}` sets the clock | optional `{"target_url": "…"}` (or `target_base_url`); default is our system's public URL. Also calls the system's `/test/setup` with the same `session_id` |
 | `POST /test/run` | runs AC-01..AC-07 against itself | runs AC-01..AC-07 against the target over HTTP, then the system's own `/test/run` for the session |
-| `GET /test/report?session_id=…` | result and every check; an unseen id is a new, not-yet-run session | result and every check |
+| `GET /test/report?session_id=…` | result and every check | result and every check; on both, an unseen id (or no session yet) is a new, not-yet-run session, never 404 |
 
 `setup` returns a `session_id`; `run` and `report` take it (in the JSON body or query string;
 without it they use the latest session). `run` is synchronous and finishes in a few seconds.

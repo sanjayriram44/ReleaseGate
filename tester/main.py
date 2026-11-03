@@ -158,17 +158,29 @@ def create_app(
         target = checked_target(str(url))
         # Share the session with the system, so the grader can ask it about the same id.
         shared = _target_harness(target, "POST", "/test/setup", session_id=params["session_id"])
-        return {"target_base_url": target, "target_has_harness": shared is not None}
+        return {
+            "target_base_url": target,
+            "target_url": str(url).strip(),  # as given, to match the grader's registered URL
+            "target_has_harness": shared is not None,
+        }
+
+    def harness_adopt() -> dict[str, Any]:
+        try:
+            return {"target_base_url": checked_target(default_target)} if default_target else {}
+        except HarnessError:
+            return {}
 
     def harness_run(params: dict[str, Any], session: dict[str, Any]) -> Report:
         report = execute(session["target_base_url"])
         if session.get("target_has_harness"):
             # The system's own run gives it a completed report with coverage for this session,
             # and its code coverage, which only it can measure.
-            done = _target_harness(
-                session["target_base_url"], "POST", "/test/run", session_id=session["session_id"]
-            )
+            target, sid = session["target_base_url"], session["session_id"]
+            done = _target_harness(target, "POST", "/test/run", session_id=sid)
             code = ((done or {}).get("coverage") or {}).get("code")
+            if not isinstance(code, int | float):  # the system's run failed: its report has it
+                ready = _target_harness(target, "GET", f"/test/report?session_id={sid}")
+                code = ((ready or {}).get("coverage") or {}).get("code")
             session["code_coverage"] = code if isinstance(code, int | float) else None
         return report
 
@@ -176,7 +188,7 @@ def create_app(
         """Call the target's /test endpoint; None when it has none or it fails."""
         try:
             with client_factory(target) as client:
-                resp = client.request(method, path, json=body)
+                resp = client.request(method, path, json=body or None)
             data = resp.json() if resp.status_code in (200, 201) else None
         except (httpx.HTTPError, ValueError):
             return None
@@ -191,6 +203,7 @@ def create_app(
             harness_setup,
             harness_run,
             code_coverage=lambda session: session.get("code_coverage"),
+            adopt=harness_adopt,
         )
     )
 

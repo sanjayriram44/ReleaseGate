@@ -47,5 +47,4 @@ def build_router(app: FastAPI) -> APIRouter:
         setup,
         run_self_test,
         code_coverage=lambda _: code,
-        adopt_unknown_sessions=True,
     )

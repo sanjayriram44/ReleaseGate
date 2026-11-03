@@ -226,12 +226,12 @@ def make_router(
     setup: SetupHook,
     run: RunHook,
     code_coverage: CodeCoverage,
-    adopt_unknown_sessions: bool = False,
+    adopt: Callable[[], dict[str, Any]] = dict,
 ) -> APIRouter:
     """The four /test endpoints. setup(params) may raise HarnessError and returns fields to keep
     on the session; run(params, session); code_coverage(session) is the code % for reports.
-    With adopt_unknown_sessions, report answers an unseen session_id as a new, not-yet-run
-    session (the grader asks the system about the tester's session id)."""
+    report never answers 404: an unseen session_id (the grader asks the system about the
+    tester's id), or no session at all, becomes a new, not-yet-run session with adopt()'s fields."""
     router = APIRouter(prefix="/test", tags=["autograder harness"])
     sessions: OrderedDict[str, dict[str, Any]] = OrderedDict()
     lock = threading.Lock()
@@ -262,7 +262,7 @@ def make_router(
             "status": "ready",
             "role": role,
             "created_at": _now(),
-            "target_url": extra.get("target_base_url"),
+            "target_url": extra.get("target_url") or extra.get("target_base_url"),
             "target_base_url": extra.get("target_base_url"),
             "report": None,
         }
@@ -365,15 +365,8 @@ def make_router(
     )
     def report_route(session_id: str | None = None) -> Any:
         session = find(session_id)
-        if session is None and session_id and adopt_unknown_sessions:
-            session = new_session(str(session_id), {})
         if session is None:
-            msg = (
-                f"session {session_id} not found"
-                if session_id
-                else "no session yet; call /test/setup"
-            )
-            return error(HarnessError(404, "SESSION_NOT_FOUND", msg))
+            session = new_session(str(session_id or f"ses-{uuid.uuid4().hex[:12]}"), adopt())
         report: Report | None = session["report"]
         body: dict[str, Any] = {
             "session_id": session["session_id"],

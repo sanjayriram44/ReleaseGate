@@ -86,8 +86,9 @@ def test_system_run_without_setup_creates_a_session(tmp_path: Path) -> None:
 
 def test_report_errors(tmp_path: Path) -> None:
     c = system(tmp_path)
-    r = c.get("/test/report")
-    assert r.status_code == 404 and r.json()["error"]["code"] == "SESSION_NOT_FOUND"
+    r = c.get("/test/report")  # no session at all (e.g. after a restart): a new one, not 404
+    assert r.status_code == 200 and r.json()["session_id"].startswith("ses-")
+    assert r.json()["status"] == "ready" and r.json()["coverage"]["code"] is not None
     c.post("/test/setup")
     # The grader asks the system about the tester's session id; an id it never saw is reported
     # as a fresh session (nothing run yet), not 404.
@@ -127,11 +128,13 @@ def test_tester_setup_run_report_against_given_target(tmp_path: Path) -> None:
     r = c.post("/test/setup", json={"target_base_url": "http://system.example:8080/"})
     assert r.status_code == 201
     setup = r.json()
-    assert setup["target_base_url"] == setup["target_url"] == "http://system.example:8080"
+    assert setup["target_base_url"] == "http://system.example:8080"
+    assert setup["target_url"] == "http://system.example:8080/"  # exactly as given
     run = c.post("/test/run", json={"session_id": setup["session_id"]}).json()
     assert run["result"] == "pass" and run["summary"]["required_passed"] >= 30
     report = c.get(f"/test/report?session_id={setup['session_id']}").json()
     assert report["role"] == "tester" and report["target_base_url"] == "http://system.example:8080"
+    assert report["target_url"] == "http://system.example:8080/"
     assert {ch["ac"] for ch in report["checks"]} >= {"AC-01", "AC-02", "AC-03"}
 
 
@@ -245,3 +248,44 @@ def test_component_operations_match_the_contract() -> None:
         if m in item and p.startswith("/api/v1/") and not p.startswith("/api/v1/test/")
     }
     assert set(OPERATIONS) == contract
+
+
+def test_tester_report_for_an_unknown_session_is_200_with_the_default_target(
+    tmp_path: Path,
+) -> None:
+    c = make_tester(tmp_path, default_target="http://our-system:8080")
+    for params in ({"session_id": "grader-1"}, {}):
+        r = c.get("/test/report", params=params)
+        assert r.status_code == 200 and r.json()["status"] == "ready"
+        assert r.json()["target_url"] == "http://our-system:8080"
+    assert c.get("/test/report", params={"session_id": "grader-1"}).json()["session_id"] == (
+        "grader-1"
+    )
+
+
+def test_tester_reads_code_coverage_from_the_report_if_the_system_run_fails(
+    tmp_path: Path,
+) -> None:
+    target = system(tmp_path)
+
+    class RunFails:
+        def __enter__(self) -> "RunFails":
+            return self
+
+        def __exit__(self, *exc: object) -> None:
+            pass
+
+        def request(self, method: str, url: str, **kw: Any) -> Any:
+            path = "/no-such-route" if str(url) == "/test/run" else url
+            return target.request(method, path, **kw)
+
+    c = TestClient(
+        create_tester(
+            "fixtures",
+            client_factory=lambda _: RunFails(),  # type: ignore[arg-type,return-value]
+            host_check=lambda _: None,
+        )
+    )
+    sid = c.post("/test/setup", json={"target_url": "http://s:8080"}).json()["session_id"]
+    run = c.post("/test/run", json={"session_id": sid}).json()
+    assert run["coverage"]["code"] == float(Path(".coverage-baseline").read_text())

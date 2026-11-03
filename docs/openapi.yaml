@@ -798,8 +798,8 @@ paths:
         and every check (expected vs actual). Without `session_id`, returns the latest session. `results`
         repeats `checks`. `coverage.code` is the system''s app/ line coverage from its own test suite;
         `component` is the share of contract API operations the run called; `system` the share of AC-01..AC-07
-        it exercised (null before a run). System: an unseen `session_id` is answered as a new, not-yet-run
-        session.'
+        it exercised (null before a run). An unseen `session_id`, or no session at all, is answered as a
+        new, not-yet-run session rather than 404 (the grader asks the system about the tester''s id).'
       tags:
       - autograder harness
       parameters:
