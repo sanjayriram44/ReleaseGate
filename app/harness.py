@@ -1,7 +1,9 @@
 """System side of the course autograder harness (/test, /test/setup, /test/run, /test/report).
 
 setup resets all data (like /api/v1/test/reset) and can set the clock; run executes the shared
-AC-01..AC-07 suite against this system in-process and leaves it reset afterwards.
+AC-01..AC-07 suite against this system in-process and leaves it reset afterwards. Reports carry
+the app/ line coverage from .coverage-baseline, and report answers for a session id that only
+the tester created (the tester normally shares it through setup).
 """
 
 import os
@@ -14,11 +16,13 @@ from fastapi.testclient import TestClient
 from app.clock import parse_utc
 from app.errors import ApiError
 from tester.checks import Fixtures, Report, run
+from tester.coverage import code_coverage
 from tester.harness import HarnessError, make_router
 
 
 def build_router(app: FastAPI) -> APIRouter:
     fixtures = Fixtures.load(Path(os.environ.get("TESTER_FIXTURES_DIR", "fixtures")))
+    code = code_coverage(Path(os.environ.get("CODE_COVERAGE_FILE", ".coverage-baseline")))
 
     def setup(params: dict[str, Any]) -> dict[str, Any]:
         now = params.get("now")
@@ -42,4 +46,6 @@ def build_router(app: FastAPI) -> APIRouter:
         "AC-01..AC-07 suite against this system; report returns the result.",
         setup,
         run_self_test,
+        code_coverage=lambda _: code,
+        adopt_unknown_sessions=True,
     )

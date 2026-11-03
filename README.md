@@ -70,12 +70,16 @@ in `docs/openapi.yaml` under "autograder harness". No authentication.
 | Call | System | Tester |
 |---|---|---|
 | `GET /test` | describes the service | describes the service |
-| `POST /test/setup` | resets all data; optional `{"now": "…Z"}` sets the clock | optional `{"target_base_url": "…"}`; default is our system |
-| `POST /test/run` | runs AC-01..AC-07 against itself | runs AC-01..AC-07 against the target over HTTP |
-| `GET /test/report?session_id=…` | result and every check | result and every check |
+| `POST /test/setup` (201) | resets all data; optional `{"now": "…Z"}` sets the clock | optional `{"target_url": "…"}` (or `target_base_url`); default is our system's public URL. Also calls the system's `/test/setup` with the same `session_id` |
+| `POST /test/run` | runs AC-01..AC-07 against itself | runs AC-01..AC-07 against the target over HTTP, then the system's own `/test/run` for the session |
+| `GET /test/report?session_id=…` | result and every check; an unseen id is a new, not-yet-run session | result and every check |
 
 `setup` returns a `session_id`; `run` and `report` take it (in the JSON body or query string;
 without it they use the latest session). `run` is synchronous and finishes in a few seconds.
+`run` and `report` carry `target_url`, `results` (every check) and `coverage` in percent:
+`code` is `app/` line coverage from our test suite (`.coverage-baseline`, published by the
+system; null for a target that doesn't publish one), `component` the share of contract API
+operations the run called, and `system` the share of AC-01..AC-07 it exercised.
 The system's `/test` endpoints exist only when `ENABLE_TEST_ENDPOINTS=true`.
 
 ## Models (as delivered in Phase 4)

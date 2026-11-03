@@ -3,6 +3,10 @@
 Mounted on both the system and the tester. setup creates a session (and resets state), run
 executes the AC-01..AC-07 suite for that session, report returns the stored result. The
 schemas below are the single source for both the routes and docs/openapi.yaml.
+
+The autograder's format (Phase 3 grading feedback): setup answers 201; run and report carry
+`target_url`, `results` (the checks) and `coverage` (code, component and system, in percent; see
+tester/coverage.py); the system answers 200 for a session id the tester created.
 """
 
 import json
@@ -20,6 +24,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from tester.checks import Report
+from tester.coverage import summarize
 
 MAX_SESSIONS = 50
 
@@ -67,10 +72,11 @@ SESSION_BODY_SCHEMA: dict[str, Any] = {
             "type": "string",
             "description": "Setup: use this id instead of a generated one. Run: which session.",
         },
-        "target_base_url": {
+        "target_url": {
             "type": "string",
             "description": "Tester only: system base URL to test. Defaults to our deployed system.",
         },
+        "target_base_url": {"type": "string", "description": "Tester only: same as target_url."},
         "now": {
             "type": "string",
             "format": "date-time",
@@ -86,7 +92,20 @@ SETUP_SCHEMA: dict[str, Any] = {
         "status": {"type": "string", "enum": ["ready"]},
         "role": {"type": "string", "enum": ["system", "tester"]},
         "created_at": {"type": "string", "format": "date-time"},
+        "target_url": {"type": ["string", "null"]},
         "target_base_url": {"type": ["string", "null"]},
+    },
+}
+COVERAGE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["code", "component", "system"],
+    "description": "Percentages; null when not measurable (e.g. component and system before a run)",
+    "properties": {
+        "code": {"type": ["number", "null"]},
+        "component": {"type": ["number", "null"]},
+        "system": {"type": ["number", "null"]},
+        "operations_called": {"type": "array", "items": {"type": "string"}},
+        "acceptance_criteria_exercised": {"type": "array", "items": {"type": "string"}},
     },
 }
 SUMMARY_SCHEMA: dict[str, Any] = {
@@ -94,24 +113,55 @@ SUMMARY_SCHEMA: dict[str, Any] = {
     "additionalProperties": {"type": "integer"},
     "description": "required_passed, required_failed, informational_passed, informational_failed",
 }
+CHECKS_SCHEMA: dict[str, Any] = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "required": ["id", "ac", "title", "required", "passed", "expected", "actual"],
+        "properties": {
+            "id": {"type": "string"},
+            "ac": {"type": "string"},
+            "title": {"type": "string"},
+            "required": {"type": "boolean"},
+            "passed": {"type": "boolean"},
+            "expected": {"type": "string"},
+            "actual": {"type": "string"},
+            "request": {"type": "string"},
+            "response": {"type": "string"},
+            "note": {"type": "string"},
+        },
+    },
+}
 RUN_SCHEMA: dict[str, Any] = {
     "type": "object",
-    "required": ["session_id", "status", "result"],
+    "required": ["session_id", "status", "result", "target_url", "coverage", "results"],
     "properties": {
         "session_id": {"type": "string"},
         "status": {"type": "string", "enum": ["completed"]},
         "result": {"type": "string", "enum": ["pass", "fail", "error"]},
         "summary": SUMMARY_SCHEMA,
+        "target_url": {"type": ["string", "null"]},
+        "coverage": COVERAGE_SCHEMA,
+        "results": CHECKS_SCHEMA,
         "report_url": {"type": "string"},
     },
 }
 REPORT_SCHEMA: dict[str, Any] = {
     "type": "object",
-    "required": ["session_id", "status", "role", "checks"],
+    "required": [
+        "session_id",
+        "status",
+        "role",
+        "target_url",
+        "coverage",
+        "results",
+        "checks",
+    ],
     "properties": {
         "session_id": {"type": "string"},
         "status": {"type": "string", "enum": ["ready", "completed"]},
         "role": {"type": "string", "enum": ["system", "tester"]},
+        "target_url": {"type": ["string", "null"]},
         "target_base_url": {"type": ["string", "null"]},
         "result": {"type": ["string", "null"], "enum": ["pass", "fail", "error", None]},
         "summary": SUMMARY_SCHEMA,
@@ -119,25 +169,9 @@ REPORT_SCHEMA: dict[str, Any] = {
         "started_at": {"type": ["string", "null"]},
         "finished_at": {"type": ["string", "null"]},
         "duration_ms": {"type": ["integer", "null"]},
-        "checks": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "required": ["id", "ac", "title", "required", "passed", "expected", "actual"],
-                "properties": {
-                    "id": {"type": "string"},
-                    "ac": {"type": "string"},
-                    "title": {"type": "string"},
-                    "required": {"type": "boolean"},
-                    "passed": {"type": "boolean"},
-                    "expected": {"type": "string"},
-                    "actual": {"type": "string"},
-                    "request": {"type": "string"},
-                    "response": {"type": "string"},
-                    "note": {"type": "string"},
-                },
-            },
-        },
+        "coverage": COVERAGE_SCHEMA,
+        "results": CHECKS_SCHEMA,
+        "checks": CHECKS_SCHEMA,
     },
 }
 
@@ -162,6 +196,7 @@ class HarnessError(Exception):
 
 SetupHook = Callable[[dict[str, Any]], dict[str, Any]]
 RunHook = Callable[[dict[str, Any], dict[str, Any]], Report]
+CodeCoverage = Callable[[dict[str, Any]], float | None]
 
 
 def _now() -> str:
@@ -185,8 +220,18 @@ async def read_params(request: Request) -> dict[str, Any]:
     return params
 
 
-def make_router(role: str, description: str, setup: SetupHook, run: RunHook) -> APIRouter:
-    """The four /test endpoints. setup(params) may raise HarnessError; run(params, session)."""
+def make_router(
+    role: str,
+    description: str,
+    setup: SetupHook,
+    run: RunHook,
+    code_coverage: CodeCoverage,
+    adopt_unknown_sessions: bool = False,
+) -> APIRouter:
+    """The four /test endpoints. setup(params) may raise HarnessError and returns fields to keep
+    on the session; run(params, session); code_coverage(session) is the code % for reports.
+    With adopt_unknown_sessions, report answers an unseen session_id as a new, not-yet-run
+    session (the grader asks the system about the tester's session id)."""
     router = APIRouter(prefix="/test", tags=["autograder harness"])
     sessions: OrderedDict[str, dict[str, Any]] = OrderedDict()
     lock = threading.Lock()
@@ -210,18 +255,30 @@ def make_router(role: str, description: str, setup: SetupHook, run: RunHook) -> 
                 return sessions.get(str(session_id))
             return next(reversed(sessions.values()), None)
 
-    def do_setup(params: dict[str, Any]) -> dict[str, Any]:
-        extra = setup(params)
+    def new_session(session_id: str, extra: dict[str, Any]) -> dict[str, Any]:
         session = {
-            "session_id": str(params.get("session_id") or f"ses-{uuid.uuid4().hex[:12]}"),
+            **extra,
+            "session_id": session_id,
             "status": "ready",
             "role": role,
             "created_at": _now(),
+            "target_url": extra.get("target_base_url"),
             "target_base_url": extra.get("target_base_url"),
             "report": None,
         }
         remember(session)
         return session
+
+    def do_setup(params: dict[str, Any]) -> dict[str, Any]:
+        session_id = str(params.get("session_id") or f"ses-{uuid.uuid4().hex[:12]}")
+        return new_session(session_id, setup({**params, "session_id": session_id}))
+
+    def coverage(session: dict[str, Any]) -> dict[str, Any]:
+        return summarize(session["report"], code_coverage(session))
+
+    def public(session: dict[str, Any]) -> dict[str, Any]:
+        keys = ("session_id", "status", "role", "created_at", "target_url", "target_base_url")
+        return {k: session[k] for k in keys}
 
     @router.get(
         "", responses={200: _json(INFO_SCHEMA, "What this service is and its /test endpoints")}
@@ -241,9 +298,10 @@ def make_router(role: str, description: str, setup: SetupHook, run: RunHook) -> 
     @router.api_route(
         "/setup",
         methods=["POST"],
+        status_code=201,
         openapi_extra=SESSION_BODY,
         responses={
-            200: _json(SETUP_SCHEMA, "Session created; state reset"),
+            201: _json(SETUP_SCHEMA, "Session created; state reset"),
             400: _json(ERROR_SCHEMA, "Invalid input"),
         },
     )
@@ -254,7 +312,7 @@ def make_router(role: str, description: str, setup: SetupHook, run: RunHook) -> 
             session = await run_in_threadpool(do_setup, params)  # setup hooks block (reset, DNS)
         except HarnessError as exc:
             return error(exc)
-        return {k: v for k, v in session.items() if k != "report"}
+        return JSONResponse(status_code=201, content=public(session))
 
     @router.api_route(
         "/run",
@@ -292,6 +350,9 @@ def make_router(role: str, description: str, setup: SetupHook, run: RunHook) -> 
             "status": "completed",
             "result": report.result,
             "summary": report.summary,
+            "target_url": session["target_url"],
+            "coverage": coverage(session),
+            "results": report.to_dict()["checks"],
             "report_url": f"/test/report?session_id={session['session_id']}",
         }
 
@@ -304,6 +365,8 @@ def make_router(role: str, description: str, setup: SetupHook, run: RunHook) -> 
     )
     def report_route(session_id: str | None = None) -> Any:
         session = find(session_id)
+        if session is None and session_id and adopt_unknown_sessions:
+            session = new_session(str(session_id), {})
         if session is None:
             msg = (
                 f"session {session_id} not found"
@@ -316,7 +379,10 @@ def make_router(role: str, description: str, setup: SetupHook, run: RunHook) -> 
             "session_id": session["session_id"],
             "status": session["status"],
             "role": role,
+            "target_url": session["target_url"],
             "target_base_url": session["target_base_url"],
+            "coverage": coverage(session),
+            "results": [],
             "result": None,
             "summary": {},
             "error": None,
@@ -341,6 +407,7 @@ def make_router(role: str, description: str, setup: SetupHook, run: RunHook) -> 
                     )
                 }
             )
+            body["results"] = body["checks"]
         return body
 
     return router

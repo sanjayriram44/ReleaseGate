@@ -121,7 +121,9 @@ jobs:
         run: |
           for port in 8081 8080; do
             curl -fsS -X POST localhost:$port/test/run | tee run.json
-            python3 -c "import json; r = json.load(open('run.json')); assert r['result'] == 'pass', r"
+            python3 -c "import json; r = json.load(open('run.json')); assert r['result'] == 'pass', r; \
+              c = r['coverage']; assert r['results'] and 'target_url' in r, r; \
+              assert c['code'] is not None and c['component'] and c['system'] == 100.0, c"
           done
       - run: uv run python scripts/container_smoke.py seed http://localhost:8080 state.json
       - run: docker compose restart api

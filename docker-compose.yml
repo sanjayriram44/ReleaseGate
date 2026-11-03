@@ -29,8 +29,9 @@ services:
     ports:
       - "${TESTER_PORT:-8081}:8081"
     environment:
-      # /test/setup without a target_base_url tests our own system.
-      TESTER_DEFAULT_TARGET: http://api:8080
+      # /test/setup without a target_url tests our own system. The deploy sets the public URL,
+      # so reports name the system the grader registered (the VM reaches its own public IP).
+      TESTER_DEFAULT_TARGET: ${TESTER_DEFAULT_TARGET:-http://api:8080}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8081/health')"]

@@ -1,6 +1,7 @@
 """The course autograder harness (/test, /test/setup, /test/run, /test/report) on both services."""
 
 from pathlib import Path
+from typing import Any
 
 from fastapi.testclient import TestClient
 
@@ -47,7 +48,7 @@ def test_system_setup_resets_data_and_returns_session(tmp_path: Path) -> None:
         headers=H,
     ).json()["release_id"]
     r = c.post("/test/setup")
-    assert r.status_code == 200
+    assert r.status_code == 201  # the autograder interface requires 201
     assert r.json()["status"] == "ready" and r.json()["session_id"].startswith("ses-")
     assert c.get(f"/api/v1/releases/{rid}").status_code == 404
     assert c.get("/api/v1/audit-logs").json() == {"events": []}
@@ -88,7 +89,11 @@ def test_report_errors(tmp_path: Path) -> None:
     r = c.get("/test/report")
     assert r.status_code == 404 and r.json()["error"]["code"] == "SESSION_NOT_FOUND"
     c.post("/test/setup")
-    assert c.get("/test/report", params={"session_id": "nope"}).status_code == 404
+    # The grader asks the system about the tester's session id; an id it never saw is reported
+    # as a fresh session (nothing run yet), not 404.
+    unknown = c.get("/test/report", params={"session_id": "nope"})
+    assert unknown.status_code == 200
+    assert unknown.json()["session_id"] == "nope" and unknown.json()["status"] == "ready"
     bad = c.post("/test/setup", content=b"not json", headers={"Content-Type": "application/json"})
     assert bad.status_code == 400
 
@@ -119,8 +124,10 @@ def test_tester_setup_needs_a_target_without_default(tmp_path: Path) -> None:
 
 def test_tester_setup_run_report_against_given_target(tmp_path: Path) -> None:
     c = make_tester(tmp_path)
-    setup = c.post("/test/setup", json={"target_base_url": "http://system.example:8080/"}).json()
-    assert setup["target_base_url"] == "http://system.example:8080"
+    r = c.post("/test/setup", json={"target_base_url": "http://system.example:8080/"})
+    assert r.status_code == 201
+    setup = r.json()
+    assert setup["target_base_url"] == setup["target_url"] == "http://system.example:8080"
     run = c.post("/test/run", json={"session_id": setup["session_id"]}).json()
     assert run["result"] == "pass" and run["summary"]["required_passed"] >= 30
     report = c.get(f"/test/report?session_id={setup['session_id']}").json()
@@ -133,6 +140,8 @@ def test_tester_uses_default_target_and_alternate_names(tmp_path: Path) -> None:
     assert c.post("/test/setup").json()["target_base_url"] == "http://our-system:8080"
     alt = c.post("/test/setup", params={"system_base_url": "http://other:9000"}).json()
     assert alt["target_base_url"] == "http://other:9000"
+    graded = c.post("/test/setup", json={"target_url": "http://136.116.160.182:8080"}).json()
+    assert graded["target_url"] == "http://136.116.160.182:8080"
 
 
 def test_tester_rejects_bad_target(tmp_path: Path) -> None:
@@ -148,3 +157,91 @@ def test_base_url_with_trailing_slash_still_works(tmp_path: Path) -> None:
         sid = c.post(f"{base}//test/setup").json()["session_id"]
         assert c.post(f"{base}//test/run", json={"session_id": sid}).json()["result"] == "pass"
         assert c.get(f"{base}//test/report", params={"session_id": sid}).status_code == 200
+
+
+# -- autograder report format (Phase 3 grading feedback) ------------------------------------
+
+COVERAGE_KEYS = {"code", "component", "system"}
+
+
+def test_tester_run_and_report_carry_target_url_results_and_coverage(tmp_path: Path) -> None:
+    c = make_tester(tmp_path)
+    sid = c.post("/test/setup", json={"target_url": "http://our-system:8080"}).json()["session_id"]
+    run = c.post("/test/run", json={"session_id": sid}).json()
+    report = c.get("/test/report", params={"session_id": sid}).json()
+    for body in (run, report):
+        assert body["target_url"] == "http://our-system:8080"
+        assert body["results"] and body["results"] == report["checks"]
+        assert set(body["coverage"]) >= COVERAGE_KEYS
+    cov = report["coverage"]
+    assert cov["code"] == float(Path(".coverage-baseline").read_text())  # reported by the system
+    assert 50 <= cov["component"] < 100  # report-data and reports (Phase 5) are not called
+    assert cov["system"] == 100.0  # AC-01..AC-07 all exercised
+
+
+def test_tester_shares_its_session_with_the_system(tmp_path: Path) -> None:
+    target = system(tmp_path)
+    c = TestClient(
+        create_tester("fixtures", client_factory=lambda _: target, host_check=lambda _: None)
+    )
+    sid = c.post("/test/setup", json={"target_url": "http://our-system:8080"}).json()["session_id"]
+    seen = target.get("/test/report", params={"session_id": sid})
+    assert seen.status_code == 200 and seen.json()["status"] == "ready"
+    c.post("/test/run", json={"session_id": sid})
+    after = target.get("/test/report", params={"session_id": sid}).json()
+    assert after["session_id"] == sid and after["status"] == "completed"
+    assert set(after["coverage"]) >= COVERAGE_KEYS and after["coverage"]["system"] == 100.0
+
+
+def test_system_report_has_session_and_coverage_before_and_after_run(tmp_path: Path) -> None:
+    c = system(tmp_path)
+    sid = c.post("/test/setup").json()["session_id"]
+    ready = c.get("/test/report", params={"session_id": sid}).json()
+    assert ready["session_id"] == sid and ready["coverage"]["code"] is not None
+    assert ready["results"] == []
+    c.post("/test/run", json={"session_id": sid})
+    done = c.get("/test/report", params={"session_id": sid}).json()
+    assert done["coverage"]["component"] > 50 and done["results"] == done["checks"]
+
+
+def test_tester_without_a_harness_on_the_target_still_reports(tmp_path: Path) -> None:
+    """Team 2's system (or any target without /test) has no code coverage to share."""
+    target = system(tmp_path)
+
+    class NoHarness:
+        def __enter__(self) -> "NoHarness":
+            return self
+
+        def __exit__(self, *exc: object) -> None:
+            pass
+
+        def request(self, method: str, url: str, **kw: Any) -> Any:
+            path = "/no-such-route" if str(url).startswith("/test") else url
+            return target.request(method, path, **kw)
+
+    c = TestClient(
+        create_tester(
+            "fixtures",
+            client_factory=lambda _: NoHarness(),  # type: ignore[arg-type,return-value]
+            host_check=lambda _: None,
+        )
+    )
+    sid = c.post("/test/setup", json={"target_url": "http://team2:8080"}).json()["session_id"]
+    run = c.post("/test/run", json={"session_id": sid}).json()
+    assert run["result"] == "pass" and run["coverage"]["code"] is None
+    assert run["coverage"]["system"] == 100.0
+
+
+def test_component_operations_match_the_contract() -> None:
+    import yaml
+
+    from tester.coverage import OPERATIONS
+
+    doc = yaml.safe_load(Path("docs/openapi.yaml").read_text())
+    contract = {
+        (m.upper(), p)
+        for p, item in doc["paths"].items()
+        for m in ("get", "put", "post", "patch", "delete")
+        if m in item and p.startswith("/api/v1/") and not p.startswith("/api/v1/test/")
+    }
+    assert set(OPERATIONS) == contract

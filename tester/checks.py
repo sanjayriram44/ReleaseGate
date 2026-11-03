@@ -17,6 +17,7 @@ from typing import Any
 import httpx
 
 from tester import phase4
+from tester.coverage import operation
 
 USER = {"X-User-Id": "releasegate-tester"}
 JSON = {"Content-Type": "application/json"}
@@ -48,6 +49,7 @@ class Report:
     error: str | None = None
     summary: dict[str, int] = field(default_factory=dict)
     checks: list[Check] = field(default_factory=list)
+    operations: list[str] = field(default_factory=list)  # contract operations called (coverage)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -131,10 +133,12 @@ class Runner:
         self.client = client
         self.fx = fixtures
         self.checks: list[Check] = []
+        self.calls: list[tuple[str, str]] = []
 
     # -- plumbing ---------------------------------------------------------------------------
 
     def call(self, method: str, path: str, **kw: Any) -> httpx.Response:
+        self.calls.append((method, path))
         try:
             return self.client.request(method, path, **kw)
         except httpx.HTTPError as exc:
@@ -538,6 +542,9 @@ def run(client: httpx.Client, fixtures: Fixtures, target: str) -> Report:
     required = [c for c in runner.checks if c.required]
     info = [c for c in runner.checks if not c.required]
     report.checks = runner.checks
+    report.operations = sorted(
+        {op for m, p in runner.calls if (op := operation(m, p.split("?")[0])) is not None}
+    )
     report.summary = {
         "required_passed": sum(c.passed for c in required),
         "required_failed": sum(not c.passed for c in required),

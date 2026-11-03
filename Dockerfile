@@ -12,6 +12,8 @@ COPY app ./app
 # /test/run self-test uses the shared check suite and fixtures.
 COPY tester ./tester
 COPY fixtures/*.json ./fixtures/
+# app/ line coverage from our test suite, reported as code coverage by /test/report.
+COPY .coverage-baseline ./
 
 # Non-root user; /data is the persistent volume mount point for the SQLite file.
 RUN useradd --system --uid 10001 app && mkdir /data && chown app /data

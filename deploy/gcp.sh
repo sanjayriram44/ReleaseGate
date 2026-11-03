@@ -24,7 +24,7 @@ vm() { "${G[@]}" compute ssh "$VM" --zone "$ZONE" --command "$1"; }
 # Check out $1 (a tag, a commit or origin/<branch>) on the VM, rebuild with GIT_SHA set to it,
 # then run the post-deploy checks against the new deployment.
 deploy_ref() {
-  local ref="$1" out prev sha
+  local ref="$1" out prev sha public
   if [[ ! "$ref" =~ ^[A-Za-z0-9._/-]+$ ]]; then
     echo "invalid ref: $ref" >&2
     exit 2
@@ -37,9 +37,10 @@ deploy_ref() {
     echo "could not resolve $ref on the VM" >&2
     exit 1
   fi
+  public="http://$(ip):8080"
   echo "Deploying $ref ($sha); previously deployed: $prev"
   vm "cd /opt/releasegate && sudo git checkout --quiet --detach $sha \
-    && sudo GIT_SHA=$sha docker compose up -d --build \
+    && sudo GIT_SHA=$sha TESTER_DEFAULT_TARGET=$public docker compose up -d --build \
     && { test -x /usr/sbin/cron || { sudo apt-get update -qq && sudo apt-get install -y -qq cron; }; } \
     && sudo install -m 0644 deploy/releasegate-backup.cron /etc/cron.d/releasegate-backup"
   if [ "$(git -C "$HERE/.." rev-parse HEAD)" != "$sha" ]; then
