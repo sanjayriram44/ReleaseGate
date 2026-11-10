@@ -155,3 +155,25 @@ def test_nested_duplicate_names_its_path() -> None:
         "components[0].components contains duplicate entries:"
         " components[0].components[2] repeats components[0].components[0]"
     )
+
+
+def _deeply_nested_sbom(depth: int) -> bytes:
+    inner: dict[str, Any] = {"type": "library", "name": "leaf", "version": "1"}
+    for i in range(depth):
+        inner = {"type": "library", "name": f"n{i}", "version": "1", "components": [inner]}
+    return raw(
+        {"bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1, "components": [inner]}
+    )
+
+
+@pytest.mark.parametrize(
+    "body",
+    [_deeply_nested_sbom(300), _deeply_nested_sbom(2000), b"[" * 100_000 + b"]" * 100_000],
+    ids=["components-300-deep", "components-2000-deep", "brackets-100000-deep"],
+)
+def test_too_deeply_nested_document_is_rejected_not_a_crash(body: bytes) -> None:
+    """Python's recursion limit in the JSON parser or the schema validator must be a 400."""
+    code, message = _reason(body)
+    assert code == "INVALID_SBOM" and "nested too deeply" in message
+    # The validator still works afterwards.
+    assert len(parse_and_validate(Path("fixtures/sbom_25_components.json").read_bytes())) == 25

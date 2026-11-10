@@ -55,6 +55,16 @@ def _duplicate_message(where: str, items: list[Any]) -> str:
 def parse_and_validate(raw: bytes) -> list[ParsedComponent]:
     """Fully validate a CycloneDX JSON document; raise ApiError(400) naming the reason."""
     try:
+        return _parse(raw)
+    except RecursionError as exc:
+        # The JSON parser, the schema validator and _flatten all recurse once per nesting level,
+        # so a document nested hundreds of levels deep (far beyond any real SBOM) exhausts
+        # Python's stack. That is invalid input, not a server error.
+        raise _invalid_sbom("CycloneDX document is nested too deeply to validate") from exc
+
+
+def _parse(raw: bytes) -> list[ParsedComponent]:
+    try:
         text = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise _invalid_json("request body is not valid UTF-8 text") from exc

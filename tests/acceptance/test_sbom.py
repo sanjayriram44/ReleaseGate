@@ -205,3 +205,20 @@ def test_health_answers_during_slow_sbom_upload(
     assert h.status_code == 200
     assert elapsed < 1, f"/health took {elapsed:.1f} s during an upload"
     assert result["r"].status_code == 200
+
+
+def test_too_deeply_nested_sbom_is_400_and_stores_nothing(client: TestClient) -> None:
+    rid = release(client)
+    assert put(client, rid, raw(make_sbom(2))).status_code == 200
+    before = components(client, rid)
+    inner: dict[str, Any] = {"type": "library", "name": "leaf", "version": "1"}
+    for i in range(300):
+        inner = {"type": "library", "name": f"n{i}", "version": "1", "components": [inner]}
+    deep = {"bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1, "components": [inner]}
+    for body in (raw(deep), b"[" * 100_000 + b"]" * 100_000):
+        r = put(client, rid, body)
+        assert r.status_code == 400
+        assert r.json()["error"]["code"] == "INVALID_SBOM"
+        assert "nested too deeply" in r.json()["error"]["message"]
+    assert components(client, rid) == before
+    assert put(client, rid, raw(make_sbom(3))).status_code == 200  # still accepts a valid SBOM
