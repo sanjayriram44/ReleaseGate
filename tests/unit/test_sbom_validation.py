@@ -166,14 +166,20 @@ def _deeply_nested_sbom(depth: int) -> bytes:
     )
 
 
-@pytest.mark.parametrize(
-    "body",
-    [_deeply_nested_sbom(300), _deeply_nested_sbom(2000), b"[" * 100_000 + b"]" * 100_000],
-    ids=["components-300-deep", "components-2000-deep", "brackets-100000-deep"],
-)
-def test_too_deeply_nested_document_is_rejected_not_a_crash(body: bytes) -> None:
-    """Python's recursion limit in the JSON parser or the schema validator must be a 400."""
-    code, message = _reason(body)
+@pytest.mark.parametrize("depth", [300, 2000])
+def test_too_deeply_nested_components_are_rejected_not_a_crash(depth: int) -> None:
+    """The schema validator recurses per nesting level; Python's recursion limit must be a 400."""
+    code, message = _reason(_deeply_nested_sbom(depth))
     assert code == "INVALID_SBOM" and "nested too deeply" in message
     # The validator still works afterwards.
+    assert len(parse_and_validate(Path("fixtures/sbom_25_components.json").read_bytes())) == 25
+
+
+def test_too_deeply_nested_json_is_rejected_not_a_crash() -> None:
+    """Whether the JSON parser copes with 100,000 levels depends on the Python version and the
+    stack size (macOS and Linux 3.12 don't; GitHub's runner on 3.14 with a 16 MB stack does),
+    so either rejection is right. It must never be an unhandled RecursionError."""
+    code, message = _reason(b"[" * 100_000 + b"]" * 100_000)
+    assert code == "INVALID_SBOM"
+    assert "nested too deeply" in message or "must be a JSON object" in message
     assert len(parse_and_validate(Path("fixtures/sbom_25_components.json").read_bytes())) == 25

@@ -215,10 +215,11 @@ def test_too_deeply_nested_sbom_is_400_and_stores_nothing(client: TestClient) ->
     for i in range(300):
         inner = {"type": "library", "name": f"n{i}", "version": "1", "components": [inner]}
     deep = {"bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1, "components": [inner]}
-    for body in (raw(deep), b"[" * 100_000 + b"]" * 100_000):
-        r = put(client, rid, body)
-        assert r.status_code == 400
-        assert r.json()["error"]["code"] == "INVALID_SBOM"
-        assert "nested too deeply" in r.json()["error"]["message"]
+    r = put(client, rid, raw(deep))
+    assert r.status_code == 400 and r.json()["error"]["code"] == "INVALID_SBOM"
+    assert "nested too deeply" in r.json()["error"]["message"]
+    # Some Pythons parse this much raw nesting, then reject the array: a 400 either way.
+    r = put(client, rid, b"[" * 100_000 + b"]" * 100_000)
+    assert r.status_code == 400 and r.json()["error"]["code"] == "INVALID_SBOM"
     assert components(client, rid) == before
     assert put(client, rid, raw(make_sbom(3))).status_code == 200  # still accepts a valid SBOM
