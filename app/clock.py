@@ -54,10 +54,9 @@ def parse_utc(value: str, field: str = "now") -> datetime:
 def format_utc(dt: datetime) -> str:
     """ISO 8601 UTC with a trailing Z: whole seconds when there is no fraction, else six-digit
     microseconds, e.g. 2026-01-01T00:00:00Z or 2026-01-01T00:00:00.100000Z."""
-    utc = dt.astimezone(UTC)
-    if utc.microsecond:
-        return utc.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-    return utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+    # isoformat, not strftime: glibc's %Y doesn't zero-pad, so on Linux year 1 came out as "1-".
+    utc = dt.astimezone(UTC).replace(tzinfo=None)
+    return utc.isoformat(timespec="microseconds" if utc.microsecond else "seconds") + "Z"
 
 
 class Clock:

@@ -310,3 +310,15 @@ def test_extreme_timestamps_are_400_not_500(client: TestClient) -> None:
     r = client.put("/api/v1/test/clock", json={"now": "0001-01-01T00:30:00+01:00"})
     assert r.status_code == 400
     assert audit_actions(client) == ["INCIDENT_CREATED"]
+
+
+def test_incident_in_year_one_round_trips_with_four_digit_years(client: TestClient) -> None:
+    """On Linux the year used to be written as "1-01-01...", which the read path rejected."""
+    r = make_incident(client, awareness_at="0001-01-01T00:00:00Z")
+    assert r.status_code == 201
+    body = client.get(f"/api/v1/incidents/{r.json()['incident_id']}")
+    assert body.status_code == 200
+    assert body.json()["awareness_at"] == "0001-01-01T00:00:00Z"
+    deadlines = body.json()["deadlines"]
+    assert deadlines["early_warning"]["deadline_at"] == "0001-01-02T00:00:00Z"
+    assert deadlines["vulnerability_notification"]["deadline_at"] == "0001-01-04T00:00:00Z"
