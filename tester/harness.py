@@ -1,7 +1,7 @@
 """Course autograder harness: GET /test, POST /test/setup, POST /test/run, GET /test/report.
 
 Mounted on both the system and the tester. setup creates a session (and resets state), run
-executes the AC-01..AC-07 suite for that session, report returns the stored result. The
+executes the AC-01..AC-09 suite for that session, report returns the stored result. The
 schemas below are the single source for both the routes and docs/openapi.yaml.
 
 The autograder's format (Phase 3 grading feedback): setup answers 201; run and report carry

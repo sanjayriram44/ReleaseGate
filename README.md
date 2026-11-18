@@ -111,7 +111,7 @@ without it they use the latest session). `run` is synchronous and finishes in a 
 system; null for a target that doesn't publish one), `component` the share of contract API
 operations the run called, and `system` the share of AC-01..AC-09 it exercised (AC-10 needs a
 restart, so a single run can't exercise it; how it should count is still to be decided against the
-Phase 5 assignment text). The descriptions the harness returns still say AC-01..AC-07 until then.
+Phase 5 assignment text).
 The system's `/test` endpoints exist only when `ENABLE_TEST_ENDPOINTS=true`.
 
 ## Models (as delivered in Phase 5)

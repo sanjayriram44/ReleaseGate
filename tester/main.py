@@ -198,7 +198,7 @@ def create_app(
         make_router(
             "tester",
             "ReleaseGate tester. setup selects the system to test (target_base_url, default: our "
-            "deployed system); run executes AC-01..AC-07 against it over HTTP, resetting its "
+            "deployed system); run executes AC-01..AC-09 against it over HTTP, resetting its "
             "data; report returns every check.",
             harness_setup,
             harness_run,

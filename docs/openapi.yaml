@@ -618,7 +618,7 @@ paths:
                         type: string
   /test/run:
     post:
-      summary: Run the AC-01..AC-07 suite for a session
+      summary: Run the AC-01..AC-09 suite for a session
       description: 'Course autograder harness, served at the same paths on both base URLs: the system
         (http://<host>:8080) and the tester (http://<host>:8081). No authentication; no X-User-Id needed.
 
@@ -818,7 +818,7 @@ paths:
         `status` is `ready` until run finishes, then `completed` with `result` (pass/fail/error), a summary
         and every check (expected vs actual). Without `session_id`, returns the latest session. `results`
         repeats `checks`. `coverage.code` is the system''s app/ line coverage from its own test suite;
-        `component` is the share of contract API operations the run called; `system` the share of AC-01..AC-07
+        `component` is the share of contract API operations the run called; `system` the share of AC-01..AC-09
         it exercised (null before a run). An unseen `session_id`, or no session at all, is answered as a
         new, not-yet-run session rather than 404 (the grader asks the system about the tester''s id).'
       tags:
