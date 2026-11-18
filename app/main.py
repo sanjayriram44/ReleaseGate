@@ -13,6 +13,7 @@ from app.routers import (
     health,
     incidents,
     releases,
+    reports,
     sbom,
     test_support,
     vulnerabilities,
@@ -71,6 +72,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(sbom.router)
     app.include_router(vulnerabilities.router)
     app.include_router(incidents.router)
+    app.include_router(reports.router)
     app.include_router(audit.router)
     if settings.enable_test_endpoints:
         app.include_router(test_support.router)

@@ -84,10 +84,12 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] `app/services/reports.py` pure functions: `STAGE_FIELDS`, `validate_report_data()`, `missing_fields()`, `build_report()` (needs-human-review) — proof: `tests/unit/test_reports.py` written first, incl. `STAGE_FIELDS` == fixture `stage_fields`. Mapping provisional (P5-Q1)
 - [ ] A team member reviews the report logic (`app/services/reports.py`, needs-human-review) and its tests
 - [x] `report_data` table (§6.5), `Database.reset()` clears it before incidents — proof: `tests/unit/test_db.py` (one row per incident and stage, foreign key, reset, existing database)
-- [ ] `PUT /api/v1/incidents/{incidentId}/report-data/{stage}` + audit `REPORT_DATA_STORED`, removed from `NOT_YET_IMPLEMENTED` — proof: `tests/acceptance/test_reports.py` (404, 400 stage/field/type, replace, nothing stored on error, audit details). **blocked: P5-Q1, P5-Q3, P5-Q4, P5-Q5**
-- [ ] `GET /api/v1/incidents/{incidentId}/reports/{stage}`, removed from `NOT_YET_IMPLEMENTED` — proof: `tests/acceptance/test_reports.py` (read-only, `generated_at` = clock). **blocked: P5-Q1, P5-Q2, P5-Q5, P5-Q6**
-- [ ] Contract commit agreed with Team 2: PUT 200 body (P5-Q3), GET 400 invalid stage (P5-Q5), per-stage required fields on `ReportData` (Phase 2 grader 5.1) — proof: contract test. **blocked: P5-Q1, P5-Q3, P5-Q5**
-- [ ] AC-08 acceptance test from `fixtures/report_cases.json` — proof: `tests/acceptance/test_reports.py`. **blocked: fixture verified by one checker per team (P5-Q11)**
+- [x] `PUT /api/v1/incidents/{incidentId}/report-data/{stage}` + audit `REPORT_DATA_STORED`, removed from `NOT_YET_IMPLEMENTED` — proof: `tests/acceptance/test_reports.py` (404, 400 stage/field/type/JSON/Content-Type, replace, nothing stored on error, audit details). Provisional: P5-Q1, Q3, Q4, Q5
+- [x] `GET /api/v1/incidents/{incidentId}/reports/{stage}`, removed from `NOT_YET_IMPLEMENTED` — proof: `tests/acceptance/test_reports.py` (read-only, `generated_at` = clock, survives a restart). Provisional: P5-Q1, Q2, Q5, Q6
+- [x] Contract commit (`0b3432d`): PUT 200 body (P5-Q3), GET 400 invalid stage (P5-Q5), `x-fields-by-stage` on `ReportData` (Phase 2 grader 5.1) — proof: contract test; `tests/unit/test_reports.py::test_contract_fields_by_stage_match_the_table`
+- [ ] Team 2 agrees the contract commit and applies it to their copy — **blocked: Team 2's answers to P5-Q1, P5-Q3, P5-Q5**
+- [x] AC-08 acceptance test from `fixtures/report_cases.json` — proof: `tests/acceptance/test_reports.py::test_ac08_reports_from_the_fixture`. The fixture is still a DRAFT
+- [ ] `fixtures/report_cases.json` verified by one checker per team — proof: names and date in `docs/decisions.md` and `fixtures/README.md`. **blocked: P5-Q11 checkers**
 - [ ] AC-09 acceptance test (four events in order, clock timestamps, rejected request adds nothing, PATCH/DELETE 405 leave the log unchanged) — proof: `tests/acceptance/test_ac09_audit.py`. Action-name checks informational until P5-Q7
 - [ ] `docs/audit-immutability.md`: write-route inventory, triggers, INSERT-only `audit.py`, 405 routes, gated `reset()`, file-access limit — proof: document reviewed by a team member
 - [ ] G7: `tests/unit/test_audit_immutability.py` (static scan of `app/` + triggers raise `IntegrityError`) — proof: test green; G7 row in `docs/metrics.md`

@@ -26,7 +26,7 @@ def error_response(
     return JSONResponse(status_code=status, content={"error": body})
 
 
-def _is_json(content_type: str | None) -> bool:
+def is_json_media_type(content_type: str | None) -> bool:
     media = (content_type or "").split(";")[0].strip().lower()
     return media == "application/json" or (
         media.startswith("application/") and media.endswith("+json")
@@ -44,7 +44,7 @@ def _validation_message(exc: RequestValidationError, content_type: str | None) -
         return f"{field} is required" if field else "request body is required"
     if err["type"] in ("json_invalid", "model_attributes_type"):
         # FastAPI only parses JSON bodies, so a JSON body labelled text/plain lands here too.
-        if not _is_json(content_type):
+        if not is_json_media_type(content_type):
             return "Content-Type must be application/json"
         return "request body is not valid JSON"
     if err["type"] == "value_error" and "error" in err.get("ctx", {}):
