@@ -67,7 +67,7 @@ def _parse(raw: bytes) -> list[ParsedComponent]:
     try:
         text = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
-        raise _invalid_json("request body is not valid UTF-8 text") from exc
+        raise _invalid_json("request body is not valid JSON: not UTF-8 text") from exc
     try:
         doc = json.loads(text)
     except json.JSONDecodeError as exc:
