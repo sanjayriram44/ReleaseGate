@@ -107,6 +107,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [ ] Final cross-team run, ours → Team 2 (AC-01..AC-09, AC-10 two-step if they cooperate) — proof: `docs/test-reports/YYYY-MM-DD-cross-team-ours-to-team2.md` with `Result: X/Y passed (in scope)`. **blocked: Team 2's final URL and run window (P5-Q10)**
 - [ ] Final cross-team run, Team 2 → ours — proof: `docs/test-reports/YYYY-MM-DD-cross-team-team2-to-ours.md`. **blocked: P5-Q10**
 - [x] Tag `phase5` on the deployed commit (human, 2026-11-18): `phase5` → `c188b54` — proof: `git ls-remote --tags origin`; G6 row met. Move it if a later code change is redeployed
+- [ ] Bring live up to `main`: `22fa081` changed the harness wording in `app/harness.py`, `tester/harness.py`, `tester/main.py`, so live (`c188b54`) still says AC-01..AC-07. Deploy `main`, rerun `gcp.sh full`, record both reports, move `phase5` — proof: live `/health` = `main` head; new `*-deploy.md` and `*-deploy-full.md`. **blocked: permission to deploy and reset the live data (warn Team 2)**
 
 ## Human tasks (CLAUDE.md §9, §10, §8)
 
