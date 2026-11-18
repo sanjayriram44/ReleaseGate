@@ -71,7 +71,11 @@ def test_reset_refuses_unless_allowed_and_leaves_the_audit_log(
         triggers = conn.execute(
             "SELECT name FROM sqlite_master WHERE type = 'trigger' ORDER BY name"
         ).fetchall()
-        assert [t[0] for t in triggers] == ["audit_no_delete", "audit_no_update"]
+        assert [t[0] for t in triggers] == [
+            "audit_no_delete",
+            "audit_no_replace",
+            "audit_no_update",
+        ]
 
 
 def test_old_database_without_sbom_stored_at_is_migrated(tmp_path: Path) -> None:

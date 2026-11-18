@@ -81,6 +81,11 @@ CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON audit_log
 BEGIN SELECT RAISE(ABORT, 'audit log is append-only'); END;
 CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit_log
 BEGIN SELECT RAISE(ABORT, 'audit log is append-only'); END;
+-- INSERT OR REPLACE deletes the conflicting row without firing DELETE triggers, so refuse any
+-- insert that would collide with an existing entry.
+CREATE TRIGGER IF NOT EXISTS audit_no_replace BEFORE INSERT ON audit_log
+WHEN EXISTS (SELECT 1 FROM audit_log WHERE event_id = NEW.event_id OR seq = NEW.seq)
+BEGIN SELECT RAISE(ABORT, 'audit log is append-only'); END;
 """
 
 

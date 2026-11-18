@@ -90,10 +90,11 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [ ] Team 2 agrees the contract commit and applies it to their copy — **blocked: Team 2's answers to P5-Q1, P5-Q3, P5-Q5**
 - [x] AC-08 acceptance test from `fixtures/report_cases.json` — proof: `tests/acceptance/test_reports.py::test_ac08_reports_from_the_fixture`. The fixture is still a DRAFT
 - [ ] `fixtures/report_cases.json` verified by one checker per team — proof: names and date in `docs/decisions.md` and `fixtures/README.md`. **blocked: P5-Q11 checkers**
-- [ ] AC-09 acceptance test (four events in order, clock timestamps, rejected request adds nothing, PATCH/DELETE 405 leave the log unchanged) — proof: `tests/acceptance/test_ac09_audit.py`. Action-name checks informational until P5-Q7
-- [ ] `docs/audit-immutability.md`: write-route inventory, triggers, INSERT-only `audit.py`, 405 routes, gated `reset()`, file-access limit — proof: document reviewed by a team member
-- [ ] G7: `tests/unit/test_audit_immutability.py` (static scan of `app/` + triggers raise `IntegrityError`) — proof: test green; G7 row in `docs/metrics.md`
-- [ ] Route-audit coverage test: every POST/PUT/PATCH outside `/api/v1/test` and `/test` has an audit test — proof: the test fails when a write route without one is added
+- [x] AC-09 acceptance test (four events in order, clock timestamps, rejected request adds nothing, PATCH/DELETE 405 leave the log unchanged) — proof: `tests/acceptance/test_ac09_audit.py`. Action names provisional (P5-Q7)
+- [x] `docs/audit-immutability.md`: write-route inventory, triggers, INSERT-only `audit.py`, 405 routes, gated `reset()`, known limits — proof: each claim names its test
+- [ ] A team member reviews `docs/audit-immutability.md` (AC-09 code-inspection evidence)
+- [x] G7: `tests/unit/test_audit_immutability.py` (static scan of `app/` + triggers raise `IntegrityError`) — proof: test green; G7 row in `docs/metrics.md`. Found that `INSERT OR REPLACE` could overwrite an entry; fixed with the `audit_no_replace` trigger
+- [x] Route-audit coverage test: every POST/PUT/PATCH/DELETE outside `/api/v1/test` and `/test` has an expected audit action and writes exactly one entry — proof: `tests/acceptance/test_audit_coverage.py` (fails when an operation is missing from the inventory)
 - [ ] AC-10: `scripts/container_smoke.py` seed/verify covers Phase 5 state (SBOM replace, CVE records + query, incident with fix and submission, report data + three reports, full audit log), exact JSON compare under the same test clock — proof: `tests/unit/test_container_smoke.py`; CI stage F
 - [ ] AC-10 cross-team: `tester ac10-snapshot` / `ac10-verify` sharing `container_smoke.py`'s logic; README procedure — proof: tester tests. **blocked: P5-Q8**
 - [ ] `tester/phase5.py` (AC-08, AC-09; required vs informational), `tester/coverage.py` `ACCEPTANCE_CRITERIA`, harness descriptions — proof: `tests/tester`
