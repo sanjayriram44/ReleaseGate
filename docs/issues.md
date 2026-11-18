@@ -39,7 +39,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] `PUT /api/v1/test/vulnerability-source` + `FixtureSource` — proof: acceptance tests
 - [x] `GET /api/v1/vulnerabilities/{cveId}/affected-releases` — proof: AC-05, then AC-04
 - [x] AC-04 fixtures drafted (`sbom_patched.json`, `vulnerabilities.json`, `cve_dataset.json`, `ground_truth.json`) — proof: `tests/acceptance/test_ac04_fixture.py`
-- [ ] AC-04 fixtures verified by one checker per team — proof: names and date in `docs/decisions.md` and `fixtures/README.md`. **blocked: one checker per team (Q7) must verify the draft values**
+- [ ] AC-04 fixtures verified by one checker per team — proof: names and date in `docs/decisions.md` and `fixtures/README.md`. Team 6 done (Donovan Baran, 2026-11-18). **blocked: Team 2's checker (P5-Q11)**
 - [ ] Production vulnerability source — proof: decision in `docs/decisions.md`. **blocked: instructor sign-off for the OSV snapshot (Q8)**
 - [x] `/health` reports the built commit (`GIT_SHA` build arg; `unknown` when unset) — proof: `tests/acceptance/test_test_support.py::test_health_reports_the_built_commit`
 - [x] Reset clears incidents, submissions and vulnerability records; `/health` reports source mode — proof: acceptance tests
@@ -121,7 +121,7 @@ Status summary with evidence: `docs/PHASE5_PROGRESS.md`.
 
 - [x] Team 2 confirms the answers in `docs/decisions.md` (Q1–Q8), including the two contract additions — 2026-11-01
 - [ ] Update the shared diagrams for "no push alerts" and the deadline status names (CLAUDE.md §10)
-- [ ] Name Team 6's AC-04 fixture reviewer (decision Q7) and get Team 2's reviewer to check the same values before the Phase 4 submission
+- [ ] Name Team 6's AC-04 fixture reviewer (decision Q7) and get Team 2's reviewer to check the same values before the Phase 4 submission — Team 6: Donovan Baran checked them 2026-11-18; **still open:** Team 2's reviewer (P5-Q11)
 - [ ] Spec housekeeping list in CLAUDE.md §10 (Phase 2 grader points 5.1, 3.2, 7.1, 3.1, 2.3, 9.1, 10, and the report text fixes)
 - [ ] Uptime monitor on `/health`
 - [x] Re-seed the live demo release (ExampleGateway 1.0.0 + `fixtures/sbom_25_components.json`, CVE records, one incident) — 2026-11-01

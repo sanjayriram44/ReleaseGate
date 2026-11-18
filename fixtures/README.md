@@ -50,13 +50,15 @@ Several of these 2023 versions have since had published vulnerabilities. That ma
 - [x] Sent to Team 2; they agreed to use these files unchanged.
 - [x] The decision is recorded in `docs/decisions.md`.
 
-## Phase 4 CVE fixtures (AC-04, AC-05): DRAFT, not verified
+## Phase 4 CVE fixtures (AC-04, AC-05): DRAFT, Team 6 verified, Team 2 pending
 
-> **Status: draft (2026-11-01).** Built by Team 6's Claude Code session from the Dependency-Track
-> spike's candidates (`spikes/dependency_track/expected.json`, OSV ranges checked 2026-10-17).
-> **Nobody has verified the expected values yet.** Per decision Q7, one person per team checks
-> them before the Phase 4 milestone; record their names and the date here and in
-> `docs/decisions.md`, then drop the `_status` fields and `test_fixtures_are_marked_as_drafts`.
+> **Status: draft (2026-11-01); Team 6 check done (2026-11-18, Donovan Baran).** Built by Team 6's
+> Claude Code session from the Dependency-Track spike's candidates
+> (`spikes/dependency_track/expected.json`, OSV ranges checked 2026-10-17). Team 6's checker
+> confirmed every expected value on 2026-11-18 (below); no value changed. **Team 2's checker is
+> not yet named (P5-Q11)**, so per decision Q7 AC-04 is not authoritative yet. Once Team 2 signs
+> off, record their name and date here and in `docs/decisions.md`, then drop the `_status` fields
+> and `test_fixtures_are_marked_as_drafts`.
 
 | File | Contents |
 |---|---|
@@ -68,14 +70,45 @@ Several of these 2023 versions have since had published vulnerabilities. That ma
 `ground_truth.json` was derived mechanically from the other three files. The values a person has
 to check are the `affected_purls`:
 
-- [ ] Each of the five CVEs: the listed fixture version is inside the advisory's affected range
+- [x] Each of the five CVEs: the listed fixture version is inside the advisory's affected range
   (links in `spikes/dependency_track/RESULTS.md`), and the `sbom_patched.json` version is outside
   it for werkzeug, flask and requests.
-- [ ] CVE-2019-11324: urllib3 1.26.14 is not affected, and 1.24.1 is (affected below 1.24.2).
-- [ ] `sbom_patched.json`: the `syft:cpe23` properties still name the old versions (the spike
+- [x] CVE-2019-11324: urllib3 1.26.14 is not affected, and 1.24.1 is (affected below 1.24.2).
+- [x] `sbom_patched.json`: the `syft:cpe23` properties still name the old versions (the spike
   only rewrote version, purl, bom-ref and cpe). Matching uses purls only, so decide whether that
-  matters.
-- [ ] The supported/unsupported grouping at `reference_clock` follows REQ-01.
+  matters. **Decision: fine, leave the file unchanged** (see below).
+- [x] The supported/unsupported grouping at `reference_clock` follows REQ-01.
+- [ ] Team 2's checker verifies the same values (P5-Q11).
+
+**Team 6 check: Donovan Baran, 2026-11-18.** Each range was read from the GHSA advisory and its
+PYSEC alias in the OSV database (`api.osv.dev`, fetched 2026-11-18; the two sources agree, and
+both match the 2026-10-17 spike ranges).
+
+| CVE | Advisory | Affected range | `sbom_25_components.json` | `sbom_patched.json` |
+|---|---|---|---|---|
+| CVE-2023-25577 | GHSA-xg9f-g7g7-2323 / PYSEC-2023-58 | werkzeug < 2.2.3 | 2.2.2: affected | 2.2.3: not affected |
+| CVE-2023-32681 | GHSA-j8r2-6x86-q33q / PYSEC-2023-74 | requests ≥ 2.3.0, < 2.31.0 | 2.28.2: affected | 2.31.0: not affected |
+| CVE-2023-30861 | GHSA-m2qf-hxjv-5gpq / PYSEC-2023-62 | flask < 2.2.5; ≥ 2.3.0, < 2.3.2 | 2.2.2: affected | 2.2.5: not affected |
+| CVE-2023-23931 | GHSA-w7pp-m8wf-vj6r / PYSEC-2023-11 | cryptography ≥ 1.8, < 39.0.1 | 39.0.0: affected | 39.0.0: affected |
+| CVE-2023-37920 | GHSA-xqr8-7jwr-rhp7 / PYSEC-2023-135 | certifi ≥ 2015.4.28, < 2023.7.22 | 2022.12.7: affected | 2022.12.7: affected |
+| CVE-2019-11324 | GHSA-mh33-7rrq-662w / PYSEC-2019-133 | urllib3 < 1.24.2 | 1.26.14: not affected | 1.26.14: not affected |
+
+The `affected_purls` in `vulnerabilities.json` are exactly the affected versions above, plus
+`urllib3@1.24.1` for CVE-2019-11324, which is inside its range and in no SBOM, so no release
+matches it.
+
+Grouping at `2026-11-01T23:59:59Z` (supported through the end of `support_end_date`, REQ-01):
+gw-1.0.0 (ends 2026-10-31) is unsupported; gw-1.1.0 (2027-12-31), gw-1.2.0 (2026-11-01, the
+boundary case) and gw-2.0.0 (2028-06-30) are supported; gw-2.1.0 has no SBOM and appears in no
+result. Recomputing `ground_truth.json` from the other three files gives the same releases and
+matched purls for all six CVEs.
+
+Stale `syft:cpe23` properties: in `sbom_patched.json`, werkzeug 2.2.3 and flask 2.2.5 still carry
+`syft:cpe23` property values naming 2.2.2 (requests has none; each component's top-level `cpe` is
+correct). They don't affect AC-04: decision Q5 matches by purl only, and nothing in `app/` reads
+CPEs. Editing the file would mean a new pod sign-off for no change in any expected result, so it
+stays as it is. A system that matched by CPE would report false positives here, but that is
+outside the contract.
 
 ## Phase 5 report fixtures (AC-08): DRAFT, not verified
 
