@@ -4,7 +4,10 @@
 #   PROJECT=<id> bash deploy/gcp.sh update [ref]     # build ref (default origin/main); data kept
 #   PROJECT=<id> bash deploy/gcp.sh rollback <tag>   # build an earlier tag; data kept
 #   PROJECT=<id> bash deploy/gcp.sh status           # VM state and /health of system and tester
+#   PROJECT=<id> bash deploy/gcp.sh full             # DESTRUCTIVE full live run (warn Team 2)
 # update and rollback then run scripts/post_deploy_check.sh (non-destructive): PASS or FAIL.
+# full runs it with --full: tester, smoke, AC-10 across `docker compose restart api`, re-seed,
+# and writes docs/test-reports/<date>-deploy-full.md.
 # Needs: gcloud signed in, PROJECT set to a project with billing enabled.
 set -euo pipefail
 
@@ -89,8 +92,21 @@ case "${1:-}" in
       echo
     done
     ;;
+  full)
+    sha="$(vm "cd /opt/releasegate && sudo git rev-parse HEAD" | tr -d '\r' | tail -n 1)"
+    if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+      echo "could not read the deployed commit on the VM" >&2
+      exit 1
+    fi
+    restart="gcloud --project $PROJECT --quiet compute ssh $VM --zone $ZONE"
+    restart+=" --command 'cd /opt/releasegate && sudo docker compose restart api'"
+    report="$HERE/../docs/test-reports/$(date -u +%Y-%m-%d)-deploy-full.md"
+    echo "Full live run against $sha: this RESETS http://$(ip):8080 and re-seeds the demo data."
+    bash "$HERE/../scripts/post_deploy_check.sh" "http://$(ip):8080" "$sha" \
+      --full --confirm-reset --restart-cmd "$restart" --report "$report" --wait 120
+    ;;
   *)
-    sed -n '2,8p' "$0"
+    sed -n '2,11p' "$0"
     exit 1
     ;;
 esac
