@@ -75,8 +75,8 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] 4 Invalid-UTF-8 SBOM message: `request body is not valid JSON: not UTF-8 text`, still 400 `INVALID_JSON` (Team 2 run, 2 failures) — proof: `tests/unit/test_sbom_validation.py::test_non_utf8`, `tests/acceptance/test_sbom.py::test_non_utf8_body_is_400_invalid_json_and_keeps_the_inventory`
 - [x] 5 Gate `Database.reset()` (the only audit-deleting path) on test endpoints being enabled — proof: `tests/unit/test_db.py::test_reset_refuses_unless_allowed_and_leaves_the_audit_log`, `tests/unit/test_reset_gate.py`; first section of `docs/audit-immutability.md`
 - [x] Record items 1, 2, 3a and 4 in `docs/decisions.md` as "awaiting Team 2" (P5-Q9), and the open missing-header case — proof: "Phase 5" table in `docs/decisions.md`
-- [ ] 6 Re-seed the live demo data and return the live clock to real time (Team 2's 2026-11-02 run froze it at 2026-11-01T23:59:59Z) — proof: live `GET /api/v1/releases` shows the seed. **blocked: permission to write to the live system**
-- [ ] 7 Deploy items 1–5 (`deploy/gcp.sh update`), post-deploy checks, deploy report — proof: `docs/test-reports/YYYY-MM-DD-deploy.md`. **blocked: permission to deploy**
+- [x] 6 Re-seed the live demo data and return the live clock to real time — done by the 2026-11-18 full live run (`docs/test-reports/2026-11-18-deploy-full.md`, "Live data afterwards"), now with report data
+- [x] 7 Deploy items 1–5 (`deploy/gcp.sh update origin/phase5`, `c188b54`), post-deploy checks 5/5, deploy report — proof: `docs/test-reports/2026-11-18-deploy.md`
 - [ ] Team 2 reruns their Phase 4 suite against the fixes — proof: new `docs/test-reports/YYYY-MM-DD-cross-team-team2-to-ours.md`, none of the 12 failures left
 
 ## Phase 5 features (CLAUDE.md §6)
@@ -103,7 +103,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [ ] Harness description strings still say "AC-01..AC-07" (`app/harness.py`, `tester/harness.py`, `tester/main.py`, `/test` in `docs/openapi.yaml`); decide how AC-10 counts in `system` coverage — **blocked: Phase 5 assignment text in `docs/phase5_assignment.md` (§5.2) and a team member's decision on AC-10 coverage**
 - [x] `post_deploy_check.sh --full --confirm-reset [--restart-cmd] [--report]` (tester AC-01..AC-09, smoke.sh, AC-10 snapshot → restart → verify, re-seed at real time; PASS/FAIL per step; report with `Result`, `**AC-10:**`, `Latency`) and `deploy/gcp.sh full`; the report operations are in the non-destructive checks via `app/contract_status.py` — proof: `tests/unit/test_post_deploy_full.py`; local end-to-end run with a real restart and a stub-gcloud dry run of `gcp.sh full` (2026-11-18)
 - [x] README (Phase 5 scope, report and audit models, known limitations, full live run), `docs/decisions.md`, `fixtures/README.md` Phase 5 section — proof: the files; a team member's review is still welcome
-- [ ] Final deploy, full live run (AC-01..AC-10) — proof: `docs/test-reports/YYYY-MM-DD-deploy-full.md` with `Mode: full` and `**AC-10:** PASS`. **blocked: permission to deploy**
+- [x] Full live run (AC-01..AC-10) on `c188b54`: 97/97, AC-10 PASS across `docker compose restart api` — proof: `docs/test-reports/2026-11-18-deploy-full.md`. Rerun after any later deploy before the final tag
 - [ ] Final cross-team run, ours → Team 2 (AC-01..AC-09, AC-10 two-step if they cooperate) — proof: `docs/test-reports/YYYY-MM-DD-cross-team-ours-to-team2.md` with `Result: X/Y passed (in scope)`. **blocked: Team 2's final URL and run window (P5-Q10)**
 - [ ] Final cross-team run, Team 2 → ours — proof: `docs/test-reports/YYYY-MM-DD-cross-team-team2-to-ours.md`. **blocked: P5-Q10**
 - [ ] Tag `phase5` on the deployed commit (human) — proof: `git ls-remote --tags origin`; G6 row
