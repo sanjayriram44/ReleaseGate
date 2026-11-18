@@ -60,7 +60,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 
 ## Phase 5 goal audit (CLAUDE.md §0.1, §13 step 1)
 
-- [ ] Confirm the Phase 5 `docs/goals.md` with a team member — proof: "Confirmed by" filled in
+- [x] Confirm the Phase 5 `docs/goals.md` with a team member — proof: "Confirmed by" filled in
 - [x] `scripts/metrics.py` measures the Phase 5 goals (G1 AC-08..AC-10, G2 AC-01..AC-07, G3 Phase 5 runs only, G6 `phase5` tag, G7) — proof: `tests/unit/test_metrics.py`
 - [x] Check the live `/health` commit (§2.3) — 2026-11-18: live reports `bee2b44` (= `main`), so `68b4261`, `2d7a905`, `820a730` and `2591c73` are live. No deploy report records `bee2b44` (newest is `2026-11-01-deploy.md`, `e864340`), and origin's `phase4` tag (annotated) now points at `bee2b44`, not `e864340`
 - [ ] Record who deployed `bee2b44`, when, and why `phase4` was moved; write the missing deploy report or note it in `docs/PHASE4_PROGRESS.md` — proof: G6 row in `docs/metrics.md`. **blocked: a team member must say who deployed it and moved the tag**

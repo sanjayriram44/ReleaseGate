@@ -1,8 +1,7 @@
 # Phase 5 goals
 
-**Status: DRAFT, awaiting a team member's confirmation** (CLAUDE.md §0.2, with the measurement
-method below). No feature code is written until a team member fills in "Confirmed by".
-`scripts/metrics.py` measures each goal and writes the current values to `docs/metrics.md`. A goal
+**Status: confirmed** (CLAUDE.md §0.2, with the measurement method below). `scripts/metrics.py`
+measures each goal and writes the current values to `docs/metrics.md`. A goal
 that can't be measured yet is shown as "not measurable yet", not as a failure. The Phase 4 goals
 are in git history (`bee2b44:docs/goals.md`).
 
@@ -21,4 +20,4 @@ cross-team-team2-to-ours | deploy>.md`, each with a `Result: X/Y passed` line (a
 cross-team runs), the commit SHA, and every failure with its owner. New for Phase 5: a `Mode: full`
 deploy report also has an `**AC-10:** PASS` or `**AC-10:** FAIL` line for the restart check.
 
-Confirmed by: _(name, date)_
+Confirmed by: Daksh Agarwal, 2026-11-18
