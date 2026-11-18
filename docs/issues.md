@@ -108,7 +108,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [ ] Final cross-team run, Team 2 → ours — proof: `docs/test-reports/YYYY-MM-DD-cross-team-team2-to-ours.md`. **blocked: P5-Q10**
 - [x] Tag `phase5` on the deployed commit (human, 2026-11-18): `phase5` → `c188b54` — proof: `git ls-remote --tags origin`; G6 row met. Move it if a later code change is redeployed
 - [x] Bring live up to `main`: deployed `271da8e` and reran `gcp.sh full` (97/97, AC-10 PASS; both `/test` pages say AC-01..AC-09) — proof: `docs/test-reports/2026-11-18-deploy.md`, `2026-11-18-deploy-full.md`
-- [ ] Move the `phase5` tag from `c188b54` to the live `271da8e` (human) — proof: `git ls-remote --tags origin`; G6 row met
+- [x] Move the `phase5` tag from `c188b54` to the live `271da8e` (2026-11-18, at Daksh's request) — proof: `git ls-remote --tags origin`; G6 row met
 
 ## Human tasks (CLAUDE.md §9, §10, §8)
 

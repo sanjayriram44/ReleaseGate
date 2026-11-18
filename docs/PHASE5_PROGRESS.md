@@ -1,12 +1,12 @@
 # Phase 5 progress
 
 **As of 2026-11-18, after the second deploy.** `main` is at `271da8e` (PR [#1](https://github.com/sanjayriram44/ReleaseGate/pull/1) merged as `b630915`, then direct commits; CI green on each).
-Live: `271da8e` (= `main`) on `http://136.116.160.182:8080`, tester on `:8081`. The `phase5` tag is still on `c188b54` and needs moving. Handoff: `CLAUDE.md`. Tasks: `docs/issues.md`.
+Live: `271da8e` on `http://136.116.160.182:8080`, tester on `:8081`, tagged `phase5`; `main` has only docs commits after it. Handoff: `CLAUDE.md`. Tasks: `docs/issues.md`.
 Goals: `docs/goals.md` (confirmed by Daksh Agarwal, 2026-11-18); current values: `docs/metrics.md`.
 
 ## Where it stands
 
-All of the Phase 5 feature work in the handoff (§13 steps 1, 3–11) is built, tested and deployed. **It rests on our proposed answers to the pod questions** (`docs/pod-questions-phase5.md`, P5-Q1..Q8; `docs/decisions.md`), because Team 2 hasn't answered yet. What's left is mostly people: Team 2's answers and checkers, the assignment text, the final cross-team runs and reviews, and moving the `phase5` tag to the live commit.
+All of the Phase 5 feature work in the handoff (§13 steps 1, 3–11) is built, tested and deployed. **It rests on our proposed answers to the pod questions** (`docs/pod-questions-phase5.md`, P5-Q1..Q8; `docs/decisions.md`), because Team 2 hasn't answered yet. What's left is people: Team 2's answers and checkers, the assignment text, the final cross-team runs, and reviews.
 
 | Goal | Status | Evidence |
 |---|---|---|
@@ -15,7 +15,7 @@ All of the Phase 5 feature work in the handoff (§13 steps 1, 3–11) is built, 
 | G3 Interoperability | **not measurable yet** | Needs the final cross-team runs both ways |
 | G4 Timeliness | **met** | Live: slowest AC-04 0.03 s, AC-05 0.03 s |
 | G5 Coverage of `app/` | **met** | 99.20% (≥ 85%, ≥ baseline) |
-| G6 Healthy deployment | **no**, only the tag | Live `271da8e` = deployed commit = `main`, checks pass (`2026-11-18-deploy.md`); `phase5` still → `c188b54`. Moving the tag makes it met |
+| G6 Healthy deployment | **met** | Live `271da8e` = deployed commit, checks pass (`2026-11-18-deploy.md`); `phase5` → `271da8e` (moved from `c188b54` on 2026-11-18) |
 | G7 Audit integrity | **met** | `tests/unit/test_audit_immutability.py` passes (static scan + triggers) |
 
 ## Verification run on 2026-11-18
@@ -37,7 +37,7 @@ All of the Phase 5 feature work in the handoff (§13 steps 1, 3–11) is built, 
 | `7164441` | Sathvik Valluri | Makes three tests pass on Windows: the audit scan compares POSIX paths; the 2000-deep SBOM test builds its JSON as text | Test code only. CI green. The new builder produces exactly the old document (checked at depths 0, 1, 5, 300), so the test still covers the same case |
 | `22fa081` | Donovan Baran (d-baran-15) | Harness descriptions say AC-01..AC-09 (`app/harness.py`, `tester/harness.py`, `tester/main.py`, `/test` in `docs/openapi.yaml`, compose comment, README) | Wording only; CI green; gate 495 passed; local autograder run 89/89 on both services, schema-valid. **Handoff deviation:** §5.2 asks for `docs/phase5_assignment.md` before harness files change, and it still isn't there; pushed to `main` without a PR. Low risk, but confirm the wording against the assignment text when it arrives |
 
-Effect: live was behind `main` until `271da8e` was deployed and the full run repeated (2026-11-18, 97/97, AC-10 PASS). Live now equals `main`; the `phase5` tag still has to move from `c188b54` to `271da8e`.
+Effect: live was behind `main` until `271da8e` was deployed and the full run repeated (2026-11-18, 97/97, AC-10 PASS). Live now runs `main`'s code, and the `phase5` tag is on `271da8e`.
 
 ## Handoff compliance, section by section
 
@@ -61,7 +61,7 @@ Effect: live was behind `main` until `271da8e` was deployed and the full run rep
 | §9 Open questions | All 11 still unanswered by Team 2 |
 | §10 Spec housekeeping | 5.1 addressed in our contract copy (`x-fields-by-stage`). **Open:** the diagrams (3.2, 7.1), 3.1, 2.3, 9.1, 10, and the report text fixes |
 | §12 Self-review | Done, including `smoke.sh` and stale comment references |
-| §13.1 Definition of done | Not yet: cross-team reports, Team 2 answers and verified fixtures are missing; the `phase5` tag must move from `c188b54` to the live `271da8e` |
+| §13.1 Definition of done | Not yet: cross-team reports, Team 2 answers and verified fixtures are missing. Deploy, full run and `phase5` tag are done on `271da8e` |
 
 ## What we are missing (owner: people, not code)
 
@@ -69,7 +69,7 @@ Effect: live was behind `main` until `271da8e` was deployed and the full run rep
 2. **The Phase 5 assignment text** in `docs/phase5_assignment.md`. Then check the harness format and the new AC-01..AC-09 wording (`22fa081`) against it, and decide how AC-10 counts in `system` coverage. Phase 3 lost 55 points on harness format, so this is the biggest grading risk.
 3. **Fixture checkers**, one per team, for `fixtures/report_cases.json` (AC-08) and `fixtures/ground_truth.json` (AC-04). Both are still DRAFT.
 4. **Final cross-team runs**, both directions, in an agreed window (P5-Q10): ours → Team 2 (that report has been missing since Phase 4) and Team 2 → ours. Also ask Team 2 to rerun their Phase 4 suite against the live fixes. Each run resets the target; re-seed afterwards with `deploy/gcp.sh full`.
-5. **Move the `phase5` tag** to the live commit `271da8e` (a person): `git tag -f phase5 271da8e0e973d0255e0c060a953e9704a6b209eb && git push -f origin refs/tags/phase5`. Live now equals `main` (deployed and full-run checked 2026-11-18).
+5. ~~Deploy `main` and move the `phase5` tag~~ Done 2026-11-18: `271da8e` deployed, full run 97/97, `phase5` → `271da8e`. If a later code change is deployed, rerun `gcp.sh full` and move the tag again.
 6. **Human reviews:** `app/services/reports.py` and its tests (needs-human-review), the deadline logic (`0f2e32e`), the timestamp formatter (`2591c73`), `docs/audit-immutability.md`.
 7. **Phase 4 grade and feedback** (each piece becomes an issue), and who deployed `bee2b44` and moved the `phase4` tag.
 8. **Spec housekeeping** for the Phase 2 grader points (§10): diagrams, security requirements, estimates, risk owners, reference order, report text.
