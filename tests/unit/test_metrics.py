@@ -186,3 +186,37 @@ def test_phase5_tag_resolves_an_annotated_tag_to_its_commit(
     assert metrics.phase5_tag(offline=False) == "5" * 40  # lightweight tag
     monkeypatch.setattr(metrics, "_git", lambda *args: listing.split("\n")[0])
     assert metrics.phase5_tag(offline=False) is None
+
+
+def test_every_file_read_and_write_names_utf8() -> None:
+    """Without an encoding, Windows uses cp1252: write_text emptied docs/metrics.md and then
+    failed on the ✅ in the goal table (2026-11-18). Checked in the source, so it also fails
+    on Linux CI, where the default is already UTF-8."""
+    import ast
+
+    tree = ast.parse((ROOT / "scripts/metrics.py").read_text(encoding="utf-8"))
+    missing = [
+        f"line {node.lineno}: {node.func.attr}"
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr in {"read_text", "write_text", "open"}
+        and not any(
+            kw.arg == "encoding"
+            and isinstance(kw.value, ast.Constant)
+            and kw.value.value == "utf-8"
+            for kw in node.keywords
+        )
+    ]
+    assert missing == []
+
+
+def test_main_writes_utf8(
+    metrics: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    out = tmp_path / "metrics.md"
+    monkeypatch.setattr(metrics, "render", lambda offline: "| G1 | ✅ | ≥ 95% |\n")
+    monkeypatch.setattr(sys, "argv", ["metrics.py", "--offline", "--output", str(out)])
+    metrics.main()
+    written = out.read_bytes().decode("utf-8").replace("\r\n", "\n")  # Windows writes CRLF
+    assert written == "| G1 | ✅ | ≥ 95% |\n"

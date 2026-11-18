@@ -89,7 +89,8 @@ def pytest_result() -> tuple[str, float | None]:
         summary = lines[-1].strip("= ") if lines else f"pytest exited {out.returncode}"
         coverage = None
         if cov_file.exists():
-            coverage = float(json.loads(cov_file.read_text())["totals"]["percent_covered"])
+            report = json.loads(cov_file.read_text(encoding="utf-8"))
+            coverage = float(report["totals"]["percent_covered"])
     return summary, coverage
 
 
@@ -142,10 +143,10 @@ def latest_report(kind: str, full_only: bool = False, since: str = "") -> RunRep
     paths = sorted(REPORTS.glob(f"????-??-??-{kind}*.md"), reverse=True)
     paths = [p for p in paths if p.name[:10] >= since]
     if full_only:
-        paths = [p for p in paths if re.search(FULL_MODE, p.read_text())]
+        paths = [p for p in paths if re.search(FULL_MODE, p.read_text(encoding="utf-8"))]
     if not paths:
         return None
-    text = paths[0].read_text()
+    text = paths[0].read_text(encoding="utf-8")
     result = re.search(r"Result:\**\s*(\d+)\s*/\s*(\d+) passed", text)
     commit = re.search(r"(?i)commit\W+([0-9a-f]{7,40})\b", text)
     return RunReport(
@@ -174,9 +175,9 @@ def phase5_tag(offline: bool) -> str | None:
 
 def coverage_baseline(coverage: float | None) -> float | None:
     """The stored baseline; raised to the current coverage when coverage rises."""
-    baseline = float(BASELINE.read_text()) if BASELINE.exists() else None
+    baseline = float(BASELINE.read_text(encoding="utf-8")) if BASELINE.exists() else None
     if coverage is not None and (baseline is None or round(coverage, 2) > baseline):
-        BASELINE.write_text(f"{coverage:.2f}\n")
+        BASELINE.write_text(f"{coverage:.2f}\n", encoding="utf-8")
     return baseline
 
 
@@ -186,7 +187,7 @@ def blocked_issues() -> list[str]:
         return []
     return [
         line[len("- [ ] ") :]
-        for line in path.read_text().splitlines()
+        for line in path.read_text(encoding="utf-8").splitlines()
         if line.startswith("- [ ] ") and "**blocked:" in line
     ]
 
@@ -218,7 +219,7 @@ def g1(checks: dict[str, tuple[int, int]]) -> tuple[str, str]:
     live = latest_report("deploy", full_only=True, since=PHASE5_START)
     if live is None or live.total is None:
         return value + "; live: no Phase 5 `Mode: full` deploy report", f"{NOT_YET} (no live run)"
-    ac10 = re.search(AC10_LINE, (REPORTS / live.name).read_text())
+    ac10 = re.search(AC10_LINE, (REPORTS / live.name).read_text(encoding="utf-8"))
     ac10_result = ac10.group(1) if ac10 else "not recorded"
     value += f"; live {live.result}, AC-10 live {ac10_result}"
     return value, _yes(live.passed == live.total and ac10_result == "PASS")
@@ -256,7 +257,7 @@ def g4(checks: dict[str, tuple[int, int]]) -> tuple[str, str]:
     if "AC-04" not in checks or "AC-05" not in checks:
         return "AC-04/AC-05 checks not built", NOT_YET
     live = latest_report("deploy", full_only=True)
-    text = (REPORTS / live.name).read_text() if live else ""
+    text = (REPORTS / live.name).read_text(encoding="utf-8") if live else ""
     found = re.search(r"slowest AC-04[^0-9]*([0-9.]+) s; slowest AC-05[^0-9]*([0-9.]+) s", text)
     if not live or not found:
         return "no latency in a `Mode: full` deploy report", f"{NOT_YET} (no live latency)"
@@ -350,7 +351,7 @@ def main() -> None:
     parser.add_argument("--offline", action="store_true", help="skip network reads")
     parser.add_argument("--output", default=str(ROOT / "docs/metrics.md"))
     args = parser.parse_args()
-    Path(args.output).write_text(render(args.offline))
+    Path(args.output).write_text(render(args.offline), encoding="utf-8")
     print(f"wrote {args.output}")
 
 
