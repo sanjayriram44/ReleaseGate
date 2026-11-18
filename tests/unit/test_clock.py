@@ -36,7 +36,7 @@ def test_format_utc_converts_offsets() -> None:
     assert format_utc(datetime(2026, 1, 1, 1, 0, tzinfo=plus2)) == "2025-12-31T23:00:00Z"
 
 
-# Team 2's inputs from the Phase 3 cross-team run (CLAUDE.md §4 item 3).
+# Team 2's inputs from the Phase 3 cross-team run (docs/PHASE4_HANDOFF.md §4 item 3).
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
@@ -51,6 +51,12 @@ def test_format_utc_converts_offsets() -> None:
         ("2026-11-01T12:00:00.123456+02:00", "2026-11-01T10:00:00.123456Z"),
         ("2026-11-01T12:00:00.123456789Z", "2026-11-01T12:00:00.123456Z"),
         ("2026-12-31T23:30:00-01:00", "2027-01-01T00:30:00Z"),
+        # RFC 3339 §5.6 allows lowercase t and z (Team 2's 2026-11-02 run, P5-Q9).
+        ("2026-11-01t23:59:59z", "2026-11-01T23:59:59Z"),
+        ("2026-11-01T23:59:59z", "2026-11-01T23:59:59Z"),
+        ("2026-11-01t23:59:59Z", "2026-11-01T23:59:59Z"),
+        ("2026-11-01t12:00:00+02:00", "2026-11-01T10:00:00Z"),
+        ("2026-11-01t12:00:00.5z", "2026-11-01T12:00:00.500000Z"),
     ],
 )
 def test_parse_utc_accepts_z_or_offset(value: str, expected: str) -> None:
@@ -65,7 +71,7 @@ def test_parse_utc_accepts_z_or_offset(value: str, expected: str) -> None:
         "2026-11-01T12:00:00",  # no zone
         "2026-11-01T12:00:00.5",
         "2026-11-01 12:00:00Z",
-        "2026-11-01T12:00:00z",
+        "2026-11-01t12:00:00",  # lowercase t, still no zone
         "2026-11-01T12:00:00+0200",
         "2026-11-01T12:00:00+24:00",
         "2026-11-01T12:00:00+02:60",
@@ -119,3 +125,30 @@ def test_parse_utc_accepts_the_last_supported_moment() -> None:
 def test_years_before_1000_keep_four_digits(value: str) -> None:
     """Linux's strftime("%Y") prints year 1 as "1", which parse_utc then rejects."""
     assert format_utc(parse_utc(value)) == value
+
+
+@pytest.mark.parametrize("suffix", ["\n", "\r\n", " ", "\t"])
+def test_parse_utc_rejects_trailing_whitespace(suffix: str) -> None:
+    # Python's "$" matches before a final "\n"; Team 2's 2026-11-02 run found it (P5-Q9).
+    with pytest.raises(ApiError) as exc:
+        parse_utc("2026-11-01T12:00:00Z" + suffix, "now")
+    assert exc.value.status == 400 and exc.value.message.startswith("now ")
+
+
+@pytest.mark.parametrize("prefix", ["\n", " "])
+def test_parse_utc_rejects_leading_whitespace(prefix: str) -> None:
+    with pytest.raises(ApiError):
+        parse_utc(prefix + "2026-11-01T12:00:00Z", "now")
+
+
+def test_no_python_regex_is_anchored_with_dollar() -> None:
+    # re.match/search with "$" accepts a trailing "\n"; validation uses fullmatch (CLAUDE.md §12).
+    # The CVE path pattern is exempt: pydantic checks it with a regex engine where "$" is the end.
+    pattern = re.compile(r"""re\.compile\(\s*r?["'][^"']*\$["']""")
+    offenders = [
+        str(p)
+        for root in ("app", "tester")
+        for p in pathlib.Path(root).rglob("*.py")
+        if pattern.search(p.read_text())
+    ]
+    assert offenders == []

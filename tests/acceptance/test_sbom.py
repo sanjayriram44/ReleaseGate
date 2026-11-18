@@ -223,3 +223,18 @@ def test_too_deeply_nested_sbom_is_400_and_stores_nothing(client: TestClient) ->
     assert r.status_code == 400 and r.json()["error"]["code"] == "INVALID_SBOM"
     assert components(client, rid) == before
     assert put(client, rid, raw(make_sbom(3))).status_code == 200  # still accepts a valid SBOM
+
+
+def test_non_utf8_body_is_400_invalid_json_and_keeps_the_inventory(client: TestClient) -> None:
+    rid = release(client)
+    assert put(client, rid, raw(make_sbom(2))).status_code == 200
+    before = components(client, rid)
+    r = put(client, rid, b"\xff\xfe\x00")
+    assert r.status_code == 400
+    assert r.json() == {
+        "error": {
+            "code": "INVALID_JSON",
+            "message": "request body is not valid JSON: not UTF-8 text",
+        }
+    }
+    assert components(client, rid) == before

@@ -50,8 +50,9 @@ def test_plaintext() -> None:
 
 
 def test_non_utf8() -> None:
+    # Says "JSON" as well as why: Team 2's tests check for it (CLAUDE.md §4 item 4, P5-Q9).
     code, msg = _reason(b"\xff\xfe\x00")
-    assert code == "INVALID_JSON" and "UTF-8" in msg
+    assert (code, msg) == ("INVALID_JSON", "request body is not valid JSON: not UTF-8 text")
 
 
 def test_non_object() -> None:

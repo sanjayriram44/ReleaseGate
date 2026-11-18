@@ -327,7 +327,11 @@ paths:
       summary: Add or replace data used to generate a report stage
       description: >
         Partial report data is allowed so that the report-generation
-        operation can identify fields that are still missing.
+        operation can identify fields that are still missing. The body
+        replaces the stage's previously stored data as a whole. Only the
+        stage's own fields (ReportData x-fields-by-stage) are accepted;
+        another stage's field, an unknown field or a wrong type is 400.
+        A null value counts as not supplied.
       x-requirements: [REQ-07, REQ-08]
       parameters:
         - $ref: "#/components/parameters/IncidentId"
@@ -341,7 +345,13 @@ paths:
               $ref: "#/components/schemas/ReportData"
       responses:
         "200":
-          description: Report data stored
+          description: >
+            Report data stored. The body is the stage's report as
+            GET .../reports/{stage} would return it at that moment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedReport"
         "400":
           description: Invalid stage or field format
           content:
@@ -359,7 +369,12 @@ paths:
       summary: Generate structured data for a CRA report stage
       description: >
         Returns the stored and system-generated fields for the requested
-        stage together with an explicit missing_fields array.
+        stage together with an explicit missing_fields array. data holds
+        only the stage's supplied fields; missing_fields lists the stage's
+        required fields (ReportData x-fields-by-stage) that are absent,
+        null, empty or whitespace-only strings, or empty arrays, in
+        ReportData order. generated_at is the current (test) clock time.
+        Generating a report stores and audits nothing.
       x-requirements: [REQ-07]
       parameters:
         - $ref: "#/components/parameters/IncidentId"
@@ -371,6 +386,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GeneratedReport"
+        "400":
+          description: Invalid stage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "404":
           description: Incident not found
           content:
@@ -1130,7 +1151,24 @@ components:
       type: object
       description: >
         Partial data is accepted. Fields not yet supplied are reported
-        through missing_fields when the report is generated.
+        through missing_fields when the report is generated. Each field
+        belongs to one stage (CRA Art. 14(2)); x-fields-by-stage lists
+        them. Required fields appear in missing_fields when missing;
+        optional ones ("where applicable", "where available") never do.
+      x-fields-by-stage:
+        early_warning:
+          required: [member_states]
+          optional: []
+        vulnerability_notification:
+          required:
+            [product_information, exploit_nature, vulnerability_nature,
+             corrective_measures_taken, user_mitigations]
+          optional: [sensitivity]
+        final_report:
+          required:
+            [vulnerability_description, severity, impact,
+             corrective_measure_details]
+          optional: [malicious_actor_information]
       properties:
         member_states:
           type: array

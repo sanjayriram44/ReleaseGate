@@ -42,6 +42,16 @@ CREATE TABLE IF NOT EXISTS submissions (
     recorded_at TEXT NOT NULL,
     PRIMARY KEY (incident_id, stage)
 );
+-- Report data as supplied, one JSON object per incident and stage, replaced as a whole on PUT.
+-- Reports (data + missing_fields) are computed on every read (app.services.reports).
+CREATE TABLE IF NOT EXISTS report_data (
+    incident_id TEXT NOT NULL REFERENCES incidents(incident_id) ON DELETE CASCADE,
+    stage TEXT NOT NULL,
+    data TEXT NOT NULL,
+    updated_by TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (incident_id, stage)
+);
 -- The fixture vulnerability source, filled by PUT /api/v1/test/vulnerability-source.
 CREATE TABLE IF NOT EXISTS vulnerability_records (cve_id TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS vulnerability_purls (
@@ -71,12 +81,24 @@ CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON audit_log
 BEGIN SELECT RAISE(ABORT, 'audit log is append-only'); END;
 CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit_log
 BEGIN SELECT RAISE(ABORT, 'audit log is append-only'); END;
+-- INSERT OR REPLACE deletes the conflicting row without firing DELETE triggers, so refuse any
+-- insert that would collide with an existing entry.
+CREATE TRIGGER IF NOT EXISTS audit_no_replace BEFORE INSERT ON audit_log
+WHEN EXISTS (SELECT 1 FROM audit_log WHERE event_id = NEW.event_id OR seq = NEW.seq)
+BEGIN SELECT RAISE(ABORT, 'audit log is append-only'); END;
 """
 
 
+class ResetNotAllowed(RuntimeError):
+    """Database.reset() was called on a database whose app has test endpoints disabled."""
+
+
 class Database:
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, allow_reset: bool = False) -> None:
+        """allow_reset is True only when test endpoints are enabled (create_app passes
+        settings.enable_test_endpoints): reset() is the one path that deletes audit rows."""
         self.path = path
+        self.allow_reset = allow_reset
         parent = os.path.dirname(os.path.abspath(path))
         os.makedirs(parent, exist_ok=True)
 
@@ -128,7 +150,15 @@ class Database:
             conn.close()
 
     def reset(self) -> None:
-        """Test reset: wipe all data including the audit log, then restore the triggers."""
+        """Test reset: wipe all data including the audit log, then restore the triggers.
+
+        The only code that removes audit rows (docs/audit-immutability.md). It refuses unless
+        this database was opened with allow_reset, i.e. with test endpoints enabled, and is
+        reachable only through /api/v1/test/reset and the harness's /test/setup, which a
+        production-configured app doesn't mount.
+        """
+        if not self.allow_reset:
+            raise ResetNotAllowed("Database.reset() needs test endpoints enabled")
         with self.transaction() as conn:
             conn.execute("DROP TRIGGER IF EXISTS audit_no_update")
             conn.execute("DROP TRIGGER IF EXISTS audit_no_delete")
@@ -136,6 +166,7 @@ class Database:
             conn.execute("DELETE FROM vulnerability_records")
             conn.execute("UPDATE vulnerability_source_state SET mode = 'available'")
             conn.execute("DELETE FROM submissions")
+            conn.execute("DELETE FROM report_data")
             conn.execute("DELETE FROM incidents")
             conn.execute("DELETE FROM components")
             conn.execute("DELETE FROM releases")

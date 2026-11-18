@@ -1,11 +1,16 @@
 # ReleaseGate
 
-Release/SBOM registry, CVE impact query and CRA deadline tracker. Implements the shared
-contract in `docs/openapi.yaml`. Phase 4 scope: releases, CycloneDX SBOM ingestion, the CVE
-affected-releases query with a test vulnerability source, incidents with computed 24 h / 72 h /
-14-day deadlines, audit log, test endpoints. Report generation (REQ-07) is Phase 5. See
-`CLAUDE.md` (the Phase 4 handoff; Phase 3's is `docs/PHASE3_HANDOFF.md`) for rules, and
-`docs/PHASE4_PROGRESS.md` for where the work stands.
+Release/SBOM registry, CVE impact query, CRA deadline tracker and CRA report-data preparation.
+Implements the shared contract in `docs/openapi.yaml`. Phase 5 scope: releases, CycloneDX SBOM
+ingestion, the CVE affected-releases query with a test vulnerability source, incidents with
+computed 24 h / 72 h / 14-day deadlines, **report data and generated reports for the three CRA
+stages (REQ-07, AC-08)**, an append-only audit log with code-inspection evidence (REQ-08, AC-09),
+persistence across restarts (AC-10), and test endpoints. The system prepares report data for a
+person to submit; it never submits anything or decides what is reportable.
+
+See `CLAUDE.md` (the Phase 5 handoff; earlier ones are `docs/PHASE4_HANDOFF.md` and
+`docs/PHASE3_HANDOFF.md`) for rules, `docs/goals.md` and `docs/metrics.md` for goals and current
+values, `docs/issues.md` for tasks, and `docs/decisions.md` for pod answers.
 
 ## Run locally
 
@@ -22,9 +27,16 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyt
 ```
 
 `tests/contract/` compares the generated OpenAPI with `docs/openapi.yaml`; `tests/acceptance/`
-drives AC-01 to AC-07 over HTTP using the pod fixtures in `fixtures/` (the Phase 4 CVE fixtures
+drives AC-01 to AC-09 over HTTP using the pod fixtures in `fixtures/` (the CVE and report fixtures
 are still drafts; see `fixtures/README.md`). `tests/unit/test_deadlines.py` covers the deadline
-math at every boundary.
+math at every boundary, `tests/unit/test_reports.py` the report rules, and
+`tests/unit/test_audit_immutability.py` the audit log (goal G7). `tests/tester/test_ac10.py` and
+`tests/unit/test_container_smoke.py` cover AC-10; CI stage F runs it across a real
+`docker compose restart api`.
+
+Without `uv`, a virtualenv works too: `python3.12 -m venv .venv`, then install the versions pinned
+in `uv.lock` (`pip install --group dev` and the runtime dependencies from `pyproject.toml`), and
+use `.venv/bin/ruff`, `.venv/bin/mypy` and `.venv/bin/pytest`.
 
 ## Docker
 
@@ -43,7 +55,7 @@ Run a single instance: SQLite and the in-memory test clock assume one process.
 
 ## Tester
 
-`tester/` is a separate service (port 8081 in compose) that runs the shared AC-01 to AC-07
+`tester/` is a separate service (port 8081 in compose) that runs the shared AC-01 to AC-09
 checks over HTTP against **any** system implementing `docs/openapi.yaml`: ours or another
 team's. Open its page and enter a system base URL, or call the API:
 
@@ -57,10 +69,28 @@ curl -X POST http://<tester-host>:8081/api/v1/runs \
   (the last 50 runs are kept in memory).
 - **A run calls the target's `POST /api/v1/test/reset` at the start and the end, so it wipes the
   target's data.** The target needs its test endpoints enabled.
-- *Required* checks come from the shared contract and AC-01..AC-07 and decide pass/fail.
-  *Informational* checks cover our provisional pod decisions (`docs/decisions.md`) and never fail
+- *Required* checks come from the shared contract and AC-01..AC-09 and decide pass/fail.
+  *Informational* checks cover our provisional pod decisions (`docs/decisions.md`; for Phase 5,
+  every check that rests on a proposed answer to `docs/pod-questions-phase5.md`) and never fail
   a run.
 - Error messages for rejected input appear in the report for the human inspection AC-03 asks for.
+
+### AC-10 across teams (two steps)
+
+A tester can't restart another team's server over HTTP, so AC-10 (state survives a restart with
+0 s timestamp drift) runs in two steps (P5-Q8, proposed). From a checkout or the tester image:
+
+```bash
+python -m tester.ac10 snapshot http://<system-host>:8080 ac10.json   # RESETS the target, seeds, saves
+# the system's owner restarts the service (for us: docker compose restart api), then:
+python -m tester.ac10 verify   http://<system-host>:8080 ac10.json   # AC-10 PASS or FAIL
+```
+
+`snapshot` stores a release whose SBOM was replaced, vulnerability records and one CVE query
+result, a mandatory incident with a fix and a submission, report data for all three stages, and
+saves every response, the three reports and the full audit log. `verify` sets the same test
+clock (it is held in memory, so a restart clears it) and compares every response exactly. It
+uses only the contract and the test-control endpoints.
 
 ## Autograder endpoints (`/test`)
 
@@ -71,7 +101,7 @@ in `docs/openapi.yaml` under "autograder harness". No authentication.
 |---|---|---|
 | `GET /test` | describes the service | describes the service |
 | `POST /test/setup` (201) | resets all data; optional `{"now": "…Z"}` sets the clock | optional `{"target_url": "…"}` (or `target_base_url`); default is our system's public URL. Also calls the system's `/test/setup` with the same `session_id` |
-| `POST /test/run` | runs AC-01..AC-07 against itself | runs AC-01..AC-07 against the target over HTTP, then the system's own `/test/run` for the session |
+| `POST /test/run` | runs AC-01..AC-09 against itself | runs AC-01..AC-09 against the target over HTTP, then the system's own `/test/run` for the session |
 | `GET /test/report?session_id=…` | result and every check | result and every check; on both, an unseen id (or no session yet) is a new, not-yet-run session, never 404 |
 
 `setup` returns a `session_id`; `run` and `report` take it (in the JSON body or query string;
@@ -79,10 +109,12 @@ without it they use the latest session). `run` is synchronous and finishes in a 
 `run` and `report` carry `target_url`, `results` (every check) and `coverage` in percent:
 `code` is `app/` line coverage from our test suite (`.coverage-baseline`, published by the
 system; null for a target that doesn't publish one), `component` the share of contract API
-operations the run called, and `system` the share of AC-01..AC-07 it exercised.
+operations the run called, and `system` the share of AC-01..AC-09 it exercised (AC-10 needs a
+restart, so a single run can't exercise it; how it should count is still to be decided against the
+Phase 5 assignment text). The descriptions the harness returns still say AC-01..AC-07 until then.
 The system's `/test` endpoints exist only when `ENABLE_TEST_ENDPOINTS=true`.
 
-## Models (as delivered in Phase 4)
+## Models (as delivered in Phase 5)
 
 The Phase 2 report (`docs/phase2_report.pdf`, Section 3.2) has the full information and
 behavior models. Where its diagrams show an external timer service, deadline alerts or
@@ -96,8 +128,9 @@ entry per change (timestamp, user, action, entity); SQLite triggers reject any U
 Support status is never stored: a release is `supported` while the clock's UTC date is on or
 before `support_end_date`. `incidents` (cve_id, awareness_at, created_by, classification,
 rationale, fix_available_at) have at most one `submissions` row per stage; `deadline_at` and
-`status` are never stored. `vulnerability_records` / `vulnerability_purls` and a mode flag hold the
-test vulnerability source.
+`status` are never stored. `report_data` holds one JSON object per incident and stage, exactly
+as supplied; reports are never stored. `vulnerability_records` / `vulnerability_purls` and a mode
+flag hold the test vulnerability source.
 
 **CVE query** (`GET /api/v1/vulnerabilities/{cveId}/affected-releases`): malformed ID → 400;
 source unreachable → 503 (checked before anything else, so an outage never looks like "unknown"
@@ -112,8 +145,33 @@ unsubmitted is `pending` until the deadline and `overdue` after it. Voluntary in
 final report before a fix, are `not_applicable`. Timestamps may carry a UTC offset and are
 returned in UTC ending in `Z`.
 
-**SBOM upload** (`PUT /api/v1/releases/{releaseId}/sbom`): unknown release → 404; body not JSON
-→ 400; missing `bomFormat`/`specVersion`, a specVersion other than 1.4–1.6, a schema violation
+**Report data and reports** (`app/services/reports.py`, pure functions; built on the proposed
+answers to P5-Q1..Q6, `docs/decisions.md`). Each `ReportData` field belongs to one stage (CRA
+Art. 14(2); `x-fields-by-stage` in the contract):
+
+| Stage | Required (listed in `missing_fields` when missing) | Optional |
+|---|---|---|
+| `early_warning` | `member_states` | — |
+| `vulnerability_notification` | `product_information`, `exploit_nature`, `vulnerability_nature`, `corrective_measures_taken`, `user_mitigations` | `sensitivity` |
+| `final_report` | `vulnerability_description`, `severity`, `impact`, `corrective_measure_details` | `malicious_actor_information` |
+
+`PUT /api/v1/incidents/{incidentId}/report-data/{stage}` checks the incident (404), then the
+stage (400), then the body: another stage's field, an unknown field or a wrong type is 400 naming
+the field. It replaces the stage's data as a whole, audits `REPORT_DATA_STORED` (field names
+only, never the text) and returns the stage's report. `GET .../reports/{stage}` builds the
+report on every read: `data` holds the stage's supplied fields exactly as sent, `missing_fields`
+the required ones that are absent, null, blank or an empty array, and `generated_at` the clock's
+time. Generating a report stores and audits nothing.
+
+**Audit log.** Every successful state change writes one entry in the same transaction; failed
+requests, reads and test endpoints write none. Three SQLite triggers reject UPDATE, DELETE and
+an INSERT OR REPLACE over an existing entry, and the only delete path is the test reset, which
+refuses unless test endpoints are enabled. `docs/audit-immutability.md` is the AC-09
+code-inspection evidence, with the write-route inventory and the test behind each claim.
+
+**SBOM upload** (`PUT /api/v1/releases/{releaseId}/sbom`): unknown release → 404; a Content-Type
+other than `application/json` or `application/vnd.cyclonedx+json` → 400 (a missing header is
+still accepted, pending P5-Q9); body not JSON → 400; missing `bomFormat`/`specVersion`, a specVersion other than 1.4–1.6, a schema violation
 or a component without a version → 400 naming the problem. Only a fully valid SBOM is stored,
 replacing the release's previous components and writing its audit entry in one transaction.
 
@@ -125,9 +183,22 @@ replacing the release's previous components and writing its audit entry in one t
   see `spikes/dependency_track/`.
 - **Draft CVE ground truth.** `fixtures/ground_truth.json` (AC-04) hasn't been verified by the
   two teams' checkers yet, so AC-04 passing shows agreement with the draft only.
-- **No reports or alerts yet.** Report data and generation (REQ-07) are Phase 5. There are no
-  push alerts: overdue status is visible on every `GET /api/v1/incidents/{incidentId}`.
-- **Deadline logic awaits human review** (CLAUDE.md §14.2).
+- **Phase 5 rests on proposals.** The report endpoints, the stage-field table, the PUT's response
+  body, the GET's 400 for an invalid stage, the audit action names and the AC-10 procedure follow
+  the proposed answers in `docs/pod-questions-phase5.md`; Team 2 hasn't answered yet. The
+  contract change (`0b3432d`) is our copy until they apply it. Checks that rest on a proposal are
+  informational in the tester.
+- **Draft report ground truth.** `fixtures/report_cases.json` (AC-08) was drafted by Claude from
+  CRA Art. 14(2) and hasn't been verified by a checker per team, so AC-08 passing shows agreement
+  with the draft only.
+- **No alerts and no submission.** There are no push alerts (overdue status is visible on every
+  `GET /api/v1/incidents/{incidentId}`), and reports are prepared for a person to submit; nothing
+  is sent to ENISA or a CSIRT. Reports are JSON only.
+- **Human review owed** for the deadline logic, the timestamp formatter (`2591c73`) and the report
+  logic (`app/services/reports.py`), all marked `needs-human-review`.
+- **Audit immutability has limits.** On the evaluation deployment the test reset clears the audit
+  log (by design, for the testers), and anyone with write access to the SQLite file can drop the
+  triggers; backups are the mitigation (`docs/audit-immutability.md`).
 - **Large SBOMs are slow.** CycloneDX schema validation grows roughly with the square of the
   component count (about 10 s at 5,000 components). It runs in a worker thread, so other
   requests are still answered meanwhile.
@@ -139,7 +210,8 @@ replacing the release's previous components and writing its audit entry in one t
 - **Pod decisions.** Team 2 agreed the Phase 4 answers on 2026-11-01 (`docs/decisions.md`),
   including the 400 for a malformed CVE ID and the 409 for a duplicate submission, both added to
   the contract. A few Phase 3 SBOM details (metadata components, repeated nested components)
-  are still proposals.
+  are still proposals, as are the P5-Q9 input rules (trailing newline rejected, lowercase `t`/`z`
+  accepted, SBOM media types).
 
 ## Deployment (Google Compute Engine)
 
@@ -156,6 +228,7 @@ One `e2-medium` Debian 12 VM in `us-central1-a` (static IP) runs the compose sta
 PROJECT=<gcp-project-id> bash deploy/gcp.sh update [ref]    # build ref (default origin/main), then check
 PROJECT=<gcp-project-id> bash deploy/gcp.sh rollback <tag>  # build an earlier tag, then check
 PROJECT=<gcp-project-id> bash deploy/gcp.sh status          # VM state, /health of system and tester
+PROJECT=<gcp-project-id> bash deploy/gcp.sh full            # DESTRUCTIVE full live run (warn Team 2 first)
 ```
 
 `create` built the VM, static IP and the firewall rules that open only TCP 8080 and 8081; it is a
@@ -165,6 +238,16 @@ one-time step.
 and then run the non-destructive post-deploy checks, printing `PASS` or `FAIL` with a rollback
 hint. To run the checks by hand from a checkout of the deployed commit:
 `bash scripts/post_deploy_check.sh <base_url> <commit> [--test-endpoints on|off]`.
+
+**Full live run.** `full` resets the live system, so run it only on the evaluation deployment and
+only after warning Team 2. It reads the deployed commit on the VM and runs the checks above with
+`--full --confirm-reset`: the whole tester (AC-01..AC-09), `scripts/smoke.sh`, AC-10 across
+`docker compose restart api`, then a re-seed of the demo data at real time (ExampleGateway
+1.0.0 with the 25-component SBOM, the fixture CVE records, one mandatory incident for
+CVE-2023-25577 with early-warning and notification report data, one field left out). Each step
+prints PASS/FAIL/SKIP, and it writes `docs/test-reports/<date>-deploy-full.md`, which
+`scripts/metrics.py` reads for goals G1 and G4. By hand:
+`bash scripts/post_deploy_check.sh <base_url> <commit> --full --confirm-reset --restart-cmd '<cmd>' --report <file>`.
 
 **Backups.** `update` installs `deploy/releasegate-backup.cron`, which runs `deploy/backup.sh`
 at 03:30 UTC: an online SQLite backup (`app/backup.py`) into `/opt/releasegate/backups`, outside

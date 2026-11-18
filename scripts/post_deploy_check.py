@@ -1,4 +1,4 @@
-"""Check a deployment without changing it (CLAUDE.md §16.2, default mode).
+"""Check a deployment without changing it (docs/PHASE4_HANDOFF.md §16.2, default mode).
 
     bash scripts/post_deploy_check.sh <base_url> <expected_sha> [--test-endpoints on|off]
 
@@ -13,12 +13,16 @@
 
 Run it from a checkout of the deployed commit: checks 2 and 5 read the contract and the
 not-yet-built list from this checkout. Prints PASS/FAIL/SKIP per check, then PASS or FAIL;
-exits 0 on PASS, 1 on FAIL, 2 on bad arguments. --full (destructive: tester run, smoke test,
-restart) is not built yet.
+exits 0 on PASS, 1 on FAIL, 2 on bad arguments.
+
+--full --confirm-reset [--restart-cmd CMD] [--report FILE] then runs the destructive steps in
+scripts/post_deploy_full.py (tester, smoke.sh, AC-10 restart, demo re-seed). It RESETS the
+target: run it only on the evaluation deployment, after warning Team 2.
 """
 
 import argparse
 import re
+import subprocess
 import sys
 import time
 from collections.abc import Callable
@@ -195,10 +199,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("expected_sha")
     parser.add_argument("--test-endpoints", choices=["on", "off"], default="on")
     parser.add_argument("--wait", type=float, default=60, help="seconds to wait for /health")
-    parser.add_argument("--full", action="store_true", help="destructive checks (not built)")
+    parser.add_argument("--full", action="store_true", help="also run the destructive steps")
+    parser.add_argument(
+        "--confirm-reset", action="store_true", help="required with --full: it resets the target"
+    )
+    parser.add_argument("--restart-cmd", help="--full: shell command that restarts the target")
+    parser.add_argument("--report", help="--full: write the Mode: full deploy report here")
     args = parser.parse_args(argv)
-    if args.full:
-        print("--full (destructive) mode is not built yet", file=sys.stderr)
+    if args.full and not args.confirm_reset:
+        print(
+            "--full resets the target and re-seeds the demo data; run it only on the evaluation"
+            " deployment after warning Team 2, and add --confirm-reset",
+            file=sys.stderr,
+        )
         return 2
     sha = args.expected_sha.lower()
     if not _SHA.match(sha):
@@ -210,6 +223,55 @@ def main(argv: list[str] | None = None) -> int:
     for c in checks:
         print(f"{c.outcome:4}  {c.name:17}  {c.detail}")
     failed = any(c.outcome == "FAIL" for c in checks)
+    if args.full and failed:
+        print("FAIL (destructive steps not run)")
+        return 1
+    if args.full:
+        return _full(args.base_url, sha, args.wait, checks, args.restart_cmd, args.report)
+    print("FAIL" if failed else "PASS")
+    return 1 if failed else 0
+
+
+def _run(command: list[str] | str, timeout: float) -> tuple[bool, str]:
+    try:
+        done = subprocess.run(
+            command,
+            shell=isinstance(command, str),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=ROOT,
+        )
+    except subprocess.TimeoutExpired:
+        return False, f"timed out after {timeout:.0f} s"
+    lines = (done.stdout + done.stderr).strip().splitlines()
+    return done.returncode == 0, lines[-1] if lines else f"exit {done.returncode}"
+
+
+def _full(
+    base_url: str,
+    sha: str,
+    wait_s: float,
+    nondestructive: list[Check],
+    restart_cmd: str | None,
+    report_path: str | None,
+) -> int:
+    from scripts import post_deploy_full
+
+    base = base_url.rstrip("/")
+    result = post_deploy_full.run_full(
+        connect=lambda: httpx.Client(base_url=base, timeout=30),
+        smoke=lambda: _run(["bash", str(ROOT / "scripts/smoke.sh"), base], 300),
+        restart=(lambda: _run(restart_cmd, 300)) if restart_cmd else None,
+        wait_healthy=lambda: check_health(http_fetch(base), sha, wait_s),
+    )
+    for c in result.checks:
+        print(f"{c.outcome:4}  {c.name:17}  {c.detail}")
+    print(f"AC-10: {result.ac10}")
+    if report_path:
+        post_deploy_full.write_report(Path(report_path), sha, base, nondestructive, result)
+        print(f"report written to {report_path}")
+    failed = any(c.outcome == "FAIL" for c in result.checks)
     print("FAIL" if failed else "PASS")
     return 1 if failed else 0
 

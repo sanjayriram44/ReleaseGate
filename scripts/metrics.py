@@ -7,7 +7,9 @@ Nothing here is destructive: the AC checks run in-process against a throwaway da
 live deployment is only read (GET /health). A tester run against the live URL resets its data,
 so live and cross-team results come from docs/test-reports/ instead, named
 YYYY-MM-DD-<cross-team-ours-to-team2 | cross-team-team2-to-ours | deploy>.md, each with a
-"Result: X/Y passed" line and the commit SHA. Coverage above .coverage-baseline raises it.
+"Result: X/Y passed" line and the commit SHA. Only reports dated on or after PHASE5_START count
+toward G1 and G3. A full live run records AC-10 (restart on the VM) as an "AC-10: PASS|FAIL" line.
+Coverage above .coverage-baseline raises it.
 """
 
 import argparse
@@ -34,8 +36,11 @@ COVERAGE_TARGET = 85.0
 INTEROP_TARGET = 0.95
 NOT_YET = "not measurable yet"
 FULL_MODE = re.compile(r"^\*\*Mode:\*\*\s*full\b", re.MULTILINE)
-PHASE4_ACS = ["AC-04", "AC-05", "AC-06", "AC-07"]
-PHASE3_ACS = ["AC-01", "AC-02", "AC-03", "contract"]
+PHASE5_START = "2026-11-18"  # reports dated earlier are Phase 4 runs: shown, never counted
+PHASE5_ACS = ["AC-08", "AC-09", "AC-10"]
+REGRESSION_ACS = [f"AC-0{i}" for i in range(1, 8)] + ["contract"]
+AC10_LINE = re.compile(r"AC-10:?\**:?\s*(PASS|FAIL)\b")
+G7_TEST = ROOT / "tests/unit/test_audit_immutability.py"
 
 
 def _get_json(url: str, timeout: float = 10) -> Any:
@@ -131,10 +136,11 @@ class RunReport:
         return f"`{self.name}`: {self.passed}/{self.total}"
 
 
-def latest_report(kind: str, full_only: bool = False) -> RunReport | None:
+def latest_report(kind: str, full_only: bool = False, since: str = "") -> RunReport | None:
     """The newest docs/test-reports/YYYY-MM-DD-<kind>*.md, parsed (only "Mode: full" ones if
-    full_only)."""
+    full_only; only those dated on or after `since`, a YYYY-MM-DD, if given)."""
     paths = sorted(REPORTS.glob(f"????-??-??-{kind}*.md"), reverse=True)
+    paths = [p for p in paths if p.name[:10] >= since]
     if full_only:
         paths = [p for p in paths if re.search(FULL_MODE, p.read_text())]
     if not paths:
@@ -149,6 +155,21 @@ def latest_report(kind: str, full_only: bool = False) -> RunReport | None:
         commit.group(1) if commit else None,
         bool(re.search(FULL_MODE, text)),
     )
+
+
+def phase5_tag(offline: bool) -> str | None:
+    """The commit the `phase5` tag points at: on origin (read-only ls-remote), or the local tag
+    when offline. None if there is no tag."""
+    if offline:
+        return _git("rev-parse", "-q", "--verify", "refs/tags/phase5^{commit}") or None
+    # No ref pattern: with one, ls-remote leaves out the peeled "^{}" line.
+    out = _git("ls-remote", "--tags", "origin")
+    shas: dict[str, str] = {}
+    for line in out.splitlines():
+        sha, _, ref = line.partition("\t")
+        shas[ref] = sha
+    # An annotated tag lists the tag object and, as "^{}", the commit it points at.
+    return shas.get("refs/tags/phase5^{}") or shas.get("refs/tags/phase5")
 
 
 def coverage_baseline(coverage: float | None) -> float | None:
@@ -186,27 +207,48 @@ def _yes(ok: bool) -> str:
 
 
 def g1(checks: dict[str, tuple[int, int]]) -> tuple[str, str]:
-    value = ", ".join(f"{ac} {_ac_cell(checks, ac)}" for ac in PHASE4_ACS)
-    if not any(ac in checks for ac in PHASE4_ACS):
-        return value, f"{NOT_YET} (AC-04..AC-07 not built)"
-    if not _all_pass(checks, PHASE4_ACS):
+    """AC-08 and AC-09 from the in-process tester; AC-10 needs a restart, so it comes from the
+    CI container-smoke stage (in G2's pytest/CI) and the latest Phase 5 full live run."""
+    in_process = PHASE5_ACS[:2]
+    value = ", ".join(f"{ac} {_ac_cell(checks, ac)}" for ac in in_process)
+    if not any(ac in checks for ac in in_process):
+        return value, f"{NOT_YET} (AC-08/AC-09 not built)"
+    if not _all_pass(checks, in_process):
         return value, "no"
-    live = latest_report("deploy", full_only=True)
+    live = latest_report("deploy", full_only=True, since=PHASE5_START)
     if live is None or live.total is None:
-        return value + "; live: no `Mode: full` deploy report", f"{NOT_YET} (no live run)"
-    return value + f"; live {live.result}", _yes(live.passed == live.total)
+        return value + "; live: no Phase 5 `Mode: full` deploy report", f"{NOT_YET} (no live run)"
+    ac10 = re.search(AC10_LINE, (REPORTS / live.name).read_text())
+    ac10_result = ac10.group(1) if ac10 else "not recorded"
+    value += f"; live {live.result}, AC-10 live {ac10_result}"
+    return value, _yes(live.passed == live.total and ac10_result == "PASS")
+
+
+def g2(checks: dict[str, tuple[int, int]], summary: str) -> tuple[str, str]:
+    value = ", ".join(f"{ac} {_ac_cell(checks, ac)}" for ac in REGRESSION_ACS)
+    ok = _all_pass(checks, REGRESSION_ACS) and "failed" not in summary and "error" not in summary
+    return f"{value}; pytest: {summary}", _yes(ok)
 
 
 def g3() -> tuple[str, str]:
-    reports = {d: latest_report(f"cross-team-{d}") for d in ("ours-to-team2", "team2-to-ours")}
-    value = "; ".join(r.result if r else f"{d}: no report" for d, r in reports.items())
-    found = [r for r in reports.values() if r and r.total]
-    if len(found) < len(reports):
-        return value, f"{NOT_YET} (needs a report each way)"
+    """The final Phase 5 cross-team runs; an older run is shown for context but not counted."""
+    directions = ("ours-to-team2", "team2-to-ours")
+    parts, found = [], []
+    for d in directions:
+        report = latest_report(f"cross-team-{d}", since=PHASE5_START)
+        if report and report.total:
+            found.append(report)
+            parts.append(report.result)
+            continue
+        older = latest_report(f"cross-team-{d}")
+        parts.append(f"{d}: no Phase 5 report" + (f" (last: {older.result})" if older else ""))
+    value = "; ".join(parts)
+    if len(found) < len(directions):
+        return value, f"{NOT_YET} (needs a Phase 5 report each way)"
     ok = all(
         r.passed is not None and r.total and r.passed / r.total >= INTEROP_TARGET for r in found
     )
-    return value + " (failure owners: see the reports)", _yes(ok)
+    return value + " (failure owners and Team 2's 12 Phase 4 cases: see the reports)", _yes(ok)
 
 
 def g4(checks: dict[str, tuple[int, int]]) -> tuple[str, str]:
@@ -242,9 +284,27 @@ def g6(offline: bool) -> tuple[str, str]:
         return f"live `{live[:7]}`; no deploy report", NOT_YET
     same = live.startswith(deploy.commit) or deploy.commit.startswith(live)
     passed = deploy.total is not None and deploy.passed == deploy.total
-    return f"live `{live[:7]}`; {deploy.result}, commit `{deploy.commit[:7]}`", _yes(
-        same and passed
+    tag = phase5_tag(offline)
+    tagged = tag is not None and (tag.startswith(live) or live.startswith(tag))
+    tag_text = f"`phase5` → `{tag[:7]}`" if tag else "no `phase5` tag"
+    value = f"live `{live[:7]}`; {deploy.result}, commit `{deploy.commit[:7]}`; {tag_text}"
+    return value, _yes(same and passed and tagged)
+
+
+def g7() -> tuple[str, str]:
+    """The audit-immutability test (CLAUDE.md §6.6): static scan for audit_log writes outside the
+    gated reset, and the triggers rejecting UPDATE/DELETE."""
+    if not G7_TEST.exists():
+        return f"`{G7_TEST.relative_to(G7_TEST.parents[2])}` not written", NOT_YET
+    out = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", str(G7_TEST)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
     )
+    lines = [ln for ln in out.stdout.splitlines() if re.search(r"\d+ (passed|failed)", ln)]
+    summary = lines[-1].strip("= ") if lines else f"pytest exited {out.returncode}"
+    return summary, _yes(out.returncode == 0)
 
 
 def render(offline: bool) -> str:
@@ -252,15 +312,18 @@ def render(offline: bool) -> str:
     summary, coverage = pytest_result()
     ci = "skipped (--offline)" if offline else ci_status()
     head = _git("rev-parse", "--short", "HEAD")
-    g2_value = ", ".join(f"{ac} {_ac_cell(checks, ac)}" for ac in PHASE3_ACS)
-    g2_ok = _all_pass(checks, PHASE3_ACS) and "failed" not in summary
     rows = [
-        ("G1 Phase 4 ACs", *g1(checks), "100% in-process and live"),
-        ("G2 No regressions", f"{g2_value}; pytest: {summary}", _yes(g2_ok), "100%"),
-        ("G3 Interoperability", *g3(), "≥ 95% of in-scope tests each way"),
+        ("G1 Phase 5 ACs", *g1(checks), "100% in CI and live"),
+        ("G2 No regressions", *g2(checks, summary), "100%"),
+        ("G3 Interoperability", *g3(), "≥ 95% of in-scope tests each way (Phase 5 runs)"),
         ("G4 Timeliness", *g4(checks), "≤ 10 s; ≤ 15 s"),
         ("G5 Coverage of `app/`", *g5(coverage), f"≥ {COVERAGE_TARGET:.0f}%, ≥ baseline"),
-        ("G6 Deployment", *g6(offline), "live commit = deployed commit; checks pass"),
+        (
+            "G6 Deployment",
+            *g6(offline),
+            "live commit = deployed commit; checks pass; `phase5` tag on it",
+        ),
+        ("G7 Audit integrity", *g7(), "immutability test passes"),
     ]
     lines = [
         "# Metrics",

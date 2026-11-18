@@ -82,6 +82,23 @@ check "set clock one second past boundary" 200 -X PUT "$B/api/v1/test/clock" -H 
 check "boundary release is now unsupported" 200 "$B/api/v1/releases/$A"
 expect_in_body '"support_status":"unsupported"'
 
+echo "--- Phase 5: input rules (P5-Q9) and CRA reports (REQ-07)"
+check "clock rejects a trailing newline" 400 -X PUT "$B/api/v1/test/clock" -H "$J" -d '{"now":"2026-11-02T00:00:00Z\n"}'
+check "clock accepts lowercase t and z" 200 -X PUT "$B/api/v1/test/clock" -H "$J" -d '{"now":"2026-11-02t00:00:00z"}'
+expect_in_body '"now":"2026-11-02T00:00:00Z"'
+check "SBOM sent as text/plain" 400 -X PUT "$B/api/v1/releases/$A/sbom" -H "$H" -H 'content-type: text/plain' -d "$NEW_SBOM"
+check "open mandatory incident" 201 -X POST "$B/api/v1/incidents" -H "$H" -H "$J" -d '{"cve_id":"CVE-2023-25577","awareness_at":"2026-11-01T09:00:00Z","classification":"mandatory","rationale":"Smoke test."}'
+I=$(echo "$BODY" | field '["incident_id"]')
+check "PUT early-warning report data" 200 -X PUT "$B/api/v1/incidents/$I/report-data/early_warning" -H "$H" -H "$J" -d '{"member_states":["DE","FR"]}'
+check "PUT notification data, user_mitigations left out" 200 -X PUT "$B/api/v1/incidents/$I/report-data/vulnerability_notification" -H "$H" -H "$J" -d '{"product_information":"p","exploit_nature":"e","vulnerability_nature":"v","corrective_measures_taken":"c"}'
+check "GET notification report" 200 "$B/api/v1/incidents/$I/reports/vulnerability_notification"
+expect_in_body '"missing_fields":["user_mitigations"]'
+check "field from another stage" 400 -X PUT "$B/api/v1/incidents/$I/report-data/early_warning" -H "$H" -H "$J" -d '{"member_states":["DE"],"severity":"High"}'
+check "early warning unchanged after the rejection" 200 "$B/api/v1/incidents/$I/reports/early_warning"
+expect_in_body '"member_states":["DE","FR"]'
+check "invalid stage" 400 "$B/api/v1/incidents/$I/reports/interim_report"
+check "report for an unknown incident" 404 "$B/api/v1/incidents/inc-nope/reports/early_warning"
+
 echo "--- audit"
 check "GET audit log" 200 "$B/api/v1/audit-logs"
 echo "$BODY" | python3 -c 'import sys,json;[print("      ",e["action"],e["user_id"],e["entity_id"]) for e in json.load(sys.stdin)["events"]]'

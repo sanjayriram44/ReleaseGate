@@ -10,6 +10,9 @@ from app.services.vulnerability_source import FixtureSource, SourceUnavailable
 
 router = APIRouter(prefix="/api/v1/vulnerabilities", tags=["vulnerabilities"])
 
+# Checked by pydantic's Rust regex engine, where "$" matches only at the very end (a trailing
+# "%0A" is a 400: tests/acceptance/test_trailing_whitespace.py). It's also the pattern published
+# in the generated OpenAPI, so it keeps the anchors.
 CVE_PATTERN = "^CVE-[0-9]{4}-[0-9]+$"
 
 

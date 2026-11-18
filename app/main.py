@@ -13,6 +13,7 @@ from app.routers import (
     health,
     incidents,
     releases,
+    reports,
     sbom,
     test_support,
     vulnerabilities,
@@ -58,7 +59,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="CRA Vulnerability Response Service", version="1.0.0")
     app.state.settings = settings
     app.state.clock = Clock()
-    app.state.db = Database(settings.db_path)
+    app.state.db = Database(settings.db_path, allow_reset=settings.enable_test_endpoints)
     app.state.db.init_schema()
     configure_logging()
     # The last middleware added runs first, so the log sees the collapsed path.
@@ -71,6 +72,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(sbom.router)
     app.include_router(vulnerabilities.router)
     app.include_router(incidents.router)
+    app.include_router(reports.router)
     app.include_router(audit.router)
     if settings.enable_test_endpoints:
         app.include_router(test_support.router)

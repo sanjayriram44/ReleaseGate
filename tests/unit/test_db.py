@@ -1,13 +1,14 @@
 import sqlite3
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
-from app.db import Database
+from app.db import Database, ResetNotAllowed
 
 
-def _db(tmp_path: Path) -> Database:
-    db = Database(str(tmp_path / "t.db"))
+def _db(tmp_path: Path, allow_reset: bool = False) -> Database:
+    db = Database(str(tmp_path / "t.db"), allow_reset=allow_reset)
     db.init_schema()
     return db
 
@@ -42,7 +43,7 @@ def test_transaction_rolls_back_on_error(tmp_path: Path) -> None:
 
 
 def test_reset_clears_audit_and_restores_triggers(tmp_path: Path) -> None:
-    db = _db(tmp_path)
+    db = _db(tmp_path, allow_reset=True)
     with db.transaction() as conn:
         _insert_event(conn)
     db.reset()
@@ -52,6 +53,29 @@ def test_reset_clears_audit_and_restores_triggers(tmp_path: Path) -> None:
     with pytest.raises(sqlite3.DatabaseError, match="append-only"):
         with db.transaction() as conn:
             conn.execute("DELETE FROM audit_log")
+
+
+@pytest.mark.parametrize("make", [lambda p: Database(p), lambda p: Database(p, allow_reset=False)])
+def test_reset_refuses_unless_allowed_and_leaves_the_audit_log(
+    tmp_path: Path, make: Callable[[str], Database]
+) -> None:
+    # The only code path that deletes audit rows (CLAUDE.md §4 item 5, AC-09 inspection).
+    db = make(str(tmp_path / "t.db"))
+    db.init_schema()
+    with db.transaction() as conn:
+        _insert_event(conn)
+    with pytest.raises(ResetNotAllowed, match="test endpoints"):
+        db.reset()
+    with db.transaction() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0] == 1
+        triggers = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'trigger' ORDER BY name"
+        ).fetchall()
+        assert [t[0] for t in triggers] == [
+            "audit_no_delete",
+            "audit_no_replace",
+            "audit_no_update",
+        ]
 
 
 def test_old_database_without_sbom_stored_at_is_migrated(tmp_path: Path) -> None:
@@ -84,3 +108,56 @@ def test_old_database_without_sbom_stored_at_is_migrated(tmp_path: Path) -> None
         }
     assert rows["r1"] is not None  # had components, so it counts as having an SBOM
     assert rows["r2"] is None
+
+
+def _insert_incident_with_report_data(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        "INSERT INTO incidents(incident_id, awareness_at, created_by, classification, rationale,"
+        " created_at) VALUES ('inc-1', '2026-11-01T00:00:00Z', 'u', 'mandatory', 'r',"
+        " '2026-11-01T00:00:00Z')"
+    )
+    conn.execute(
+        "INSERT INTO report_data(incident_id, stage, data, updated_by, updated_at)"
+        " VALUES ('inc-1', 'early_warning', '{\"member_states\": [\"DE\"]}', 'u',"
+        " '2026-11-01T00:00:00Z')"
+    )
+
+
+def test_report_data_is_one_row_per_incident_and_stage(tmp_path: Path) -> None:
+    db = _db(tmp_path)
+    with db.transaction() as conn:
+        _insert_incident_with_report_data(conn)
+    with pytest.raises(sqlite3.IntegrityError):
+        with db.transaction() as conn:
+            conn.execute(
+                "INSERT INTO report_data(incident_id, stage, data, updated_by, updated_at)"
+                " VALUES ('inc-1', 'early_warning', '{}', 'u', '2026-11-01T00:00:00Z')"
+            )
+    with pytest.raises(sqlite3.IntegrityError):  # foreign key to incidents
+        with db.transaction() as conn:
+            conn.execute(
+                "INSERT INTO report_data(incident_id, stage, data, updated_by, updated_at)"
+                " VALUES ('inc-x', 'early_warning', '{}', 'u', '2026-11-01T00:00:00Z')"
+            )
+
+
+def test_reset_clears_report_data(tmp_path: Path) -> None:
+    db = _db(tmp_path, allow_reset=True)
+    with db.transaction() as conn:
+        _insert_incident_with_report_data(conn)
+    db.reset()
+    with db.transaction() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM report_data").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM incidents").fetchone()[0] == 0
+
+
+def test_existing_database_gains_the_report_data_table(tmp_path: Path) -> None:
+    path = str(tmp_path / "t.db")
+    old = sqlite3.connect(path)
+    old.execute("CREATE TABLE incidents (incident_id TEXT PRIMARY KEY)")
+    old.close()
+    Database(path).init_schema()
+    conn = sqlite3.connect(path)
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    conn.close()
+    assert "report_data" in tables

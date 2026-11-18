@@ -13,29 +13,32 @@ from app.errors import ApiError
 # Deadlines add up to 14 days (CRA final report), so later timestamps would overflow datetime.
 LATEST = datetime.max.replace(tzinfo=UTC) - timedelta(days=14)
 
-# Date, time, optional fraction, then Z or a numeric offset up to ±23:59 (fromisoformat alone
-# would read +02:60 as +03:00). A timestamp with no zone is rejected.
+# Date, T, time, optional fraction, then Z or a numeric offset up to ±23:59 (fromisoformat alone
+# would read +02:60 as +03:00). RFC 3339 §5.6 allows a lowercase t and z (P5-Q9); output is
+# always T and Z. A timestamp with no zone is rejected. Always fullmatch: "$" with .match() would
+# accept a trailing "\n".
 _TIMESTAMP = re.compile(
-    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d+))?(Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$"
+    r"(\d{4}-\d{2}-\d{2})[Tt](\d{2}:\d{2}:\d{2})(?:\.(\d+))?([Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)"
 )
 
 
 def parse_utc(value: str, field: str = "now") -> datetime:
-    """An ISO 8601 timestamp with Z or a UTC offset, converted to UTC; else ApiError(400).
+    """An RFC 3339 timestamp with Z or a UTC offset, converted to UTC; else ApiError(400).
 
     Fractional seconds are kept, truncated beyond microseconds.
     """
-    match = _TIMESTAMP.match(value)
+    match = _TIMESTAMP.fullmatch(value)
     if not match:
         raise ApiError(
             400,
             "INVALID_REQUEST",
             f"{field} must be a timestamp with Z or a UTC offset, e.g. 2026-11-01T12:00:00Z",
         )
-    base, fraction, zone = match.groups()
+    day, time, fraction, zone = match.groups()
     micros = f".{fraction[:6].ljust(6, '0')}" if fraction else ""
+    offset = "+00:00" if zone in ("Z", "z") else zone
     try:
-        dt = datetime.fromisoformat(base + micros + ("+00:00" if zone == "Z" else zone))
+        dt = datetime.fromisoformat(f"{day}T{time}{micros}{offset}")
     except ValueError as exc:
         raise ApiError(400, "INVALID_REQUEST", f"{field} is not a valid timestamp") from exc
     try:

@@ -1,4 +1,4 @@
-"""One structured JSON log line per request (CLAUDE.md §8).
+"""One structured JSON log line per request (docs/PHASE4_HANDOFF.md §8).
 
 Each line carries the request ID, X-User-Id, method, path, status, latency, and the clock value
 when the request arrived (and whether the test clock overrode it), so a failing test can be
@@ -23,7 +23,7 @@ from app.clock import Clock, format_utc
 
 LOGGER_NAME = "releasegate.request"
 LOG_FIELDS = "log_fields"  # request.state key whose dict is merged into the line
-_SAFE_ID = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
+_SAFE_ID = re.compile(r"[A-Za-z0-9._:-]{1,128}")
 _MAX_MESSAGE = 300
 _MAX_ERROR_BODY = 64 * 1024
 
@@ -81,7 +81,7 @@ class RequestLog:
             return
         started = time.perf_counter()
         given = _header(scope, b"x-request-id")
-        request_id = given if given and _SAFE_ID.match(given) else uuid.uuid4().hex
+        request_id = given if given and _SAFE_ID.fullmatch(given) else uuid.uuid4().hex
         user_id = (_header(scope, b"x-user-id") or "").strip() or None
         fields: dict[str, Any] = {
             "request_id": request_id,

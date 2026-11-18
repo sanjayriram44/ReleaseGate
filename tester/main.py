@@ -1,4 +1,4 @@
-"""ReleaseGate tester: runs the shared AC-01..AC-07 checks against any system base URL.
+"""ReleaseGate tester: runs the shared AC-01..AC-09 checks against any system base URL.
 
 POST /api/v1/runs {"target_base_url": "http://host:port"} -> report JSON.
 A run calls the target's /api/v1/test/reset, so it wipes the target's data.

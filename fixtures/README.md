@@ -76,3 +76,32 @@ to check are the `affected_purls`:
   only rewrote version, purl, bom-ref and cpe). Matching uses purls only, so decide whether that
   matters.
 - [ ] The supported/unsupported grouping at `reference_clock` follows REQ-01.
+
+## Phase 5 report fixtures (AC-08): DRAFT, not verified
+
+> **Status: draft (2026-11-18).** Written by Team 6's Claude session from CRA Art. 14(2)(a)–(c)
+> and the Section 5 `ReportData` schema. The stage-to-field mapping is a proposal
+> (`docs/pod-questions-phase5.md`, P5-Q1). **Nobody has verified it yet.** One person per team
+> checks it and Team 2 signs off; record the names and date here and in `docs/decisions.md`, then
+> drop the `_status` field.
+
+| File | Contents |
+|---|---|
+| `report_cases.json` | `stage_fields` (which fields each stage has, required and optional), two mandatory incidents with report data for all three stages and the expected `missing_fields`, and informational edge cases |
+
+Both AC-08 incidents supply every optional field, so their expected `missing_fields` (none for
+the complete case; `exploit_nature` and `user_mitigations` for the incomplete case's
+notification) hold however P5-Q1 settles required versus optional, as long as the stage-to-field
+mapping stays. The edge cases depend on P5-Q1, Q2, Q4 and Q5 and stay informational until those
+are answered. All report text is synthetic.
+
+**Who reads it.** `stage_fields` is the shared stage-field table (CLAUDE.md §7 rule 2): the tester
+(`tester/phase5.py`) and the acceptance tests read it, and `tests/unit/test_reports.py` fails if
+`app/services/reports.py` `STAGE_FIELDS` or the contract's `ReportData` `x-fields-by-stage`
+differs from it. If the pod settles P5-Q1 differently, a person updates this file first; the
+tests then show what else must change. The complete and incomplete cases also seed AC-10
+(`tester/ac10.py`) and the demo data (`scripts/post_deploy_full.py`).
+
+- [ ] The stage-to-field mapping matches CRA Art. 14(2)(a), (b) and (c) and the `ReportData` schema.
+- [ ] The incomplete case's notification leaves out exactly two required fields.
+- [ ] Every edge case's expectation matches the agreed P5 answer it depends on (or is updated).
