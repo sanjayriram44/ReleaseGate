@@ -1,0 +1,158 @@
+{
+  "_status": "DRAFT, NOT VERIFIED. Written by Team 6's Claude session on 2026-11-18 from CRA Art. 14(2)(a)-(c) and the Section 5 ReportData schema. The stage-to-field mapping in stage_fields is a PROPOSAL (docs/pod-questions-phase5.md, P5-Q1). One checker per team verifies the expected values and Team 2 signs off before AC-08 counts; record the names and date in docs/decisions.md and fixtures/README.md, then drop this _status field.",
+  "_note": "All report text is synthetic test data. For each incident: POST /api/v1/incidents with create, PATCH fix_available_at, PUT each stage's report_data, set the clock to reference_clock, then GET /api/v1/incidents/{id}/reports/{stage} for all three stages. Compare data field by field and missing_fields as a set. The two AC-08 incidents supply every optional field too, so their expected missing_fields hold under any answer to P5-Q1 that keeps this stage-to-field mapping; only edge_cases depend on which fields are required (P5-Q1) and what counts as missing (P5-Q2), so they are informational checks.",
+  "reference_clock": "2026-11-20T12:00:00Z",
+  "stage_fields": {
+    "early_warning": {
+      "source": "CRA Art. 14(2)(a): early warning, including where applicable the Member States where the product has been made available",
+      "required": ["member_states"],
+      "optional": []
+    },
+    "vulnerability_notification": {
+      "source": "CRA Art. 14(2)(b): general information on the product, general nature of the exploit and of the vulnerability, corrective or mitigating measures taken and those users can take, and where applicable how sensitive the manufacturer considers the information",
+      "required": [
+        "product_information",
+        "exploit_nature",
+        "vulnerability_nature",
+        "corrective_measures_taken",
+        "user_mitigations"
+      ],
+      "optional": ["sensitivity"]
+    },
+    "final_report": {
+      "source": "CRA Art. 14(2)(c)(i)-(iii): description including severity and impact; where available, information on any malicious actor; details of the security update or other corrective measures",
+      "required": [
+        "vulnerability_description",
+        "severity",
+        "impact",
+        "corrective_measure_details"
+      ],
+      "optional": ["malicious_actor_information"]
+    }
+  },
+  "incidents": [
+    {
+      "key": "complete",
+      "ac": "AC-08",
+      "create": {
+        "cve_id": "CVE-2023-25577",
+        "awareness_at": "2026-11-10T09:00:00Z",
+        "classification": "mandatory",
+        "rationale": "Synthetic AC-08 case: active exploitation of werkzeug 2.2.2 reported against ExampleGateway 1.1.0."
+      },
+      "fix_available_at": "2026-11-14T15:00:00Z",
+      "report_data": {
+        "early_warning": {
+          "member_states": ["DE", "FR", "NL"]
+        },
+        "vulnerability_notification": {
+          "product_information": "ExampleGateway 1.1.0, a Python web service that bundles werkzeug 2.2.2.",
+          "exploit_nature": "Remote, unauthenticated requests with crafted multipart form data.",
+          "vulnerability_nature": "Excessive resource use while parsing multipart form data.",
+          "corrective_measures_taken": "Patched build with werkzeug 2.2.3 prepared and under test.",
+          "user_mitigations": "Limit request body size at the reverse proxy until the update is installed.",
+          "sensitivity": "Share with national CSIRTs only."
+        },
+        "final_report": {
+          "vulnerability_description": "werkzeug 2.2.2 multipart parsing lets one request consume a worker's CPU and memory.",
+          "severity": "High",
+          "impact": "Denial of service for the affected gateway instance.",
+          "malicious_actor_information": "No attribution; requests came from a small set of IP addresses.",
+          "corrective_measure_details": "ExampleGateway 1.1.1 ships werkzeug 2.2.3; customers were notified by advisory."
+        }
+      },
+      "expected": {
+        "early_warning": {"data": "same as report_data.early_warning", "missing_fields": []},
+        "vulnerability_notification": {"data": "same as report_data.vulnerability_notification", "missing_fields": []},
+        "final_report": {"data": "same as report_data.final_report", "missing_fields": []}
+      }
+    },
+    {
+      "key": "incomplete",
+      "ac": "AC-08",
+      "create": {
+        "cve_id": "CVE-2023-32681",
+        "awareness_at": "2026-11-12T08:30:00Z",
+        "classification": "mandatory",
+        "rationale": "Synthetic AC-08 case: exploitation of requests 2.28.2 reported against ExampleGateway 1.1.0."
+      },
+      "fix_available_at": "2026-11-16T10:00:00Z",
+      "report_data": {
+        "early_warning": {
+          "member_states": ["IE"]
+        },
+        "vulnerability_notification": {
+          "product_information": "ExampleGateway 1.1.0, a Python web service that bundles requests 2.28.2.",
+          "vulnerability_nature": "Proxy credentials forwarded to the destination server on redirect.",
+          "corrective_measures_taken": "Upgrade to requests 2.31.0 scheduled for the next patch release.",
+          "sensitivity": "May be shared with all CSIRTs."
+        },
+        "final_report": {
+          "vulnerability_description": "requests 2.28.2 can leak the Proxy-Authorization header to a redirect target.",
+          "severity": "Medium",
+          "impact": "Exposure of proxy credentials to third-party servers.",
+          "malicious_actor_information": "None known.",
+          "corrective_measure_details": "ExampleGateway 1.1.2 ships requests 2.31.0."
+        }
+      },
+      "expected": {
+        "early_warning": {"data": "same as report_data.early_warning", "missing_fields": []},
+        "vulnerability_notification": {
+          "data": "same as report_data.vulnerability_notification",
+          "missing_fields": ["exploit_nature", "user_mitigations"]
+        },
+        "final_report": {"data": "same as report_data.final_report", "missing_fields": []}
+      }
+    }
+  ],
+  "edge_cases": [
+    {
+      "key": "nothing_stored",
+      "required": false,
+      "depends_on": ["P5-Q1"],
+      "setup": "A new mandatory incident with no report data stored.",
+      "request": "GET reports for each stage",
+      "expect": {
+        "status": 200,
+        "data": {},
+        "missing_fields": "the stage's required list from stage_fields"
+      }
+    },
+    {
+      "key": "blank_string_is_missing",
+      "required": false,
+      "depends_on": ["P5-Q2"],
+      "setup": "PUT vulnerability_notification with the complete case's data but user_mitigations set to \"   \".",
+      "request": "GET reports/vulnerability_notification",
+      "expect": {"status": 200, "missing_fields": ["user_mitigations"]}
+    },
+    {
+      "key": "empty_member_states_is_missing",
+      "required": false,
+      "depends_on": ["P5-Q2"],
+      "setup": "PUT early_warning with {\"member_states\": []}.",
+      "request": "GET reports/early_warning",
+      "expect": {"status": 200, "missing_fields": ["member_states"]}
+    },
+    {
+      "key": "field_from_another_stage",
+      "required": false,
+      "depends_on": ["P5-Q4"],
+      "setup": "PUT early_warning with {\"member_states\": [\"DE\"], \"severity\": \"High\"}.",
+      "expect": {"status": 400, "error_code": "INVALID_REQUEST", "stored": "nothing; the stage's previous data is unchanged"}
+    },
+    {
+      "key": "invalid_stage",
+      "required": false,
+      "depends_on": ["P5-Q5"],
+      "request": "PUT report-data/interim_report and GET reports/interim_report",
+      "expect": {"put_status": 400, "get_status": 400, "error_code": "INVALID_REQUEST"}
+    },
+    {
+      "key": "unknown_incident",
+      "required": true,
+      "request": "PUT report-data/early_warning and GET reports/early_warning for inc-does-not-exist",
+      "expect": {"status": 404}
+    }
+  ]
+}

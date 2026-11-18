@@ -1,132 +1,133 @@
-# ReleaseGate — Phase 4 Handoff for Claude Code
+# ReleaseGate — Phase 5 Handoff for Claude Code
 
-> **How to use this file:** move the current `CLAUDE.md` (the Phase 3 handoff) to `docs/PHASE3_HANDOFF.md` if it isn't there already, then save this file as `CLAUDE.md` in the repository root. Claude Code reads it automatically. Read Section 0 and Sections 1–5 before writing any code. Follow the order in §14.1: goal audit first, then the first CI stages, then the Phase 3 carry-over (Section 4).
+> **How to use this file:** move the Phase 4 handoff (the old `CLAUDE.md`) to `docs/PHASE4_HANDOFF.md`, then save this file as `CLAUDE.md` in the repository root. Claude Code reads it automatically. Read Section 0 and Sections 1–5 before writing any code, then follow the order in §13. Comments in the code that cite "CLAUDE.md §n" were written against the Phase 4 handoff; they now mean `docs/PHASE4_HANDOFF.md §n`. Update a comment when you touch its file.
 
-> **Progress (2026-11-01):** §14.1 steps 1–11 are done and deployed. See `docs/PHASE4_PROGRESS.md` for where the work stands, what's blocked and how to continue.
+> Written 2026-11-18 from `main` at `bee2b44`, the Phase 2 report (`docs/phase2_report.pdf`, graded 26.25/28), `docs/PHASE4_PROGRESS.md`, `docs/issues.md` and the test reports in `docs/test-reports/`.
 
 ---
 
 ## 0. Working method: read this before anything else
 
-You work in two nested loops. The **outer loop** (Imprint, from lecture: <https://lethain.com/software-factory-experiment/>) keeps the work aligned with written, measured goals. The **inner loop** (§0.3) runs once for every small step and ends only when the result is verified to line up with the spec. Never skip either loop, even for "trivial" changes.
+The Phase 4 method still applies in full (`docs/PHASE4_HANDOFF.md` §0). The short version:
 
 ### 0.1 Outer loop (Imprint): goal → review → work → freshness
 
-1. **Goal audit.** Check that `docs/goals.md` (the goals, with a measure for each) and `docs/metrics.md` (current values) exist. **If either is missing, stop: draft them from §0.2 and ask a team member to confirm before any code is written.** The audit refuses to run until the goal and its measure are written down.
-2. **Review.** Read `docs/metrics.md` and the open issues. Use GitHub issues via `gh` if it's available; otherwise `docs/issues.md`, one checkbox per task with the test that proves it. Add or update issues for anything new you notice. Every task in §4 and §6 becomes one issue.
-3. **Work.** Take **one unblocked task**: one whose open questions (§10) are answered and whose fixtures exist. Do it with the inner loop (§0.3), then open a pull request, request a human review, or ask a question. A task blocked on §10 or §5.2 gets a question, not a guess.
-4. **Check freshness.** After each task, rerun `scripts/metrics.py` and ask: does `docs/goals.md` still describe what we're doing? If a pod decision, grader feedback or a spec change made it stale, go back to step 1 and update it with a team member. Otherwise take the next task.
+1. **Goal audit.** `docs/goals.md` must describe Phase 5. Today it describes Phase 4. **Stop, draft the Phase 5 goals from §0.2 into `docs/goals.md`, and ask a team member to confirm them before writing feature code.** Update `scripts/metrics.py` to measure them.
+2. **Review.** Read `docs/metrics.md` and `docs/issues.md` (GitHub issues aren't used; `gh` isn't authenticated). Add one checkbox per task in §4 and §6, each with the test that proves it.
+3. **Work.** Take one unblocked task: its pod questions (§9) are answered and its fixtures exist. A task blocked on §9 gets a question, not a guess.
+4. **Freshness.** After each task, rerun `scripts/metrics.py` and check `docs/goals.md` is still true. A pod decision or grader feedback that makes it stale sends you back to step 1.
 
-### 0.2 Phase 4 goals and measures (draft for `docs/goals.md`; a human must confirm)
+### 0.2 Phase 5 goals and measures (draft for `docs/goals.md`; a human must confirm)
 
 | Goal | Measure | Target |
 |---|---|---|
-| G1 Correct Phase 4 behavior | AC-04 to AC-07 pass in CI **and** via the tester against our live URL | 100% |
-| G2 No regressions | AC-01 to AC-03, contract test (no missing or extra codes), all Phase 3 tests | 100% |
-| G3 Interoperability (graded) | Team 2's suite against our service; our tester against Team 2's | ≥ 95% pass; every failure has an issue with an owner |
-| G4 Timeliness | CVE query latency (AC-04); error latency (AC-05) | ≤ 10 s; ≤ 15 s |
-| G5 Test strength | Line coverage of `app/` (`pytest --cov`) | ≥ 85% (Phase 3 baseline 88%), never decreasing |
-| G6 Healthy deployment | Deployed commit equals the tagged commit; post-deploy checks (§16) pass | Every deploy |
+| G1 Correct Phase 5 behavior | AC-08, AC-09, AC-10 pass in CI **and** against our live URL (AC-10 live = restart on the VM) | 100% |
+| G2 No regressions | AC-01..AC-07, the contract test (no missing or extra codes), every existing test | 100% |
+| G3 Interoperability (graded) | Final cross-team runs, both directions, Phases 3–5 in scope | ≥ 95% each way; every failure has an issue with an owner; none of Team 2's 12 Phase 4 failures remain |
+| G4 Timeliness | AC-04 query latency; AC-05 error latency | ≤ 10 s; ≤ 15 s (unchanged) |
+| G5 Test strength | Line coverage of `app/` | ≥ 85% and never below `.coverage-baseline` (99.07% at `bee2b44`) |
+| G6 Healthy deployment | Live `/health` commit equals the deployed commit; post-deploy checks pass; `phase5` tag on it | Every deploy |
+| G7 Audit integrity | No code path changes or removes an audit row except the gated test reset (static test, §6.6); triggers reject UPDATE/DELETE (unit test) | Always |
 
-`scripts/metrics.py` (build it in the first CI stage) writes `docs/metrics.md`: last CI result, pass/fail per AC, coverage %, latest cross-team results from `docs/test-reports/`, the deployed commit, and open blocking questions.
+`scripts/metrics.py` changes: add `PHASE5_ACS = ["AC-08", "AC-09", "AC-10"]` and a G1 row for them, move AC-04..AC-07 into G2, add G7, and read the final cross-team reports for G3.
 
 ### 0.3 Inner loop: for every small step
 
-1. **State the step's goal in one line** and name the test or check that will prove it (an AC, a unit test, a contract check, a deployment check).
-2. **Read the spec for it:** the `openapi.yaml` section, `docs/decisions.md`, the AC text in the report, and the §5.2 examples.
-3. **Write or update the test first.** Run it and confirm it **fails for the expected reason**. A test that passes before the change proves nothing.
-4. **Implement the smallest change** that makes it pass.
-5. **Run the local gate:** the targeted test, then `uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest`.
-6. **Line-up check.** Compare actual output with the expected output field by field, not just status codes. Send the contract's example requests, diff the JSON against the documented response, and compare against `ground_truth.json` where it applies. Check the generated OpenAPI against `docs/openapi.yaml`. Any difference is a failure, even if the tests are green.
-7. **Self-review the diff** against the checklist in §14.3.
-8. **Debug loop if anything fails:** reproduce it with a failing test → isolate → state a hypothesis → fix → rerun the full gate. Add the reproduction as a permanent regression test. **After three failed attempts, or if the fix would change the contract, a fixture or a §10 answer, stop and ask.**
-9. **Commit one step per commit**, push, and wait for CI to be green **before starting the next step.** Never stack new work on a red build.
+1. State the step's goal in one line and name the test that proves it.
+2. Read the spec for it: `docs/openapi.yaml`, `docs/decisions.md`, the AC text in the report (§4.1), and the fixture.
+3. Write the test first and watch it **fail for the expected reason**.
+4. Make the smallest change that passes it.
+5. Run the full gate: `.venv/bin/ruff check . && .venv/bin/ruff format --check . && .venv/bin/mypy && .venv/bin/pytest` (or `uv run …`).
+6. **Line-up check:** compare real output with the expected output field by field, and the generated OpenAPI with `docs/openapi.yaml`. A difference is a failure even when tests are green.
+7. Self-review the diff against §12.
+8. Debug loop on failure: reproduce with a failing test → isolate → hypothesis → fix → full gate. Keep the reproduction as a regression test. **After three failed attempts, or if the fix would change the contract, a fixture or a §9 answer, stop and ask.**
+9. One step per commit. Push, wait for green CI, then start the next step. Tick the box in `docs/issues.md` in the same commit. Commit messages end with the Co-Authored-By line.
 
-### 0.4 Skills and tools
+### 0.4 Skills
 
-Before each kind of task, check which skills and plugins are installed (for example with `/skills` or the plugin list), and use the relevant one alongside this file. Examples, if installed: a **testing-strategy** skill when planning tests for a new endpoint; a **debug** skill inside the debug loop; a **code-review** skill for step 7 of §0.3; a **deploy-checklist** skill before every deployment; a **documentation** skill for README and decisions updates. If a skill disagrees with this file or the contract, **this file and the contract win**; mention the conflict to a team member. If no relevant skill is installed, follow the checklists in this file.
+Check the installed skills before each kind of task and use the relevant one (testing-strategy for new endpoints, debug in the debug loop, code-review for step 7, deploy-checklist before deploys, documentation for README/decisions). This file and the contract win any conflict; mention the conflict to a team member.
 
 ---
 
 ## 1. What we are building
 
-ReleaseGate is a web service that tracks which software releases contain which components, tells a manufacturer which supported releases are affected when a CVE appears, and, for actively exploited vulnerabilities, tracks the EU Cyber Resilience Act's 24-hour, 72-hour and 14-day reporting deadlines and prepares the report data for a person to submit.
+ReleaseGate tracks which software releases contain which components, tells a manufacturer which supported releases a CVE affects, and, for actively exploited vulnerabilities, tracks the EU Cyber Resilience Act's 24-hour, 72-hour and 14-day reporting deadlines and **prepares the report data for a person to submit**. It never submits anything to an authority and never decides whether something is reportable.
 
-**Course context:** ECE 30861, Team 6, in a pod with Team 2. Both teams implement the *same* shared specification independently, and each team's deployed service is tested by the other team's automated suite through the common HTTP interface. **From Phase 4, cross-team results count toward the grade.** Matching the shared interface exactly matters more than anything else.
+**Course context:** ECE 30861, Team 6 (Daksh Agarwal, Sanjay Sriram, Sathvik Valluri, Donovan Baran), in a pod with Team 2. Both teams implement the same shared specification independently and test each other through the common HTTP interface. Cross-team results are graded. Matching the shared interface exactly matters more than anything else.
 
-**Phase 4 in one line (report §6.2):** vulnerability querying with fault injection, and incident deadline tracking: REQ-03 to REQ-06, proven by AC-04 to AC-07.
+**Phase 5 in one line (report §6.3):** CRA compliance report generation, immutable audit logging, and cross-team test execution: REQ-07 and REQ-08, proven by AC-08, AC-09 and AC-10, plus a final run of the whole suite against Team 2's live URL.
+
+| Report §6.3 field | Phase 5 commitment |
+|---|---|
+| Capability | CRA report generation, immutable audit logging, cross-team test execution |
+| Artifacts | `/incidents/{incidentId}/reports/{stage}` (and the report-data PUT it needs), `/audit-logs`, final cross-team testing scripts |
+| Uncertainty to reduce | Audit-log immutability; complete persistence across process restarts |
+| Demonstration | Retrieve a formatted JSON stage report; run the automated suite against Team 2's live URL |
+| Automated validation | AC-08 (REQ-07), AC-09 and AC-10 (REQ-08) |
 
 ---
 
-## 2. Where we are after Phase 3
+## 2. Where we are after Phase 4
 
-### 2.1 What exists and works (on `main`)
+### 2.1 What exists and works (on `main`, `bee2b44`)
 
 | Area | State |
 |---|---|
-| Releases | `POST /api/v1/releases`, `GET /api/v1/releases/{releaseId}`; support status computed on read; duplicate → 409 |
-| SBOMs | `PUT /api/v1/releases/{releaseId}/sbom` with CycloneDX 1.4–1.6 schema validation, atomic replace; `GET .../components` |
-| Audit log | Written in the same transaction as every change; SQLite triggers block UPDATE/DELETE; `GET /api/v1/audit-logs`; PATCH/DELETE → 405 |
-| Test support | `POST /api/v1/test/reset`, `PUT /api/v1/test/clock` (gated by `ENABLE_TEST_ENDPOINTS`) |
-| Autograder harness | `GET /test`, `/test/setup`, `/test/run`, `/test/report` on both the system and the tester (`app/harness.py`, `tester/harness.py`) |
-| Tester | Separate service (`tester/`, port 8081) running AC-01–AC-03 + contract checks against any base URL; 32 required + 3 informational checks |
-| Ops | `/health` (DB writable), Docker Compose, named volume, GCE e2-medium VM in `us-central1-a` (4 GB RAM), `deploy/gcp.sh update/status` |
-| CI | ruff, ruff format, strict mypy, pytest, OpenAPI contract check |
-| Docs | `docs/openapi.yaml` (contract), `docs/decisions.md`, README with models + known limitations, `spikes/dependency_track/RESULTS.md` |
+| Releases, SBOMs, components | Done (AC-01..AC-03). CycloneDX 1.4–1.6, nested components flattened, atomic replace, 400 for SBOMs nested too deeply (`820a730`) |
+| CVE query + fixture source | Done (AC-04, AC-05). `VULN_SOURCE=fixture` is the only source built |
+| Incidents and deadlines | Done (AC-06, AC-07). Computed on read in `app/services/deadlines.py` |
+| Audit log | `GET /api/v1/audit-logs`, PATCH/DELETE → 405, triggers block UPDATE/DELETE, entries written in the same transaction as releases, SBOMs, incidents, fixes and submissions |
+| Not built | `PUT /api/v1/incidents/{incidentId}/report-data/{stage}`, `GET /api/v1/incidents/{incidentId}/reports/{stage}` (both listed in `app/contract_status.py` `NOT_YET_IMPLEMENTED`) |
+| Tester + harness | `tester/` runs AC-01..AC-07 against any URL; `/test`, `/test/setup`, `/test/run`, `/test/report` on both services, in the autograder format (`68b4261`, `2d7a905`) |
+| CI | Stages A–F (static, unit, acceptance, tester, coverage ≥ 85%, docker-build, container-smoke with a restart check). 99.07% coverage |
+| Ops | GCE `e2-medium`, system `http://136.116.160.182:8080`, tester `:8081`; `deploy/gcp.sh update/rollback/status`; nightly backup cron; JSON request logs |
+| Tags | `phase3` → `9c0b191`, `phase4` → `e864340` |
 
-**Requirement status:** REQ-01 complete (AC-01). REQ-02 partial: AC-02 and AC-03 pass, but nested components are not stored yet. REQ-08 partial: logging exists for releases and SBOMs only.
+### 2.2 Grading and cross-team history
 
-### 2.2 Cross-team results from Phase 3
-
-| Direction | Result | Main problem |
+| Item | Result | Lesson |
 |---|---|---|
-| Our tester → Team 2 | 31/33 checks passed | Team 2 has no `GET /api/v1/audit-logs` yet (their item) |
-| Team 2's suite → us | 128/157 passed | Our `PUT /api/v1/test/clock` rejected UTC offsets and dropped fractional seconds (**our item, fix in §4**) |
+| Phase 2 report | 26.25/28 | Deductions still open in the shared spec: §10 |
+| Phase 3 | 45/100; every lost point was the `/test` harness format | Fixed in `68b4261` and `2d7a905`. **Before Phase 5 grading, confirm the harness format against the Phase 5 assignment text** (§5.2) |
+| Team 2 → us, 2026-11-02 | 341/353 (96.6%) | 12 failures, all ours to fix: §4 items 1–4 |
+| Us → Team 2, 2026-11-02 | 48/50 recorded in `86ded5e`, then **reverted** in `07eadf7` with no reason given | No ours-to-Team-2 report exists, so G3 was never measurable. Redo it in Phase 5 (§6.9) |
 
-### 2.3 Known gaps carried into Phase 4
+### 2.3 Unknown state to check first
 
-Prepared fixes from Phase 3 were **never merged**, and the patch files no longer apply cleanly because `test_support.py` and `main.py` changed. Re-implement them from the descriptions in §4.
+- **What's deployed.** The last recorded deploy is `e864340` (2026-11-01). The harness fixes (`68b4261`, `2d7a905`), the deep-nesting 400 (`820a730`) and the year-padding fix (`2591c73`) may not be live. Read `GET http://136.116.160.182:8080/health` (`commit`) and record what you find. Don't deploy without asking.
+- **Live data.** Team 2's 2026-11-02 run reset the live data and froze the clock at `2026-11-01T23:59:59Z`. `docs/issues.md` still lists the re-seed as open.
+- **Phase 4 grade and feedback.** Not in the repo. Ask a team member; any Phase 4 feedback becomes an issue.
 
 ---
 
 ## 3. Decisions already made (do not revisit without asking)
 
+Everything in `docs/PHASE4_HANDOFF.md` §3 still holds: FastAPI + SQLite (WAL, `BEGIN IMMEDIATE`) on a named volume; deadlines computed on read with no timer service, scheduler or push alerts; `awareness_at` supplied by a person; one injectable clock; audit rows in the same transaction as the change, with triggers blocking edits; shared fixtures used unchanged; no scope cuts without both teams and the instructor. All Phase 3 and Phase 4 answers in `docs/decisions.md` stand.
+
+New for Phase 5:
+
 | Area | Decision | Why |
 |---|---|---|
-| Framework / DB | FastAPI + SQLite on a named volume (WAL, `BEGIN IMMEDIATE`) | Single-instance prototype |
-| Deadlines | **Computed on read** from stored timestamps and the injectable clock. **No timer service, no Temporal, no TheHive, no background scheduler.** | Follows the test clock exactly (AC-07, 0 s tolerance); survives restarts (AC-10) |
-| Awareness time | `awareness_at` is **supplied by a person**; the system never infers it | Pod agreement, Sept 26, 2026 (REQ-05) |
-| Audit log | Same transaction as the change; triggers block edits | REQ-08 |
-| Clock | One `Clock`; nothing else calls `datetime.now()` | Determinism |
-| Shared fixtures | `fixtures/` used unchanged by both teams | Agreed with Team 2, Oct 17, 2026 |
-| Nested components | **Recursively flatten**; count every depth | Agreed (exclusions and duplicates still proposals, see `docs/decisions.md`) |
-| Vulnerability matching | **Pending pod decision.** The spike recommends **local matching in SQLite** instead of Dependency-Track (see §6.1). The shared spec currently says *"Dependency-Track is the only CVE source"* (report §2.2 limits) and shows DT in the shared boundary diagram (§2.1), so switching is a **shared-scope change**: both teams must agree and the instructor must sign off before §2.2 changes | DT needs ~8 GB RAM, the NVD mirror, and waiting for background analysis |
-| Scope | **No scope cuts without sign-off.** Report §6.4 says the pod *would* drop voluntary classification (REQ-05) or unreachable-source fault injection (REQ-04, AC-05) if behind. Course rules forbid reducing shared scope unilaterally: if Phase 4 falls behind, tell a team member; never drop a requirement on your own | Phase 3 rules: both teams + instructor sign-off |
-| Deadline alerts | **No push alerts in Phase 4.** Overdue status is visible on every `GET /incidents/{id}`. REQ-06 doesn't require alerts (report §7.2), but the shared boundary diagram (§2.1) and behavior model (§3.2) still show alerts, so they need updating (§11) | Compute-on-read design; a poller can add reminders later |
+| Reports are computed on read | `GET .../reports/{stage}` builds the report from stored report data and the clock every time. No stored report snapshots | Same reasoning as deadlines: deterministic under the test clock and nothing to drift after a restart |
+| Report data storage | One row per (incident, stage) holding the stage's fields as JSON, replaced as a whole on PUT (pending P5-Q3) | Matches PUT semantics; one write and one audit entry per PUT |
+| No legal judgment | The system never fills in report text, decides a field is "not applicable", or submits a report | Report §2.2 exclusions; REQ-07 only lists what is missing |
+| Production vulnerability source | Unchanged: fixture source only until the instructor signs off the OSV snapshot (decision Q8) | Shared-scope change |
 
-**Diagram and text warning:** Phase 2 diagrams still show an external timer service, deadline alerts, `Waiting`/`Late` deadline states, `timer_id`, and routes like `/cases`, `/cves/{id}` and `POST /cases/{id}/events`. Report text also says `awareness_time` (report §1.3; the contract field is **`awareness_at`**), and report §4.3 describes AC-05 as *stopping* the mock vulnerability service (the contract does it with `PUT /api/v1/test/vulnerability-source` and `mode: unreachable`). **All of that is outdated.** Where a diagram disagrees with `docs/openapi.yaml` or this file, follow the contract and this file.
+**Outdated material warning (still true):** the Phase 2 diagrams show a timer service, deadline alerts, `Waiting`/`Late` states, `timer_id`, routes such as `/cases` and `GET /releases/{id}/sbom`, and the report text says `awareness_time`. Follow `docs/openapi.yaml`, `docs/decisions.md` and this file.
 
 ---
 
-## 4. Phase 3 carry-over (first coding task, in this order)
+## 4. Problems to fix first (carry-over, in this order)
 
-Each item is a separate commit with its own regression test.
+Each item is one commit with its own regression test. Items 1–4 are Team 2's 12 failures (`docs/test-reports/2026-11-02-cross-team-team2-to-ours.md`); their expected behavior is pod question P5-Q9, but items 1, 2 and 4 only make us stricter or more lenient in the direction RFC 3339 and the contract already point, so build them now and record them in `docs/decisions.md` as "awaiting Team 2".
 
-1. **Non-blocking SBOM upload.** `put_sbom` in `app/routers/sbom.py` is `async` but calls blocking validation and SQLite code, which freezes the whole server during a large upload (`/health` took ~9 s at 5,000 components). Run `_store(...)` through `starlette.concurrency.run_in_threadpool`. `BEGIN IMMEDIATE` already makes concurrent writers safe.
-2. **Flatten nested components** (agreed). Walk `components[].components[]` recursively. Apply the "missing version → reject whole SBOM" rule at every depth. `component_count` counts every stored component. Do **not** include `metadata.component` or `metadata.tools`. Error messages should give the path (for example, `components[3].components[0] is missing required field: version`).
-3. **Timestamp parsing (our cross-team failure).** Change `parse_utc` in `app/routers/test_support.py` so that it:
-   - accepts `Z` **or** a numeric offset (`+02:00`, `-05:30`, `-00:00`) and converts to UTC;
-   - still rejects timestamps with no zone;
-   - keeps fractional seconds (truncate beyond microseconds).
-
-   Responses always end in `Z`: whole seconds when there's no fraction, otherwise six-digit microseconds (`2026-11-01T23:59:59.100000Z`). Move `parse_utc` and the formatter into `app/clock.py` (or a `timeutil.py`) because Phase 4 uses them for `awareness_at`, `fix_available_at` and `submitted_at` too. `app/harness.py` imports `parse_utc`, so update that import. Test with Team 2's exact inputs: `-00:00`, `+02:00`, `-05:30`, `+05:45`, `+23:59`, `-23:59`, `.1Z`, `.123456+02:00`, `.123456789Z`. This depends on the pod agreeing the Section 5 amendment (§10 Q1), but it's a superset of the current behavior, so build it now.
-4. **Short duplicate-component error.** When the CycloneDX validator fails with `uniqueItems`, don't pass its message through (it embeds the whole array, about 37K characters). Return `components contains duplicate entries: components[i] repeats components[j]`.
-5. **Blank names.** Whitespace-only `product` or `version` → 400 `must not be blank`. Store values exactly as sent.
-6. **Content-Type message.** A JSON body sent with a non-JSON `Content-Type` → `Content-Type must be application/json`, not "not valid JSON".
-7. **Stray 422 in generated OpenAPI.** Remove `422` from every operation and drop the `HTTPValidationError`/`ValidationError` schemas. Extend the contract test to fail on response codes the contract doesn't list, not only on missing ones.
-8. **Smoke test DB.** `tests/unit/test_smoke.py` must use `tmp_path`, not `./data`.
-
-After these, **tag the deployed commit** `phase3` (a human runs `git tag phase3 <hash> && git push origin phase3`), redeploy, and ask Team 2 to rerun their suite.
+1. **Trailing newline accepted (5 failures).** Python's `$` matches before a final `\n`, so `2026-11-01T12:00:00Z\n` and `CVE-2023-25577\n` pass and the CVE ID is even stored with the newline. Use `fullmatch` (or `\Z`) in `app/clock.py` `_TIMESTAMP`, `app/models.py` `CVE_ID` and `_DATE_RE`, and grep `app/` and `tester/` for any other `re.compile(r"^…$")` or `.match(` used for validation. Tests: `\n`, `\r\n` and a trailing space on `now`, `awareness_at`, `fix_available_at`, `submitted_at`, `support_end_date`, `cve_id` (incident and CVE query path) → 400, nothing stored.
+2. **Lowercase `t` and `z` rejected (4 failures).** RFC 3339 §5.6 allows them, and the contract's `format: date-time` is RFC 3339. Accept `2026-11-01t23:59:59z` and `…t…+02:00`; output stays `…T…Z` through `format_utc`. Keep rejecting a missing zone. Tests: unit tests in `tests/unit/test_clock.py` plus one acceptance test per timestamp field.
+3. **SBOM upload ignores `Content-Type` (1 failure).** `put_sbom` reads the raw body and never checks the media type; the contract's request body lists only `application/json`. Return 400 `Content-Type must be application/json` for any other type. Proposed accepted set (P5-Q9): `application/json` and `application/vnd.cyclonedx+json`, with parameters such as `charset`. A **missing** header is the open part of P5-Q9: build the check so the accepted set is one constant, and ask before deciding the missing-header case. Check that `tester/checks.py`, `scripts/smoke.sh`, `scripts/container_smoke.py` and the acceptance tests all send `application/json` before you flip it.
+4. **Invalid-UTF-8 message (2 failures).** `app/services/sbom_validation.py` says "request body is not valid UTF-8 text". Say `request body is not valid JSON: not UTF-8 text`, keeping 400 `INVALID_JSON`.
+5. **Gate the only audit-deleting path.** `Database.reset()` drops the triggers and deletes `audit_log`. It's reachable only through `/api/v1/test/reset` and the system's `/test/setup`, both mounted only when `ENABLE_TEST_ENDPOINTS=true`. AC-09 asks for code inspection that "no update or delete paths exist", so make that obvious: `reset()` takes the settings (or a flag) and raises unless test endpoints are enabled, and a test proves a production-configured app has no route that reaches it. Document it in `docs/audit-immutability.md` (§6.6).
+6. **Re-seed the live demo data and return the live clock to real time** (human or with permission): `POST /api/v1/test/reset`, then the seed in `docs/test-reports/2026-11-01-deploy-full.md` ("Live data afterwards").
+7. After 1–5: ask before deploying with `deploy/gcp.sh update`, run the post-deploy checks, then ask Team 2 to rerun their Phase 4 suite. Record it as a new `docs/test-reports/YYYY-MM-DD-cross-team-team2-to-ours.md`.
 
 ---
 
@@ -136,348 +137,263 @@ After these, **tag the deployed commit** `phase3` (a human runs `git tag phase3 
 
 | File | Use |
 |---|---|
-| `docs/openapi.yaml` | **Single source of truth** for paths, fields, enums, status codes |
-| `docs/phase2_report.pdf` | §3.1 requirements, §4.1 acceptance criteria, §5.2 examples, §6.2 Phase 4 milestone, §7.2 design decisions, §9 risks |
-| `docs/decisions.md` | Pod decisions and their status. Add every Phase 4 answer here |
-| `fixtures/sbom_25_components.json`, `fixtures/releases.json` | Shared, signed off |
-| `spikes/dependency_track/RESULTS.md`, `expected.json`, `spike.py` | DT findings; the five candidate CVEs; `replacement_sbom()` that builds a patched SBOM |
+| `docs/openapi.yaml` | **Single source of truth.** Phase 5 sections: `/incidents/{incidentId}/report-data/{stage}`, `/incidents/{incidentId}/reports/{stage}`, `/audit-logs`, schemas `ReportData`, `GeneratedReport`, `AuditEvent`, `ReportStage` |
+| `docs/phase2_report.pdf` | §3.1 REQ-07/REQ-08, §3.2 information model (report invariant: "that stage's Section 5 fields as JSON, plus a missing_fields list naming every empty one"), §4.1 AC-08..AC-10, §4.3 how others evaluate AC-09/AC-10, §5.2 example 8 (report data), §6.3 Phase 5 milestone |
+| `docs/decisions.md` | Every pod answer. Add Phase 5 answers here |
+| `docs/pod-questions-phase5.md` | **New.** The eleven Phase 5 questions with proposed answers, ready to send to Team 2 |
+| `fixtures/report_cases.json` | **New, DRAFT.** AC-08 cases: two mandatory incidents with report data for all three stages and expected `missing_fields`, plus informational edge cases |
+| `docs/PHASE4_HANDOFF.md`, `docs/PHASE4_PROGRESS.md` | Phase 4 rules, CI stages, deploy checklist, how the work was done (tooling notes for `uv`, Windows, ports 18080/18081) |
+| `scripts/container_smoke.py` | Seed → restart → verify; the base for AC-10 |
 
-### 5.2 Needed before AC-04 can be automated (**REQUIRED**, human-verified, pod-shared)
+### 5.2 Needed before the matching work can be called done (**REQUIRED**)
 
-| File (proposed) | Contents |
-|---|---|
-| `fixtures/sbom_patched.json` | Second SBOM with fixed versions (werkzeug 2.2.3, flask 2.2.5, requests 2.31.0; pyyaml dropped; tomli 2.0.1 added), as in the spike's `replacement_sbom()` |
-| `fixtures/vulnerabilities.json` | `VulnerabilityFixture` records: `{cve_id, affected_purls}` for the seeded CVEs, loaded through `PUT /api/v1/test/vulnerability-source` |
-| `fixtures/cve_dataset.json` | Seeded releases for AC-04: which release gets which SBOM, and support-end dates so some affected releases are **supported** and some **unsupported** at the reference clock |
-| `fixtures/ground_truth.json` | For each test CVE: expected `supported` and `unsupported` release keys and matched purls. Include one **known CVE with no matches** (CVE-2019-11324) and one **unknown CVE** (CVE-2099-0001) for AC-05 |
+| Item | Why | Who |
+|---|---|---|
+| Team 2's answers to `docs/pod-questions-phase5.md`, at least P5-Q1..Q7 | The report endpoints and AC-08/AC-09 checks depend on them | A team member sends them; record answers in `docs/decisions.md` |
+| `fixtures/report_cases.json` verified by one checker per team | Ground truth is human-verified (report Q4.2, Q8.2) | Names and date in `docs/decisions.md` and `fixtures/README.md` |
+| The Phase 5 assignment text, saved as `docs/phase5_assignment.md` | Phase 3 lost 55 points on harness format alone; the Phase 5 deliverables, report questions and harness expectations must be checked against the real text | A team member. **If it's missing, ask before changing anything in `app/harness.py` or `tester/harness.py`** |
+| Team 2's final live URL and a run window | Final cross-team runs (§6.9) | A team member |
 
-> **Rule:** Claude Code may generate the *structure* of these files and draft candidate values from the spike, but **must not decide the expected results.** The spike's five CVEs are candidates checked against OSV on Oct 17, 2026, not pod ground truth. A team member checks every expected value, Team 2 signs off, and the date is recorded in `docs/decisions.md` **before** the AC-04 tests are treated as authoritative. If these files are missing, stop and ask.
-
-### 5.3 Environment
-
-- Deployment: GCE `e2-medium` (4 GB), API on 8080, tester on 8081. **Dependency-Track will not fit**; if the pod keeps DT, a human must upgrade the VM to ≥ 8 GB first.
-- Secrets: none needed unless DT is used (then a DT API key in the host `.env` only).
+> **Rule (unchanged):** Claude Code may write test code and draft fixture *structure*, but **never decides expected results**. `fixtures/report_cases.json` was drafted by Claude from CRA Art. 14(2) and the contract; its expected values become authoritative only after the human checks above. If a decision changes the stage-to-field mapping, a person updates the fixture.
 
 ---
 
-## 6. Phase 4 scope: what to build
+## 6. Phase 5 scope: what to build
 
-**Capability (report §6.2):** vulnerability querying with fault injection, and incident deadline tracking.
-
-### 6.1 Vulnerability source (design)
-
-Put matching behind one interface so the pod's DT decision doesn't change the rest of the code:
-
-```python
-class VulnerabilitySource(Protocol):
-    def affected_purls(self, cve_id: str) -> frozenset[str] | None: ...
-        # None  → CVE unknown to the source
-        # raises SourceUnavailable → source unreachable
-```
-
-- **`FixtureSource` (required).** Backed by a SQLite table that `PUT /api/v1/test/vulnerability-source` fills. It has a `mode` of `available` or `unreachable`. This is what every graded test uses.
-- **Production source (decide with the team before building).** If the pod accepts the spike's recommendation, this is a local table loaded from a saved OSV snapshot. If the pod keeps DT, write a `DependencyTrackSource` that waits for DT's processing token, needs the NVD mirror, and has SBOMs uploaded without `cpe` fields (a CPE caused a false positive in the spike). **Don't build either until a team member confirms.** Select the source by environment variable (for example `VULN_SOURCE=fixture|osv_snapshot|dependency_track`).
-
-### 6.2 Endpoints to implement (exact paths from `openapi.yaml`)
+### 6.1 Endpoints (exact paths from `openapi.yaml`)
 
 | Method & path | Purpose | Reqs |
 |---|---|---|
-| `GET /api/v1/vulnerabilities/{cveId}/affected-releases` | Affected releases grouped by current support status → `200 AffectedReleaseResult`; `404 CVE_UNKNOWN`; `503 VULNERABILITY_SOURCE_UNREACHABLE` | REQ-03, REQ-04 |
-| `PUT /api/v1/test/vulnerability-source` | Test only: `{mode, records}` → `200`. Gated like the other test endpoints | AC-04, AC-05 |
-| `POST /api/v1/incidents` | Open a case → `201 Incident`; `400` invalid | REQ-05, REQ-06, REQ-08 |
-| `GET /api/v1/incidents/{incidentId}` | Case with computed deadlines → `200`; `404` | REQ-05, REQ-06 |
-| `PATCH /api/v1/incidents/{incidentId}` | Record `fix_available_at` → `200 Incident`; `400`; `404` | REQ-06, REQ-08 |
-| `POST /api/v1/incidents/{incidentId}/submissions` | Record `{stage, submitted_at}` → `201 Incident`; `400`; `404` | REQ-06, REQ-08 |
+| `PUT /api/v1/incidents/{incidentId}/report-data/{stage}` | Store the stage's report data → `200`; `400` invalid stage, field or type; `404` unknown incident. `X-User-Id` required. Audit `REPORT_DATA_STORED` | REQ-07, REQ-08 |
+| `GET /api/v1/incidents/{incidentId}/reports/{stage}` | `200 GeneratedReport`; `404` unknown incident; `400` invalid stage **only if P5-Q5 adds it to the contract** | REQ-07 |
+| `GET /api/v1/audit-logs`, `PATCH`/`DELETE /api/v1/audit-logs/{eventId}` | Already built; AC-09 verifies them | REQ-08 |
 
-Also: `POST /api/v1/test/reset` must now also clear incidents, submissions and the vulnerability-source table, and restore the source to its default state (§10 Q8). Extend `/health` to report the source mode, and for a real source, whether it's reachable.
+Remove both report operations from `app/contract_status.py` as you build them (the contract test fails if you forget), and declare `responses=` that match `docs/openapi.yaml` exactly. Contract changes from P5-Q3 (PUT 200 body) and P5-Q5 (GET 400) go into one commit agreed with Team 2, as `c249e2c` did in Phase 4.
 
-### 6.3 CVE query behavior (REQ-03, REQ-04)
+### 6.2 Which fields belong to which stage (proposal P5-Q1, from CRA Art. 14(2))
 
-1. Validate the `cveId` format `^CVE-[0-9]{4}-[0-9]+$` (invalid format → see §10 Q6).
-2. **Check reachability first.** If the source is unreachable → `503 VULNERABILITY_SOURCE_UNREACHABLE` (never an empty list, never 404), and do it within AC-05's 15 s, so real sources need a timeout.
-3. If the CVE is unknown → `404 CVE_UNKNOWN`.
-4. Otherwise, a release is affected if **any stored component's `purl` matches an affected purl** (matching rule: §10 Q7). Components without a purl can't match.
-5. Group by support status **at the clock's current time** (same rule as REQ-01). Each entry lists `matched_components`.
-6. A known CVE affecting nothing → `200` with empty `supported` and `unsupported` arrays.
-7. Sort releases deterministically (for example by product, then version, then release_id) and components by name, then version.
-8. Read-only: no audit entry.
+| Stage | Article | Required (listed in `missing_fields` when missing) | Optional (in `data` when supplied, never "missing") |
+|---|---|---|---|
+| `early_warning` | 14(2)(a) | `member_states` | — |
+| `vulnerability_notification` | 14(2)(b) | `product_information`, `exploit_nature`, `vulnerability_nature`, `corrective_measures_taken`, `user_mitigations` | `sensitivity` ("where applicable") |
+| `final_report` | 14(2)(c)(i)–(iii) | `vulnerability_description`, `severity`, `impact`, `corrective_measure_details` | `malicious_actor_information` ("where available") |
 
-### 6.4 Incident and deadline behavior (REQ-05, REQ-06)
+This agrees with the report's §5.2 example 8, where a notification without `sensitivity` returns `missing_fields: []`. Put the mapping in one place (`app/services/reports.py` `STAGE_FIELDS`), ordered as in the `ReportData` schema, and drive validation, `missing_fields` and the tester from it. **Don't build the endpoints on this mapping until Team 2 has answered P5-Q1**; the pure functions and their tests can be written now.
 
-**Create:** body `IncidentCreate` (`cve_id` optional/nullable, `awareness_at`, `classification` ∈ {mandatory, voluntary}, `rationale` non-blank). `created_by` comes from `X-User-Id`. Write `INCIDENT_CREATED` to the audit log in the same transaction.
+### 6.3 Report-data behavior (REQ-07, REQ-08; proposals P5-Q2..Q5)
 
-**Store timestamps only.** Store `awareness_at`, `fix_available_at` and one row per submission. **Never store `deadline_at` or `status`**; compute both on every read. Drop `timer_id` from the Phase 2 data model.
+1. Check the incident exists (404 `INCIDENT_NOT_FOUND`) and the stage is one of the three (400 `INVALID_REQUEST`), in that order, before reading the body.
+2. Body must be a JSON object. Each key must be a field of **this stage** (another stage's field or an unknown key → 400 naming the field). `member_states` must be an array of strings; every other field a string. Wrong type → 400 naming the field. Use the shared error shape and the `"<field> <reason>"` message style.
+3. Store values exactly as sent (no trimming), replacing the stage's previous data in one transaction with the audit entry `REPORT_DATA_STORED`, `entity_type: incident`, `entity_id: <incidentId>`, `details: {"stage": …, "fields": [sorted keys supplied]}`. Don't copy the text into the audit details.
+4. Voluntary incidents and a final report before `fix_available_at` are allowed (P5-Q5).
+5. 200 response: the `GeneratedReport` for the stage (P5-Q3). Until P5-Q3 is answered, return it anyway: a body on a 200 the contract leaves empty doesn't break a client, but tell Team 2.
+6. An invalid request stores nothing and writes no audit entry.
 
-**Deadline rules** (mandatory cases):
+### 6.4 Report generation (REQ-07)
 
-| Stage | `deadline_at` |
-|---|---|
-| `early_warning` | `awareness_at + 24 h` |
-| `vulnerability_notification` | `awareness_at + 72 h` |
-| `final_report` | `fix_available_at + 14 days` if recorded, else `null` |
+`GET .../reports/{stage}` returns:
 
-**Status rules**, where `now` is the clock time and every comparison is a timezone-aware UTC `datetime`:
+```json
+{
+  "incident_id": "inc-…",
+  "stage": "vulnerability_notification",
+  "generated_at": "<clock now, format_utc>",
+  "data": { "<only the stage's supplied fields>": "…" },
+  "missing_fields": ["<required fields of the stage that are missing, in schema order>"]
+}
+```
 
-| Condition | `status` |
-|---|---|
-| Voluntary case, or `final_report` with no `fix_available_at` | `not_applicable` (`deadline_at: null`) |
-| Submitted and `submitted_at ≤ deadline_at` | `met` |
-| Submitted and `submitted_at > deadline_at` | `overdue` (proposal, §10 Q2) |
-| Not submitted and `now ≤ deadline_at` | `pending` |
-| Not submitted and `now > deadline_at` | `overdue` |
-
-**Boundary semantics (AC-07, 0 s tolerance):** a submission **exactly at** the deadline is `met`. At `now == deadline_at` an unsubmitted stage is still `pending`, and one second later it is `overdue`. Use `timedelta(hours=24)`, `timedelta(hours=72)` and `timedelta(days=14)`. Never use local time or calendar libraries.
-
-**PATCH fix_available_at:** sets the final-report deadline; audit `FIX_AVAILABLE_RECORDED`. **Submissions:** audit `SUBMISSION_RECORDED` with the stage. Edge cases are in §10 Q3–Q5; ask before choosing.
+- A required field is missing when it's absent, `null`, an empty or whitespace-only string, or an empty `member_states` array (P5-Q2). A stage with nothing stored returns `data: {}` and every required field in `missing_fields`.
+- `data` never contains nulls, fields from other stages, or anything the system made up (P5-Q6).
+- Read-only: no audit entry, nothing stored.
+- Keep the logic in pure functions (`missing_fields(stage, data) -> list[str]`, `build_report(...)`) with unit tests written first, the way `deadlines.py` was done. Mark the commit `needs-human-review`.
 
 ### 6.5 Data model additions
 
 ```
-incidents(incident_id PK, cve_id NULL, awareness_at, created_by, classification, rationale,
-          fix_available_at NULL, created_at)
-submissions(incident_id FK, stage, submitted_at, recorded_by, recorded_at,
-            PRIMARY KEY(incident_id, stage))     -- uniqueness depends on §10 Q3
-vulnerability_fixture(cve_id, purl)               -- test source records
-vulnerability_source_state(mode)                  -- 'available' | 'unreachable'
+report_data(incident_id FK → incidents ON DELETE CASCADE, stage, data TEXT /* JSON object */,
+            updated_by, updated_at, PRIMARY KEY (incident_id, stage))
 ```
 
-Add a migration for existing databases, as was done for `releases.sbom_stored_at`.
+`CREATE TABLE IF NOT EXISTS` covers existing databases (no column changes, so no `_migrate` step). Add `DELETE FROM report_data` to `Database.reset()` before `DELETE FROM incidents`.
 
-### 6.6 Acceptance criteria to automate
+### 6.6 Audit log (REQ-08, AC-09)
 
-- **AC-04 (REQ-03):** Load `cve_dataset.json` and `vulnerabilities.json`, query the five test CVEs. Pass if each query finishes in ≤ 10 s and matches `ground_truth.json` with 100% recall, 100% precision, and correct supported/unsupported grouping.
-- **AC-05 (REQ-04):** Query a known CVE with no matches (→ 200, empty arrays), an unknown CVE (→ 404 `CVE_UNKNOWN`), and a valid CVE with the source set to `unreachable` (→ 503 `VULNERABILITY_SOURCE_UNREACHABLE`). The errors must arrive within 15 s.
-- **AC-06 (REQ-05):** Valid mandatory and voluntary cases are stored with user, classification and UTC awareness time (±2 s), and the rationale is intact. Missing rationale or invalid classification → 400 with nothing stored.
-- **AC-07 (REQ-06):** Fixed awareness and fix-available times with the injected clock. Check the initial deadlines exactly. Record the early warning **exactly at** +24 h → `met`. Advance the clock to **72 h + 1 s** with no notification → `overdue`. Record the final report **13 days** after the fix → `met`.
+The audit log exists; Phase 5 proves it.
 
-Add **unit tests for the deadline math** covering before, at and after each deadline; month and year rollover (for example awareness `2026-12-31T23:30:00Z`); fractional seconds; offset inputs normalized to UTC; and a voluntary case. Add every new AC to `tester/checks.py` as required checks, and to the harness `/test/run`. A team member reviews the deadline code and its tests; AI-written tests alone don't count (report Q8.2).
+- **Inventory.** List every state-changing route and the action it writes in `docs/audit-immutability.md`: `RELEASE_REGISTERED`, `SBOM_STORED`/`SBOM_REPLACED` (entity `release`), `INCIDENT_CREATED`, `FIX_AVAILABLE_RECORDED`, `SUBMISSION_RECORDED`, `REPORT_DATA_STORED` (entity `incident`). Test endpoints write none (P5-Q7). Add a test that walks the generated OpenAPI and fails if a POST/PUT/PATCH route outside `/api/v1/test` and `/test` has no audit test.
+- **Timestamps** come from the injected clock (they already do), so with the test clock set they equal the clock exactly.
+- **Immutability evidence** for the code-inspection half of AC-09, in `docs/audit-immutability.md`: the two triggers, `app/services/audit.py` (INSERT only), the routes that return 405, and the gated `reset()` from §4 item 5. Back it with:
+  - `tests/unit/test_audit_immutability.py`: scans every `.py` under `app/` for SQL that names `audit_log` and fails on any `UPDATE`, `DELETE`, `DROP` or `REPLACE` outside `Database.reset`; and checks a raw `UPDATE`/`DELETE` on `audit_log` raises `sqlite3.IntegrityError` ("audit log is append-only"). That's G7.
+  - The known limit, stated plainly: anyone with write access to the SQLite file can drop the triggers (report Q8.1 already says this). Backups are the mitigation.
 
-### 6.7 Demonstration of completion (report §6.2)
+### 6.7 Persistence across restarts (REQ-08, AC-10)
 
-Using the test clock, open a mandatory incident and show the computed 24 h and 72 h deadlines. Query a CVE and get the affected releases grouped by support status. Show 503 when the source is set to unreachable. AC-04 to AC-07 should pass in CI and in the tester against our live URL.
+- Extend `scripts/container_smoke.py` `seed`/`verify` to cover everything AC-10 names plus Phase 5 state: release, components, an SBOM **replace**, the vulnerability records and one CVE query result, a mandatory incident with a fix and a submission (computed deadlines), report data for all three stages and the three generated reports, and the full audit log. Compare JSON exactly after re-setting the same test clock; that is the "0-second timestamp drift".
+- Run it in CI stage F (already wired) and live on the VM (§8).
+- For cross-team AC-10 (P5-Q8, proposed two-step): add `tester ac10-snapshot <url> <file>` and `tester ac10-verify <url> <file>` commands (reuse `container_smoke.py`'s logic so there is one implementation), and document the procedure in the README. Don't add a restart endpoint unless Team 2 chooses that option.
 
-### 6.8 Out of scope for Phase 4 (Phase 5)
+### 6.8 Acceptance criteria to automate
 
-`PUT .../report-data/{stage}`, `GET .../reports/{stage}`, `missing_fields` (REQ-07, AC-08); the full AC-09 and AC-10 automation. Do write audit entries for every new Phase 4 change now.
+- **AC-08 (REQ-07):** load `fixtures/report_cases.json`; create both incidents, record each fix, PUT each stage's data, set the clock to `reference_clock`, GET all six reports. Pass if every response is a valid `GeneratedReport`, `generated_at` equals the clock, `data` equals what was PUT, the complete case has `missing_fields: []` for every stage, and the incomplete case lists exactly `exploit_nature` and `user_mitigations` for `vulnerability_notification` (as a set) and nothing for the other two. Edge cases are informational until their pod questions are answered (`required: false` in the fixture), except `unknown_incident` (404 is in the contract).
+- **AC-09 (REQ-08):** reset; with the test clock set and moved forward one minute before each step, and a different `X-User-Id` each time, register a release, upload `sbom_25_components.json`, open a mandatory incident, record an early-warning submission. Pass if the log has exactly four events in that order, each with the right `action`, `user_id`, `entity_type`, `entity_id` and a `timestamp` equal to the clock at that step (±2 s; exact for us), if a rejected request in between (for example an incident without `rationale`) adds no event, and if PATCH and DELETE on every event return 405 and leave the log unchanged. The code-inspection half is `docs/audit-immutability.md` plus G7's test. Action-name checks are informational until P5-Q7 is agreed.
+- **AC-10 (REQ-01, 02, 05, 06, 08):** §6.7. Pass if the state after restart equals the snapshot exactly.
+
+Add AC-08 and AC-09 to the tester as `tester/phase5.py` (same style as `tester/phase4.py`: required checks from the contract and AC text, informational checks for pod proposals), to both `/test/run` harnesses, and to `tests/acceptance/`. Update `tester/coverage.py` `ACCEPTANCE_CRITERIA` and the harness descriptions ("AC-01..AC-07" appears in `app/harness.py`, `tester/harness.py` and `docs/openapi.yaml`). A single `/test/run` can't restart the target, so decide with a team member how AC-10 counts in the harness's `system` coverage (for example, report it as exercised only by the two-step run) and **check that decision against the Phase 5 assignment text**; CI stage F currently asserts `system == 100.0`.
+
+### 6.9 Final cross-team testing (graded)
+
+- Agree a window with Team 2 (P5-Q10). Every run resets the target.
+- **Ours → Team 2:** our deployed tester against Team 2's URL with AC-01..AC-09 (and AC-10 two-step if they cooperate). Write `docs/test-reports/YYYY-MM-DD-cross-team-ours-to-team2.md` with a `Result: X/Y passed (in scope)` line, the tester commit, every failure with its owner, and coverage (component, system model; code is unmeasurable black-box). This report is the one that went missing in Phase 4.
+- **Team 2 → us:** after the §4 fixes are deployed. Same report format, `…-cross-team-team2-to-ours.md`.
+- A failure that's ours becomes an issue and a fix through the inner loop; a failure that's Team 2's, or a spec ambiguity, goes to them in writing and into the report.
+
+### 6.10 Demonstration of completion (report §6.3)
+
+On the live system: open a mandatory incident, PUT report data for each stage with one required field left out, GET the three reports and show the JSON with `missing_fields`; show the audit log for those actions and a 405 on PATCH; restart the API container and show the same state; show the final cross-team run reports. AC-08..AC-10 green in CI and against the live URL.
+
+### 6.11 Out of scope
+
+Submitting reports to ENISA, CSIRTs or anyone else; deciding reportability or inferring awareness; the one-month severe-incident final report (Art. 14(4)(c)); push alerts; authentication; the production vulnerability source until the instructor signs off; any report format other than the contract's JSON (no PDF or ENISA template).
 
 ---
 
 ## 7. Rules the implementation must follow
 
-All Phase 3 rules still apply: the contract is law, the error shape is `{"error": {"code", "message"}}`, invalid input is 400 (never 422), there is one injectable clock, support status is never stored, `X-User-Id` is required on POST/PUT/PATCH (test endpoints exempt), uploads are atomic, the audit log is append-only and written in the same transaction, test endpoints are gated, and no secrets go in the repo. New for Phase 4:
+All Phase 3 and 4 rules still apply: the contract is law; error shape `{"error": {"code", "message"}}`; invalid input is 400, never 422; one clock and one timestamp parser/formatter; nothing derived is stored (support status, deadlines, statuses, and now reports); `X-User-Id` required on POST/PUT/PATCH outside the test endpoints; validate fully before writing; every state change audited in the same transaction; test endpoints gated; no secrets in the repo. New for Phase 5:
 
-1. **Deadlines and statuses are computed, never stored.** No timers, schedulers or background jobs.
-2. **Reachability before existence.** An outage must never look like "CVE unknown" or "nothing affected."
-3. **Never return an empty affected-release list on failure.** Empty arrays mean "known CVE, nothing affected" only.
-4. **All timestamps through one parser and one formatter** (§4 item 3). Inputs may carry offsets; outputs are always UTC `Z`.
-5. **No legal judgment in code.** Never infer awareness or classification, and never decide reportability.
-6. **Every state change is audited**: incident created, fix recorded, submission recorded.
-7. **Ground truth is human-verified** (§5.2).
+1. **Report text is stored and returned exactly as sent.** No trimming, rewording, translation or auto-filling.
+2. **`missing_fields` comes from one stage-field table** shared by the app, the tests and the tester.
+3. **The audit log has exactly one INSERT path and one gated delete path** (`reset()` under test endpoints). Anything else is a G7 failure.
+4. **No AC checks on unagreed behavior as required checks.** Anything resting on a P5 proposal is informational until Team 2 agrees.
+5. **Ground truth is human-verified**, including `fixtures/report_cases.json`.
 
 ---
 
-## 8. Operations and observability (deferred from Phase 3, report §7.3)
+## 8. Operations and deployment
 
-- **Structured JSON request logs:** one line per request with request ID, `X-User-Id`, method, path, status, latency in ms, the clock value (and whether it's overridden), and any source error. Keep uvicorn's access log off or quiet so lines aren't duplicated.
-- **Signals to make visible (report §7.3):** per-endpoint error rates, p95 latency against AC-04's 10 s limit, how often the vulnerability source is unreachable (503 rate), SBOM rejections by reason, and overdue-deadline counts. The request ID and clock value in each log line are what report §7.4 relies on to replay a failing test.
-- **Nightly backup** with SQLite's online backup API, keeping 7 copies (a cron entry in `deploy/`).
-- **Uptime monitor** polling `/health` (a human sets this up, for example UptimeRobot).
-- Tag each deployed milestone (`phase4`) and redeploy with `deploy/gcp.sh update`.
+Unchanged from `docs/PHASE4_HANDOFF.md` §8 and §16 (deploy checklist, post-deploy checks, rollback, backups), plus:
 
----
-
-## 9. Cross-team testing (graded from Phase 4)
-
-- Before the milestone, run our tester against Team 2's base URL and have Team 2 run their suite against ours, at least once each way. Coordinate first: every run calls `/test/reset` and wipes the target's data.
-- Record per direction: date, run/passed counts, main problem and owner, and coverage (component: operations exercised; system model: CVE-query outcomes and deadline states covered; code: our `coverage` % when they test us).
-- Keep a short log in `docs/test-reports/` for each cross-team run.
+- **Build `post_deploy_check.sh --full`** (still missing; report §6.3 lists "final cross-team testing scripts" as a Phase 5 artifact). It resets the target, so it runs only on the evaluation deployment after warning Team 2: the tester (AC-01..AC-09), `scripts/smoke.sh`, then the AC-10 snapshot → `docker compose restart api` on the VM → verify, then re-seed the demo data. Print PASS/FAIL per step.
+- Add the two report operations to the non-destructive checks' expected OpenAPI paths (they come from `app/contract_status.py`).
+- **Ask before every deploy and before anything that writes to or resets the live system.** Deploy command and tooling notes: `docs/PHASE4_PROGRESS.md` "How the work was done".
+- After the final deploy: tag `phase5` (a human runs `git tag phase5 <sha> && git push origin phase5`), record the deploy and the full live run in `docs/test-reports/`, and re-seed the demo data including one incident with report data.
+- Still open from Phase 4: confirm the backup cron on the VM (one manual `sudo /opt/releasegate/deploy/backup.sh`), and an uptime monitor on `/health` (human).
 
 ---
 
-## 10. Open questions: ask before deciding
+## 9. Open questions: ask before deciding
 
-Both teams must behave the same way, so don't pick an answer silently. Propose, ask a team member, and record the outcome in `docs/decisions.md`.
+The full list, with proposed answers, is `docs/pod-questions-phase5.md`, ready to send to Team 2. In short:
 
-1. **Timestamp format amendment (Section 5).** Accept `Z` or numeric offsets on input, always return UTC `Z`, microsecond precision. *Proposal: yes (already implemented in §4).*
-2. **Late submissions.** The enum has no `late`. *Proposal:* a submission after its deadline stays `overdue`, with `submitted_at` set. Phase 2 diagrams show `Late`, and the grader flagged the mismatch, so the diagrams must be updated either way.
-3. **Duplicate submission for the same stage:** 409, replace, or keep the first? Submission for a `not_applicable` stage (voluntary case, or final report before a fix): 400? *Proposal: 400 for not_applicable; 409 for a duplicate.* The contract lists only 201/400/404, so a 409 needs a contract change; otherwise use 400.
-4. **Timestamp sanity.** `submitted_at` or `fix_available_at` before `awareness_at`: reject with 400? `awareness_at` or `submitted_at` later than the clock's now? *Proposal:* reject anything before `awareness_at`; allow future times (the test clock can be anywhere).
-5. **PATCH `fix_available_at` twice**, or on a voluntary case: overwrite, or reject? *Proposal:* allow overwrite (audited) on mandatory cases; on voluntary cases store it but deadlines stay `not_applicable`.
-6. **Malformed CVE ID** (`CVE-26-1`, `abc`): the contract gives no 400 for this operation. *Proposal: 400 `INVALID_REQUEST`*, added to the contract.
-7. **Matching key.** Exact `purl` string equality, as the fixture schema `affected_purls` suggests? Normalize case and qualifiers (`?package-id=…`)? What about components with no purl? *Proposal:* exact match after stripping qualifiers and subpaths; no purl → not matchable, and flag it in the logs.
-8. **State after reset.** *Proposal:* source mode `available` with **zero records**, so every CVE is unknown until a test loads records.
-9. **`cve_id` on an incident:** must it be known to the source? *Proposal:* format check only.
-10. **Vulnerability matching for production:** local OSV snapshot (spike recommendation) or Dependency-Track (Phase 1/2 choice)? Both teams chose DT, and report §2.2 names DT as the only CVE source, so switching needs pod agreement **and** instructor sign-off.
-11. **Deadline alerts:** confirm with the pod that Phase 4 has no push alerts (status is shown on read), and update the shared diagrams to match.
+| # | Question | Blocks |
+|---|---|---|
+| P5-Q1 | Fields per stage; required vs optional | Report endpoints, AC-08 |
+| P5-Q2 | What counts as missing | `missing_fields`, AC-08 edge cases |
+| P5-Q3 | PUT replace vs merge; 200 body | Report-data PUT, contract |
+| P5-Q4 | Other-stage, unknown and wrongly typed fields | Report-data validation |
+| P5-Q5 | Invalid stage (400 on GET is a contract addition); voluntary; final report before fix | Both endpoints, contract |
+| P5-Q6 | Content of `data` and `generated_at`; generation is read-only | Report generation |
+| P5-Q7 | Audit action vocabulary, what's logged, timestamps, ordering | AC-09 required checks |
+| P5-Q8 | How AC-10 runs cross-team | AC-10 tester commands |
+| P5-Q9 | Trailing newline, lowercase `t`/`z`, SBOM media types, missing Content-Type | §4 items 1–4 (build now; the missing header waits) |
+| P5-Q10 | Final cross-team run window | §6.9 |
+| P5-Q11 | Fixture checkers for AC-04 and AC-08 | Authoritative AC-04/AC-08 |
 
----
-
-## 11. Spec housekeeping (human tasks, needed to "keep the common specification up to date")
-
-Fix the Phase 2 grader's comments, and the report inconsistencies found in review, that affect shared material:
-- REQ-06 text lists `pending`, `met` and `overdue` only; add `not_applicable`, which the contract already uses;
-- report §1.3 says `awareness_time`; the contract and REQ-05 use `awareness_at`;
-- report §4.3 says AC-05 stops the mock service; change it to `PUT /api/v1/test/vulnerability-source` with `mode: unreachable`;
-- remove deadline alerts and escalations from the §2.1 boundary diagram and the §3.2 behavior model, or agree a reminder mechanism with the pod;
-- if the pod switches from Dependency-Track, update the §2.2 limits and the §2.1 diagram (needs instructor sign-off);
-- replace the §6.4 scope-reduction sentence with "any scope change needs both teams and instructor sign-off";
-- deadline status names in diagrams vs API (`Waiting`/`Late` vs `pending`/`met`/`overdue`/`not_applicable`);
-- remove the timer service from the 2.1, 3.1 and 7.1 diagrams;
-- align 7.1 routes with the contract;
-- state which report fields are required per stage (needed for Phase 5 anyway);
-- give hour estimates as ranges, name risk owners, and number references in order of first use.
-
-Apply the §10 answers to `docs/openapi.yaml` in a single commit agreed with Team 2.
+Record every answer in `docs/decisions.md`. Contract changes go into one commit both teams apply.
 
 ---
 
-## 12. Risks for Phase 4
+## 10. Spec housekeeping (human tasks; the Phase 2 grader's points are still open)
+
+The pod must keep the common specification current. These came from the Phase 2 grading (26.25/28) and the Phase 3/4 handoffs and are **still not done** (`docs/issues.md`, "Human tasks"):
+
+- **5.1 (−0.25): state which report fields are required for each stage.** P5-Q1 answers it; put the table from §6.2 into the shared spec and `docs/openapi.yaml` (for example an `x-required-by-stage` extension or a description on `ReportData`).
+- **3.2 (−0.25): deadline status names differ between diagrams and API.** Diagrams must use `pending`/`met`/`overdue`/`not_applicable`; drop `Waiting`/`Late`.
+- **7.1 (−0.25): the diagram shows a timer service and routes that don't match.** Remove the timer service from 2.1, 3.1 and 7.1; align routes with the contract; remove deadline alerts (decision: no push alerts); remove or justify "return the stored SBOM" (the contract has no `GET …/sbom` and we don't keep the raw document).
+- **3.1 (−0.25): security and quality requirements need detail, including what is left out and why.** Add them (no authentication, test endpoints open on the evaluation server, audit immutability limited by file access, single instance).
+- **2.3 (−0.25): hour estimates as ranges, per team.** **9.1 (−0.25): name an owner for each risk.** **10 (−0.25): number references in order of first use.**
+- Report text fixes: `awareness_time` → `awareness_at` (§1.3); AC-05 uses `PUT /test/vulnerability-source` with `mode: unreachable`, not stopping a service (§4.3); replace the §6.4 scope-cut sentence with "any scope change needs both teams and instructor sign-off"; if the OSV switch is approved, update §2.2 limits and the 2.1 diagram.
+- Human reviews still owed: the deadline logic (`0f2e32e`) and the timestamp formatter change (`2591c73`), both `needs-human-review`; the new report logic once built.
+
+---
+
+## 11. Risks for Phase 5
 
 | Risk | Effect | Mitigation |
 |---|---|---|
-| Ground truth not agreed in time | AC-04 can't be graded fairly; teams disagree | Draft from the spike's candidates now; get human check + Team 2 sign-off early |
-| Teams answer §10 differently | Cross-team failures that aren't bugs, now graded | Settle Q1–Q8 with Team 2 before building the incident endpoints |
-| Off-by-one at deadline boundaries | Wrong legal deadline; AC-07 fails | `≤` for met; unit tests at, ±1 s, rollover; human review |
-| Purl mismatch (qualifiers, case) | Missed affected releases: false "all clear" | Agreed matching rule (Q7); recall test on the shared dataset |
-| DT kept but VM too small | Production source can't run | Fixture source for all tests; VM upgrade only if DT is confirmed |
+| Team 2 answers P5-Q1/Q2 differently or late | AC-08 checks disagree; graded cross-team failures that aren't bugs | Send `docs/pod-questions-phase5.md` first; build pure functions and tests while waiting; keep unagreed checks informational |
+| Harness format or Phase 5 deliverables differ from what we assume | Repeat of Phase 3's 55-point loss | Get the Phase 5 assignment text into `docs/phase5_assignment.md` before touching the harness; test `/test/*` against it |
+| AC-10 can't be automated cross-team | AC-10 unevaluated by Team 2 | Two-step snapshot/verify (P5-Q8); our own CI and live run cover it regardless |
+| Audit delete path found on inspection | AC-09 inspection fails | §4 item 5 and G7's static test |
+| A final run wipes the other team's data mid-test | Flaky graded results | Agreed window (P5-Q10); announce each run |
+| Live deployment behind `main` | We're graded on old behavior | Check `/health` commit first (§2.3); deploy and tag `phase5` after the final fixes |
+| AC-04 ground truth still unverified | AC-04 never authoritative | Name checkers now (P5-Q11) |
 
 ---
 
-## 13. Repository layout additions
+## 12. Self-review checklist (step 7 of the inner loop)
+
+Everything in `docs/PHASE4_HANDOFF.md` §14.3, plus:
+
+- No regex validation that can match before a trailing newline (`fullmatch` or `\Z`).
+- Report data stored exactly as sent; reports computed on read; `data` has no nulls and no other stage's fields.
+- `missing_fields` and validation use the one stage-field table.
+- The new write path audits `REPORT_DATA_STORED` in the same transaction; failed requests audit nothing; reads audit nothing.
+- No new SQL touches `audit_log` except the INSERT in `app/services/audit.py`.
+- `app/contract_status.py` and the contract test reflect what's built; generated OpenAPI has exactly the contract's codes.
+- Tester, harness descriptions, `scripts/smoke.sh` and `scripts/container_smoke.py` updated for any behavior change.
+
+---
+
+## 13. Order of work
+
+Each line is one or more inner-loop steps with green CI in between.
+
+1. **Goal audit:** Phase 5 goals into `docs/goals.md` (human confirms), `scripts/metrics.py` updated, `docs/issues.md` updated with every §4 and §6 task. Check the live `/health` commit (§2.3).
+2. **Send `docs/pod-questions-phase5.md` to Team 2** (human). Ask for the Phase 5 assignment text.
+3. §4 items 1–5, one commit each.
+4. Deploy (with permission), Team 2 reruns their Phase 4 suite; record the report.
+5. `app/services/reports.py` pure functions (stage-field table, `missing_fields`, `build_report`) with unit tests first; `needs-human-review`.
+6. `report_data` table, reset, then `PUT …/report-data/{stage}` with audit → `GET …/reports/{stage}` → AC-08 acceptance tests (once P5-Q1..Q6 are answered and the fixture is checked).
+7. AC-09 acceptance test, `docs/audit-immutability.md`, G7's static test, the route-audit coverage test.
+8. AC-10: extend `container_smoke.py`, add the tester's two-step commands.
+9. `tester/phase5.py`, both harnesses, coverage constants, CI stage F assertions.
+10. `post_deploy_check.sh --full`.
+11. README (Phase 5 scope, models, known limitations), `docs/decisions.md`, `fixtures/README.md` (Phase 5 section).
+12. Deploy → full live run → final cross-team runs both ways → human tags `phase5`.
+
+### 13.1 Definition of done for Phase 5
+
+- AC-08, AC-09 and AC-10 green in CI and against the live URL; AC-01..AC-07 still green.
+- All goals in `docs/goals.md` met or explained in `docs/metrics.md`.
+- Final cross-team reports in both directions in `docs/test-reports/`, each failure with an owner.
+- `docs/decisions.md` has Team 2's Phase 5 answers; `fixtures/report_cases.json` and the AC-04 fixtures verified by a named checker per team, or the README says plainly that they aren't.
+- `docs/audit-immutability.md` written; G7 test green.
+- README "Known limitations" current; the deployed commit tagged `phase5` and verified by the post-deploy checks.
+
+---
+
+## 14. Repository layout additions
 
 ```
 app/
-├── clock.py                     # + parse_utc / format_utc shared by all routes (§4.3)
-├── routers/
-│   ├── vulnerabilities.py       # GET /vulnerabilities/{cveId}/affected-releases
-│   ├── incidents.py             # POST/GET/PATCH /incidents, POST /submissions
-│   └── test_support.py          # + PUT /test/vulnerability-source; reset clears new tables
-└── services/
-    ├── vulnerability_source.py  # Protocol, FixtureSource, SourceUnavailable (+ prod source later)
-    ├── matching.py              # purl matching + grouping by support status
-    ├── incidents.py
-    └── deadlines.py             # pure functions: deadline_at(), status() — no I/O
-fixtures/
-├── sbom_patched.json            # human-verified, pod-shared
-├── vulnerabilities.json
-├── cve_dataset.json
-└── ground_truth.json
+├── routers/reports.py           # PUT …/report-data/{stage}, GET …/reports/{stage}
+├── services/reports.py          # STAGE_FIELDS, missing_fields(), build_report(): pure; store/load
+└── db.py                        # + report_data table; reset() gated and clears it
+fixtures/report_cases.json       # AC-08 (DRAFT until verified)
+tester/phase5.py                 # AC-08, AC-09 checks; AC-10 snapshot/verify
 tests/
-├── unit/test_deadlines.py       # boundaries, rollovers, offsets, voluntary
-├── acceptance/test_cve_query.py # AC-04, AC-05
-├── acceptance/test_incidents.py # AC-06, AC-07
-└── tester/                      # tester checks for AC-04..AC-07
-scripts/
-├── metrics.py                   # writes docs/metrics.md (§0.1)
-└── post_deploy_check.sh         # deployment tests (§16.2)
+├── unit/test_reports.py         # stage table, missing rules, build_report
+├── unit/test_audit_immutability.py   # G7
+├── acceptance/test_reports.py   # AC-08 + validation/404/400 cases
+└── acceptance/test_ac09_audit.py
+scripts/post_deploy_check.py     # + --full
 docs/
-├── goals.md                     # goals + measures, confirmed by a human (§0.2)
-├── metrics.md                   # generated status vs goals
-├── issues.md                    # only if GitHub issues aren't used
-├── PHASE3_HANDOFF.md
-└── test-reports/                # one file per cross-team run and per deploy
+├── goals.md, metrics.md         # Phase 5 versions
+├── pod-questions-phase5.md
+├── audit-immutability.md        # AC-09 code-inspection evidence
+├── phase5_assignment.md         # from a team member
+├── PHASE4_HANDOFF.md            # the previous CLAUDE.md
+└── test-reports/                # final cross-team runs, deploys
 ```
-
-Keep `deadlines.py` as **pure functions** (inputs: stored timestamps and `now`; output: `deadline_at` and `status`) so the logic is easy to test and review.
-
----
-
-## 14. How to work (instructions for Claude Code)
-
-### 14.1 Order of work
-
-Each line is one or more inner-loop steps (§0.3) with a green CI build in between:
-
-1. Goal audit (§0.1): `docs/goals.md`, `scripts/metrics.py`, `docs/metrics.md`, issues for every task.
-2. CI stage A–B (§15) so every later step is gated.
-3. §4 carry-over, items 1–8, one commit each.
-4. Shared time parsing and formatting.
-5. `deadlines.py` pure functions, with the unit tests written first.
-6. Incident endpoints (create, get, patch, submissions) with audit writes → AC-06, AC-07.
-7. `/test/vulnerability-source` + `FixtureSource` → CVE query → AC-05, then AC-04 (only once `ground_truth.json` is human-verified).
-8. Reset and health updates.
-9. Tester checks + harness `/test/run` for AC-04 to AC-07.
-10. CI stages C–F (§15).
-11. JSON logging and metrics (§8).
-12. Deploy with post-deploy checks (§16) → cross-team runs (§9) → tag `phase4`.
-
-### 14.2 Rules for working
-
-1. **Read first:** this file, `docs/openapi.yaml` (incidents, vulnerabilities and test sections), `docs/decisions.md`, and `spikes/dependency_track/RESULTS.md`. Summarize back the Phase 4 endpoints, the §6.4 deadline rules, the §10 questions, and the goals in §0.2 before writing code.
-2. **Contract check:** the generated OpenAPI must match `docs/openapi.yaml`, with no missing and no extra status codes.
-3. **Ask, don't assume:** anything in §10, any fixture's expected values, any contract change, the production vulnerability source, and anything that needs credentials. Stop and ask a team member.
-4. **Humans own correctness** for the deadline logic and the ground truth. Mark deadline commits `needs-human-review` and don't merge them without a team member's approval.
-
-### 14.3 Self-review checklist (step 7 of the inner loop)
-
-- No `datetime.now()` outside the clock; every timestamp goes through the shared parser and formatter.
-- No stored `deadline_at`, `status` or `support_status`.
-- Every state change writes its audit entry in the same transaction.
-- Invalid input returns 400 with the shared error shape (never 422); the error message names the problem.
-- No path, field, enum or status code differs from the contract.
-- Failures never return empty results (REQ-04).
-- New code has tests, and coverage didn't drop.
-- No secrets, no test endpoints enabled by default.
-
-### 14.4 Definition of done for Phase 4
-
-- AC-04 to AC-07 green in CI and in the tester against our live URL.
-- All goals in `docs/goals.md` met or explained in `docs/metrics.md`.
-- At least one cross-team run in each direction recorded in `docs/test-reports/`.
-- `docs/decisions.md` and the README's Known limitations updated.
-- The deployed commit tagged `phase4` and verified by the post-deploy checks.
-
----
-
-## 15. CI pipeline: build it in stages
-
-Extend `.github/workflows/ci.yml` **one stage at a time**. For each stage: add it, push, confirm it's green, then confirm it can actually fail. Do that locally (for example, run the stage's command against a deliberately broken input) or on a throwaway branch that is never merged. A gate that has never failed hasn't been tested. Use separate jobs linked with `needs:` so a failure shows which gate broke.
-
-| Stage | Job | What it runs | Gate |
-|---|---|---|---|
-| A | `static` | `ruff check`, `ruff format --check`, `mypy` (exists today) | Any error fails |
-| B | `unit` | `pytest tests/unit --cov=app --cov-report=xml`; upload the coverage report | Fails below the G5 threshold |
-| C | `acceptance` | `pytest tests/acceptance tests/contract` (AC-01 to AC-07 and the contract check) | Any failure |
-| D | `tester` | `pytest tests/tester tests/test_harness.py`: the tester's checks against the app in-process | Any required check failing |
-| E | `docker-build` | Build the system and tester images, tagged with the commit SHA (`GIT_SHA` build arg) | Build failure |
-| F | `container-smoke` | `docker compose up -d` with test endpoints on; wait for `/health`; run `scripts/smoke.sh localhost:8080` and the tester against `http://localhost:8080`; register a release, upload an SBOM and open a mandatory incident, `docker compose restart api`, then confirm the release, components, incident, computed deadlines and audit entries are unchanged (AC-10 covers REQ-05 and REQ-06 too); `docker compose down -v` | Any check failing, or `/health` not ready within 60 s |
-| G | `deploy` (optional) | Only on a `phase*` tag or a manual `workflow_dispatch`. Needs GCP credentials stored as GitHub secrets, which **a human must create** (prefer Workload Identity Federation over a key file). Until then, deploy by hand with `deploy/gcp.sh update` | Runs only after A–F pass |
-| H | `post-deploy` | `scripts/post_deploy_check.sh <base_url> <sha>` against the live URL (§16) | Failure triggers rollback |
-
-Stages A–F run on every push and pull request. Stages G–H run only on deploys.
-
----
-
-## 16. Deployment and deployment tests
-
-### 16.1 Make the deployment checkable
-
-- Pass the commit SHA into the image (`GIT_SHA` build arg → environment variable) and include it in `GET /health`, as `{"status": "ok", "commit": "...", "source_mode": "..."}`. `/health` is our own endpoint, not part of the contract, so this doesn't affect Team 2.
-- `deploy/gcp.sh update` should build from a **tag or explicit commit**, not just "latest `main`", then run the post-deploy checks automatically and print `PASS` or `FAIL`.
-- Add `deploy/gcp.sh rollback <tag>`: check out the previous tag on the VM, rebuild, and rerun the post-deploy checks.
-
-### 16.2 `scripts/post_deploy_check.sh <base_url> <expected_sha> [--full]`
-
-Default mode is **non-destructive**, so it's safe to run at any time:
-
-1. `GET /health` returns 200 within 60 s of the deploy, `commit` equals the expected SHA, and the database is writable.
-2. `GET /openapi.json` lists every Phase 4 path from `docs/openapi.yaml`.
-3. Test endpoints are on or off as expected for this environment (`ENABLE_TEST_ENDPOINTS`).
-4. A malformed request (for example `POST /api/v1/releases` with `{}`) returns 400 with the shared error shape, which proves the 400-not-422 handler is live.
-5. `GET /api/v1/vulnerabilities/CVE-2099-0001/affected-releases` returns a contract-valid response (404 `CVE_UNKNOWN` or 503) within 15 s.
-
-`--full` mode is **destructive**: it resets the target. Use it only on the evaluation deployment, and only after warning Team 2 and checking nobody else is testing:
-
-6. Run the tester against the live URL; every required check, AC-01 to AC-07, must pass.
-7. Run `scripts/smoke.sh`.
-8. Persistence: register a release, restart the container on the VM, and confirm the release and its audit entry survive.
-
-If any check fails, the deploy counts as failed. Roll back with `deploy/gcp.sh rollback <previous-tag>`, open an issue with the failing check's output, and fix it through the inner loop. Never "fix forward" directly on the VM.
-
-### 16.3 Before every deploy (deploy checklist)
-
-- CI stages A–F are green on the exact commit being deployed.
-- `docs/metrics.md` regenerated; no goal regressed.
-- Team 2 warned if `--full` will run.
-- The previous tag is known, for rollback.
-- After deploy: post-deploy checks pass, the commit is tagged, and the result is recorded in `docs/test-reports/`.
