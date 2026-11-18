@@ -182,3 +182,31 @@ class VulnerabilitySourceConfig(BaseModel):
 class VulnerabilitySourceState(BaseModel):
     mode: Literal["available", "unreachable"]
     cve_count: int
+
+
+class ReportData(BaseModel):
+    """The contract's ReportData: every field optional, in the contract's order. Which fields
+    belong to which stage is app.services.reports.STAGE_FIELDS."""
+
+    member_states: list[str] | None = None
+    product_information: str | None = None
+    exploit_nature: str | None = None
+    vulnerability_nature: str | None = None
+    corrective_measures_taken: str | None = None
+    user_mitigations: str | None = None
+    sensitivity: str | None = None
+    vulnerability_description: str | None = None
+    severity: str | None = None
+    impact: str | None = None
+    malicious_actor_information: str | None = None
+    corrective_measure_details: str | None = None
+
+
+class GeneratedReport(BaseModel):
+    """Serialised with exclude_unset, so data holds only the fields that were supplied."""
+
+    incident_id: str
+    stage: ReportStage
+    generated_at: DateTimeStr
+    data: ReportData
+    missing_fields: list[str]
