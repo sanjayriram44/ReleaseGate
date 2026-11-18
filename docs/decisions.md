@@ -21,3 +21,15 @@ Agreed answers and outstanding proposals are recorded below. Proposed details st
 | Vulnerability source after reset (Q6) | `POST /test/reset` leaves the source `available` with zero records, so every CVE is unknown. `PUT /test/vulnerability-source` replaces all records (and the mode). | agreed with Team 2 (2026-11-01) |
 | AC-04 fixtures and ordering (Q7) | One person per team checks the expected values before the Phase 4 milestone. Cross-team tests compare affected releases and matched components as sets, not by order. Until both teams' checkers sign off, `fixtures/ground_truth.json` is a draft and AC-04 is not authoritative. | agreed with Team 2 (2026-11-01): one reviewer per team verifies the values before the Phase 4 submission; reviewers not yet named, so the fixtures stay drafts |
 | Production vulnerability source; alerts (Q8) | Proposed: switch from Dependency-Track to a local OSV snapshot (needs instructor sign-off, so not built yet; every graded test uses the fixture source, `VULN_SOURCE=fixture`). No push alerts in Phase 4: deadline status is shown on every read. | no push alerts: agreed with Team 2 (2026-11-01). OSV snapshot instead of Dependency-Track: Team 2 open to it (2026-11-01); instructor sign-off pending, not built |
+
+## Phase 5
+
+Questions and proposed answers: `docs/pod-questions-phase5.md` (P5-Q1..Q11). Nothing below is agreed until Team 2 answers; built behavior is marked "awaiting Team 2".
+
+| Topic | Answer | Status |
+|---|---|---|
+| Trailing whitespace (P5-Q9) | A timestamp, date or CVE ID with a trailing `\n`, `\r\n` or space is 400 `INVALID_REQUEST`, and nothing is stored. Every Python validation regex uses `fullmatch`. | built in `ce44401`; awaiting Team 2 (their 2026-11-02 run expected this) |
+| Lowercase `t` and `z` (P5-Q9) | Accepted in every timestamp (RFC 3339 §5.6), e.g. `2026-11-01t23:59:59z`; output is always `…T…Z`. A timestamp with no zone is still 400. Amends the Phase 4 timestamp-format answer above. | built in `50928bd`; awaiting Team 2 (their 2026-11-02 run expected this) |
+| SBOM media type (P5-Q9) | The SBOM upload accepts `application/json` and `application/vnd.cyclonedx+json` (parameters such as `charset` allowed, case-insensitive); anything else is 400 `INVALID_REQUEST` `Content-Type must be application/json`, checked after the 404 for an unknown release. | built in `416c069`; awaiting Team 2 |
+| SBOM with no `Content-Type` (P5-Q9) | Proposed: 400, like any other non-JSON type. Until Team 2 answers, it is still accepted (`ALLOW_MISSING_CONTENT_TYPE` in `app/routers/sbom.py`). | open |
+| Invalid-UTF-8 SBOM body (P5-Q9) | 400 `INVALID_JSON` with the message `request body is not valid JSON: not UTF-8 text`. | built in `43d3e33`; awaiting Team 2 |
