@@ -32,8 +32,10 @@ def test_seed_then_verify_after_restart(tmp_path: Path) -> None:
     smoke = make_module()
     db = tmp_path / "s.db"
     state = smoke.seed(make_client(db))
-    assert state["incident"]["deadlines"]["early_warning"]["status"] == "met"
-    assert len(state["components"]["components"]) == 25
+    snap = state["snapshot"]
+    assert snap["incident"]["deadlines"]["early_warning"]["status"] == "met"
+    assert len(snap["components"]["components"]) == 25
+    assert set(snap["reports"]) == {"early_warning", "vulnerability_notification", "final_report"}
     assert smoke.verify(make_client(db), state) == []
 
 
@@ -43,9 +45,9 @@ def test_verify_notices_a_change(tmp_path: Path) -> None:
     state = smoke.seed(make_client(db))
     client = make_client(db)
     client.patch(
-        f"/api/v1/incidents/{state['ids'][1]}",
-        json={"fix_available_at": "2026-11-05T00:00:00Z"},
-        headers=smoke.USER,
+        f"/api/v1/incidents/{state['ids']['incident']}",
+        json={"fix_available_at": "2026-11-15T00:00:00Z"},
+        headers={"X-User-Id": "someone"},
     )
     assert smoke.verify(client, state) == ["incident", "audit"]
 
