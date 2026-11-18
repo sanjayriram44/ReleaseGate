@@ -58,7 +58,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="CRA Vulnerability Response Service", version="1.0.0")
     app.state.settings = settings
     app.state.clock = Clock()
-    app.state.db = Database(settings.db_path)
+    app.state.db = Database(settings.db_path, allow_reset=settings.enable_test_endpoints)
     app.state.db.init_schema()
     configure_logging()
     # The last middleware added runs first, so the log sees the collapsed path.

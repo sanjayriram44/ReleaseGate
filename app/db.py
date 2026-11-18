@@ -74,9 +74,16 @@ BEGIN SELECT RAISE(ABORT, 'audit log is append-only'); END;
 """
 
 
+class ResetNotAllowed(RuntimeError):
+    """Database.reset() was called on a database whose app has test endpoints disabled."""
+
+
 class Database:
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, allow_reset: bool = False) -> None:
+        """allow_reset is True only when test endpoints are enabled (create_app passes
+        settings.enable_test_endpoints): reset() is the one path that deletes audit rows."""
         self.path = path
+        self.allow_reset = allow_reset
         parent = os.path.dirname(os.path.abspath(path))
         os.makedirs(parent, exist_ok=True)
 
@@ -128,7 +135,15 @@ class Database:
             conn.close()
 
     def reset(self) -> None:
-        """Test reset: wipe all data including the audit log, then restore the triggers."""
+        """Test reset: wipe all data including the audit log, then restore the triggers.
+
+        The only code that removes audit rows (docs/audit-immutability.md). It refuses unless
+        this database was opened with allow_reset, i.e. with test endpoints enabled, and is
+        reachable only through /api/v1/test/reset and the harness's /test/setup, which a
+        production-configured app doesn't mount.
+        """
+        if not self.allow_reset:
+            raise ResetNotAllowed("Database.reset() needs test endpoints enabled")
         with self.transaction() as conn:
             conn.execute("DROP TRIGGER IF EXISTS audit_no_update")
             conn.execute("DROP TRIGGER IF EXISTS audit_no_delete")
