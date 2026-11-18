@@ -2,7 +2,8 @@
 
 GitHub issues aren't used (`gh` isn't authenticated), so tasks are tracked here, as CLAUDE.md
 §0.1 allows. One checkbox per task, with the test or check that proves it. **blocked** names the
-open question (CLAUDE.md §10) or missing material (§5.2) that must be answered first; a blocked
+open question (CLAUDE.md §9, `docs/pod-questions-phase5.md`) or missing material (§5.2) that must
+be answered first; a blocked
 task gets a question, not a guess. `scripts/metrics.py` lists the blocked items in
 `docs/metrics.md`.
 
@@ -15,7 +16,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] CI stages C `acceptance` and D `tester`, with the G5 gate in a `coverage` job that combines all three suites' data — proof: jobs green; throwaway branches failed only in `acceptance`, only in `tester`, and in `coverage` at `--fail-under=100`; `tests/unit/test_ci_split.py` fails if a test file runs in no job or two
 - [x] CI stage F `container-smoke` — proof: job green on `c509ef6`; `tests/unit/test_container_smoke.py` shows the restart check notices a change
 
-## Phase 3 carry-over (CLAUDE.md §4)
+## Phase 3 carry-over (`docs/PHASE3_HANDOFF.md` §4)
 
 - [x] 1 Non-blocking SBOM upload — proof: regression test that `/health` answers during a slow upload
 - [x] 2 Flatten nested components — proof: tests for nested storage, `component_count`, path-named version error
@@ -28,7 +29,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] Tag `phase3` (`9c0b191`, tagged 2026-11-01)
 - [ ] Ask Team 2 to rerun (redeployed `136c05a` on 2026-10-30) — proof: human runs the tag; Team 2's report in `docs/test-reports/`
 
-## Phase 4 features (CLAUDE.md §6)
+## Phase 4 features (`docs/PHASE4_HANDOFF.md` §6)
 
 - [x] `deadlines.py` pure functions — proof: `tests/unit/test_deadlines.py` (boundaries, rollover, fractions, offsets, voluntary); human review. (needs-human-review)
 - [x] `POST /api/v1/incidents` + audit `INCIDENT_CREATED` — proof: AC-06
@@ -54,19 +55,64 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] Tag `phase4` on the deployed commit `e864340` (first `68011ca`) — proof: `git ls-remote --tags origin`
 - [ ] Cross-team runs both ways in `docs/test-reports/` (G3) — proof: `YYYY-MM-DD-cross-team-<direction>.md` with `Result:`
   - [x] Team 2 → ours, 2026-11-02: 341/353 (`2026-11-02-cross-team-team2-to-ours.md`)
-  - [ ] Ours → Team 2
-- [ ] Reject a trailing newline in timestamps and `cve_id` (`$` → `\Z` / fullmatch; Team 2 run, 5 failures) — proof: regression tests with `\n` inputs
-- [ ] Accept lowercase `t`/`z` in timestamps (RFC 3339 §5.6; Team 2 run, 4 failures) — proof: unit + acceptance tests
-- [ ] SBOM upload: 400 for a non-JSON `Content-Type` (contract lists only `application/json`; Team 2 run, 1 failure) — proof: acceptance test
-- [ ] Optional: invalid-UTF-8 SBOM message mentions JSON (Team 2's test checks the wording; 2 failures) — proof: acceptance test
-- [ ] Re-seed the live demo data after Team 2's 2026-11-02 run (it reset the data and froze the clock at 2026-11-01T23:59:59Z)
+  - [ ] Ours → Team 2 (the 48/50 run was recorded in `86ded5e` and reverted in `07eadf7`; redone in Phase 5, below)
 - [ ] A team member reviews the deadline logic (`0f2e32e`, needs-human-review) and its tests
 
-## Human tasks (CLAUDE.md §11, §8)
+## Phase 5 goal audit (CLAUDE.md §0.1, §13 step 1)
+
+- [ ] Confirm the Phase 5 `docs/goals.md` with a team member — proof: "Confirmed by" filled in
+- [x] `scripts/metrics.py` measures the Phase 5 goals (G1 AC-08..AC-10, G2 AC-01..AC-07, G3 Phase 5 runs only, G6 `phase5` tag, G7) — proof: `tests/unit/test_metrics.py`
+- [x] Check the live `/health` commit (§2.3) — 2026-11-18: live reports `bee2b44` (= `main`), so `68b4261`, `2d7a905`, `820a730` and `2591c73` are live. No deploy report records `bee2b44` (newest is `2026-11-01-deploy.md`, `e864340`), and origin's `phase4` tag (annotated) now points at `bee2b44`, not `e864340`
+- [ ] Record who deployed `bee2b44`, when, and why `phase4` was moved; write the missing deploy report or note it in `docs/PHASE4_PROGRESS.md` — proof: G6 row in `docs/metrics.md`. **blocked: a team member must say who deployed it and moved the tag**
+- [ ] Phase 4 grade and grader feedback recorded; each piece of feedback becomes an issue here — **blocked: a team member must supply the Phase 4 grade (CLAUDE.md §2.3)**
+
+## Phase 5 carry-over (CLAUDE.md §4)
+
+- [ ] 1 Reject a trailing newline (`\n`, `\r\n`) or trailing space in `now`, `awareness_at`, `fix_available_at`, `submitted_at`, `support_end_date`, `cve_id` (fullmatch / `\Z`; Team 2 run, 5 failures) — proof: unit tests in `tests/unit/test_clock.py` and acceptance tests per field → 400, nothing stored
+- [ ] 2 Accept lowercase `t`/`z` in timestamps, output `…T…Z` (RFC 3339 §5.6; Team 2 run, 4 failures) — proof: unit tests + one acceptance test per timestamp field
+- [ ] 3a SBOM upload: 400 `Content-Type must be application/json` for a non-JSON media type; accepted set is one constant (`application/json`, `application/vnd.cyclonedx+json`, with parameters) (Team 2 run, 1 failure) — proof: acceptance tests; `tester/checks.py`, `scripts/smoke.sh`, `scripts/container_smoke.py` send `application/json`
+- [ ] 3b SBOM upload with **no** `Content-Type` header — proof: acceptance test. **blocked: P5-Q9 (missing header case)**
+- [ ] 4 Invalid-UTF-8 SBOM message: `request body is not valid JSON: not UTF-8 text`, still 400 `INVALID_JSON` (Team 2 run, 2 failures) — proof: acceptance test
+- [ ] 5 Gate `Database.reset()` (the only audit-deleting path) on test endpoints being enabled — proof: unit test that `reset()` raises when disabled; test that a production-configured app has no route reaching it
+- [ ] Record items 1, 2 and 4 in `docs/decisions.md` as "awaiting Team 2" (P5-Q9) — proof: entry in `docs/decisions.md`
+- [ ] 6 Re-seed the live demo data and return the live clock to real time (Team 2's 2026-11-02 run froze it at 2026-11-01T23:59:59Z) — proof: live `GET /api/v1/releases` shows the seed. **blocked: permission to write to the live system**
+- [ ] 7 Deploy items 1–5 (`deploy/gcp.sh update`), post-deploy checks, deploy report — proof: `docs/test-reports/YYYY-MM-DD-deploy.md`. **blocked: permission to deploy**
+- [ ] Team 2 reruns their Phase 4 suite against the fixes — proof: new `docs/test-reports/YYYY-MM-DD-cross-team-team2-to-ours.md`, none of the 12 failures left
+
+## Phase 5 features (CLAUDE.md §6)
+
+- [ ] `app/services/reports.py` pure functions: `STAGE_FIELDS`, `missing_fields()`, `build_report()` (needs-human-review) — proof: `tests/unit/test_reports.py` written first. Unit tests can be written now; the mapping is a proposal until P5-Q1
+- [ ] `report_data` table (§6.5), `Database.reset()` clears it before incidents — proof: `tests/unit/test_db.py`
+- [ ] `PUT /api/v1/incidents/{incidentId}/report-data/{stage}` + audit `REPORT_DATA_STORED`, removed from `NOT_YET_IMPLEMENTED` — proof: `tests/acceptance/test_reports.py` (404, 400 stage/field/type, replace, nothing stored on error, audit details). **blocked: P5-Q1, P5-Q3, P5-Q4, P5-Q5**
+- [ ] `GET /api/v1/incidents/{incidentId}/reports/{stage}`, removed from `NOT_YET_IMPLEMENTED` — proof: `tests/acceptance/test_reports.py` (read-only, `generated_at` = clock). **blocked: P5-Q1, P5-Q2, P5-Q5, P5-Q6**
+- [ ] Contract commit agreed with Team 2: PUT 200 body (P5-Q3), GET 400 invalid stage (P5-Q5), per-stage required fields on `ReportData` (Phase 2 grader 5.1) — proof: contract test. **blocked: P5-Q1, P5-Q3, P5-Q5**
+- [ ] AC-08 acceptance test from `fixtures/report_cases.json` — proof: `tests/acceptance/test_reports.py`. **blocked: fixture verified by one checker per team (P5-Q11)**
+- [ ] AC-09 acceptance test (four events in order, clock timestamps, rejected request adds nothing, PATCH/DELETE 405 leave the log unchanged) — proof: `tests/acceptance/test_ac09_audit.py`. Action-name checks informational until P5-Q7
+- [ ] `docs/audit-immutability.md`: write-route inventory, triggers, INSERT-only `audit.py`, 405 routes, gated `reset()`, file-access limit — proof: document reviewed by a team member
+- [ ] G7: `tests/unit/test_audit_immutability.py` (static scan of `app/` + triggers raise `IntegrityError`) — proof: test green; G7 row in `docs/metrics.md`
+- [ ] Route-audit coverage test: every POST/PUT/PATCH outside `/api/v1/test` and `/test` has an audit test — proof: the test fails when a write route without one is added
+- [ ] AC-10: `scripts/container_smoke.py` seed/verify covers Phase 5 state (SBOM replace, CVE records + query, incident with fix and submission, report data + three reports, full audit log), exact JSON compare under the same test clock — proof: `tests/unit/test_container_smoke.py`; CI stage F
+- [ ] AC-10 cross-team: `tester ac10-snapshot` / `ac10-verify` sharing `container_smoke.py`'s logic; README procedure — proof: tester tests. **blocked: P5-Q8**
+- [ ] `tester/phase5.py` (AC-08, AC-09; required vs informational), `tester/coverage.py` `ACCEPTANCE_CRITERIA`, harness descriptions — proof: `tests/tester`
+- [ ] Both `/test/run` harnesses run AC-08/AC-09; decide how AC-10 counts in `system` coverage; CI stage F assertion — proof: `tests/test_harness.py`. **blocked: Phase 5 assignment text in `docs/phase5_assignment.md` (§5.2) and a team member's decision on AC-10 coverage**
+- [ ] `post_deploy_check.sh --full` (tester AC-01..AC-09, smoke.sh, AC-10 snapshot → restart → verify, re-seed; PASS/FAIL per step and an `**AC-10:**` line) and the report operations in the non-destructive checks — proof: `tests/unit/test_post_deploy_check.py`
+- [ ] README (Phase 5 scope, known limitations), `docs/decisions.md`, `fixtures/README.md` Phase 5 section — proof: reviewed by a team member
+- [ ] Final deploy, full live run (AC-01..AC-10) — proof: `docs/test-reports/YYYY-MM-DD-deploy-full.md` with `Mode: full` and `**AC-10:** PASS`. **blocked: permission to deploy**
+- [ ] Final cross-team run, ours → Team 2 (AC-01..AC-09, AC-10 two-step if they cooperate) — proof: `docs/test-reports/YYYY-MM-DD-cross-team-ours-to-team2.md` with `Result: X/Y passed (in scope)`. **blocked: Team 2's final URL and run window (P5-Q10)**
+- [ ] Final cross-team run, Team 2 → ours — proof: `docs/test-reports/YYYY-MM-DD-cross-team-team2-to-ours.md`. **blocked: P5-Q10**
+- [ ] Tag `phase5` on the deployed commit (human) — proof: `git ls-remote --tags origin`; G6 row
+
+## Human tasks (CLAUDE.md §9, §10, §8)
+
+- [ ] Send `docs/pod-questions-phase5.md` to Team 2 and record the answers in `docs/decisions.md` (P5-Q1..Q11)
+- [ ] Save the Phase 5 assignment text as `docs/phase5_assignment.md` (§5.2)
+- [ ] One checker per team verifies `fixtures/report_cases.json` (P5-Q11); names and date in `docs/decisions.md` and `fixtures/README.md`
+- [ ] Team 2's final live URL and an agreed run window (P5-Q10)
+- [ ] A team member reviews the timestamp formatter change (`2591c73`, needs-human-review) and, once built, the report logic
 
 - [x] Team 2 confirms the answers in `docs/decisions.md` (Q1–Q8), including the two contract additions — 2026-11-01
-- [ ] Update the shared diagrams for "no push alerts" and the deadline status names (CLAUDE.md §11)
+- [ ] Update the shared diagrams for "no push alerts" and the deadline status names (CLAUDE.md §10)
 - [ ] Name Team 6's AC-04 fixture reviewer (decision Q7) and get Team 2's reviewer to check the same values before the Phase 4 submission
-- [ ] Spec housekeeping list in CLAUDE.md §11
+- [ ] Spec housekeeping list in CLAUDE.md §10 (Phase 2 grader points 5.1, 3.2, 7.1, 3.1, 2.3, 9.1, 10, and the report text fixes)
 - [ ] Uptime monitor on `/health`
 - [x] Re-seed the live demo release (ExampleGateway 1.0.0 + `fixtures/sbom_25_components.json`, CVE records, one incident) — 2026-11-01
