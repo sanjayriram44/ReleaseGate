@@ -15,7 +15,7 @@ All of the Phase 5 feature work in the handoff (§13 steps 1, 3–11) is built, 
 | G3 Interoperability | **not measurable yet** | Needs the final cross-team runs both ways |
 | G4 Timeliness | **met** | Live: slowest AC-04 0.03 s, AC-05 0.03 s |
 | G5 Coverage of `app/` | **met** | 99.20% (≥ 85%, ≥ baseline) |
-| G6 Healthy deployment | **no**, only the tag is missing | Live commit = deployed commit, checks 12/12; no `phase5` tag yet |
+| G6 Healthy deployment | **met** | Live commit = deployed commit, checks 12/12; `phase5` → `c188b54` |
 | G7 Audit integrity | **met** | `tests/unit/test_audit_immutability.py` passes (static scan + triggers) |
 
 ## Verification run on 2026-11-18
@@ -59,7 +59,7 @@ All of the Phase 5 feature work in the handoff (§13 steps 1, 3–11) is built, 
 2. **The Phase 5 assignment text** in `docs/phase5_assignment.md`. Then fix the harness description strings (`app/harness.py`, `tester/harness.py`, `tester/main.py`, the `/test` section of `docs/openapi.yaml`) and decide how AC-10 counts in `system` coverage. Phase 3 lost 55 points on harness format, so this is the biggest grading risk.
 3. **Fixture checkers**, one per team, for `fixtures/report_cases.json` (AC-08) and `fixtures/ground_truth.json` (AC-04). Both are still DRAFT.
 4. **Final cross-team runs**, both directions, in an agreed window (P5-Q10): ours → Team 2 (that report has been missing since Phase 4) and Team 2 → ours. Also ask Team 2 to rerun their Phase 4 suite against the live fixes. Each run resets the target; re-seed afterwards with `deploy/gcp.sh full`.
-5. **Merge PR #1** and tag `phase5` on the final deployed commit (`git tag phase5 <sha> && git push origin phase5`). If the merge creates a new commit, deploy `main` and rerun `gcp.sh full` before tagging.
+5. ~~Merge PR #1 and tag `phase5`~~ Done 2026-11-18: merged as `b630915`; `phase5` → `c188b54` (live; app code identical to `main`). If a later change is redeployed, rerun `gcp.sh full` and move the tag.
 6. **Human reviews:** `app/services/reports.py` and its tests (needs-human-review), the deadline logic (`0f2e32e`), the timestamp formatter (`2591c73`), `docs/audit-immutability.md`.
 7. **Phase 4 grade and feedback** (each piece becomes an issue), and who deployed `bee2b44` and moved the `phase4` tag.
 8. **Spec housekeeping** for the Phase 2 grader points (§10): diagrams, security requirements, estimates, risk owners, reference order, report text.
