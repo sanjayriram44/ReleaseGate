@@ -26,6 +26,8 @@ Agreed answers and outstanding proposals are recorded below. Proposed details st
 
 Questions and proposed answers: `docs/pod-questions-phase5.md` (P5-Q1..Q11). Nothing below is agreed until Team 2 answers; built behavior is marked "awaiting Team 2".
 
+**Provisional build (2026-11-18, Daksh Agarwal):** the report endpoints, AC-08, AC-09 and AC-10 are built on the *proposed* answers to P5-Q1..Q8 while Team 2's answers are pending. Checks that rest on a proposal stay informational in the tester (CLAUDE.md §7 rule 4). If Team 2 answers differently, the stage-field table (`app/services/reports.py` `STAGE_FIELDS`), the fixture and the contract commit change with it.
+
 | Topic | Answer | Status |
 |---|---|---|
 | Trailing whitespace (P5-Q9) | A timestamp, date or CVE ID with a trailing `\n`, `\r\n` or space is 400 `INVALID_REQUEST`, and nothing is stored. Every Python validation regex uses `fullmatch`. | built in `ce44401`; awaiting Team 2 (their 2026-11-02 run expected this) |
@@ -33,3 +35,11 @@ Questions and proposed answers: `docs/pod-questions-phase5.md` (P5-Q1..Q11). Not
 | SBOM media type (P5-Q9) | The SBOM upload accepts `application/json` and `application/vnd.cyclonedx+json` (parameters such as `charset` allowed, case-insensitive); anything else is 400 `INVALID_REQUEST` `Content-Type must be application/json`, checked after the 404 for an unknown release. | built in `416c069`; awaiting Team 2 |
 | SBOM with no `Content-Type` (P5-Q9) | Proposed: 400, like any other non-JSON type. Until Team 2 answers, it is still accepted (`ALLOW_MISSING_CONTENT_TYPE` in `app/routers/sbom.py`). | open |
 | Invalid-UTF-8 SBOM body (P5-Q9) | 400 `INVALID_JSON` with the message `request body is not valid JSON: not UTF-8 text`. | built in `43d3e33`; awaiting Team 2 |
+| Report fields per stage (P5-Q1) | CRA Art. 14(2). `early_warning`: `member_states` (required). `vulnerability_notification`: `product_information`, `exploit_nature`, `vulnerability_nature`, `corrective_measures_taken`, `user_mitigations` (required), `sensitivity` (optional). `final_report`: `vulnerability_description`, `severity`, `impact`, `corrective_measure_details` (required), `malicious_actor_information` (optional). | proposed; built provisionally |
+| What counts as missing (P5-Q2) | A required field that is absent, `null`, an empty or whitespace-only string, or an empty `member_states` array. Values are stored and returned exactly as sent. | proposed; built provisionally |
+| Report-data PUT (P5-Q3) | Replaces the stage's whole data set; the 200 body is the stage's `GeneratedReport` (contract addition). | proposed; built provisionally; contract change pending Team 2 |
+| Report-data validation (P5-Q4) | Another stage's field, an unknown field, or a wrong type is 400 `INVALID_REQUEST` naming the field; nothing is stored. `member_states` is an array of non-empty strings; every other field a string. Country codes aren't validated. | proposed; built provisionally |
+| Report stages (P5-Q5) | Invalid stage → 400 `INVALID_REQUEST` on both operations (contract addition for the GET); unknown incident → 404 `INCIDENT_NOT_FOUND`, checked first; voluntary incidents and a final report before the fix are allowed. | proposed; built provisionally; contract change pending Team 2 |
+| Generated report (P5-Q6) | `data` holds only the stage's supplied fields (no nulls, no other stages, nothing system-filled); `generated_at` is the clock's now. Generating stores and audits nothing. | proposed; built provisionally |
+| Audit log (P5-Q7) | One entry per successful state change; none for failed requests, reads or `/api/v1/test/*`. Actions `RELEASE_REGISTERED`, `SBOM_STORED`, `SBOM_REPLACED`, `INCIDENT_CREATED`, `FIX_AVAILABLE_RECORDED`, `SUBMISSION_RECORDED`, `REPORT_DATA_STORED`; `entity_type` `release` or `incident`. `timestamp` is the clock's time; events oldest first. | proposed; built provisionally |
+| AC-10 across teams (P5-Q8) | Two steps, no contract change: the tester seeds and snapshots; the owner restarts the service; the tester sets the same clock and compares. | proposed; built provisionally |
