@@ -16,7 +16,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] CI stages C `acceptance` and D `tester`, with the G5 gate in a `coverage` job that combines all three suites' data — proof: jobs green; throwaway branches failed only in `acceptance`, only in `tester`, and in `coverage` at `--fail-under=100`; `tests/unit/test_ci_split.py` fails if a test file runs in no job or two
 - [x] CI stage F `container-smoke` — proof: job green on `c509ef6`; `tests/unit/test_container_smoke.py` shows the restart check notices a change
 
-## Phase 3 carry-over (`docs/PHASE3_HANDOFF.md` §4)
+## Phase 3 carry-over (`docs/PHASE4_HANDOFF.md` §4)
 
 - [x] 1 Non-blocking SBOM upload — proof: regression test that `/health` answers during a slow upload
 - [x] 2 Flatten nested components — proof: tests for nested storage, `component_count`, path-named version error
@@ -68,7 +68,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 
 ## Phase 5 carry-over (CLAUDE.md §4)
 
-- [ ] 1 Reject a trailing newline (`\n`, `\r\n`) or trailing space in `now`, `awareness_at`, `fix_available_at`, `submitted_at`, `support_end_date`, `cve_id` (fullmatch / `\Z`; Team 2 run, 5 failures) — proof: unit tests in `tests/unit/test_clock.py` and acceptance tests per field → 400, nothing stored
+- [x] 1 Reject a trailing newline (`\n`, `\r\n`) or trailing space in `now`, `awareness_at`, `fix_available_at`, `submitted_at`, `support_end_date`, `cve_id` (fullmatch / `\Z`; Team 2 run, 5 failures) — proof: `tests/unit/test_clock.py` (incl. a guard against `re.compile(r"^…$")` in `app/` and `tester/`) and `tests/acceptance/test_trailing_whitespace.py` → 400, nothing stored
 - [ ] 2 Accept lowercase `t`/`z` in timestamps, output `…T…Z` (RFC 3339 §5.6; Team 2 run, 4 failures) — proof: unit tests + one acceptance test per timestamp field
 - [ ] 3a SBOM upload: 400 `Content-Type must be application/json` for a non-JSON media type; accepted set is one constant (`application/json`, `application/vnd.cyclonedx+json`, with parameters) (Team 2 run, 1 failure) — proof: acceptance tests; `tester/checks.py`, `scripts/smoke.sh`, `scripts/container_smoke.py` send `application/json`
 - [ ] 3b SBOM upload with **no** `Content-Type` header — proof: acceptance test. **blocked: P5-Q9 (missing header case)**

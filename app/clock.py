@@ -14,9 +14,10 @@ from app.errors import ApiError
 LATEST = datetime.max.replace(tzinfo=UTC) - timedelta(days=14)
 
 # Date, time, optional fraction, then Z or a numeric offset up to ±23:59 (fromisoformat alone
-# would read +02:60 as +03:00). A timestamp with no zone is rejected.
+# would read +02:60 as +03:00). A timestamp with no zone is rejected. Always fullmatch: "$" with
+# .match() would accept a trailing "\n".
 _TIMESTAMP = re.compile(
-    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d+))?(Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$"
+    r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d+))?(Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)"
 )
 
 
@@ -25,7 +26,7 @@ def parse_utc(value: str, field: str = "now") -> datetime:
 
     Fractional seconds are kept, truncated beyond microseconds.
     """
-    match = _TIMESTAMP.match(value)
+    match = _TIMESTAMP.fullmatch(value)
     if not match:
         raise ApiError(
             400,

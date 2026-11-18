@@ -4,13 +4,14 @@ from typing import Annotated, Any, Literal
 
 from pydantic import AfterValidator, BaseModel, BeforeValidator, ConfigDict, Field
 
-_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# fullmatch, never .match() with "$", which accepts a trailing "\n".
+_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 def _parse_date(value: Any) -> date:
     if isinstance(value, date):
         return value
-    if not isinstance(value, str) or not _DATE_RE.match(value):
+    if not isinstance(value, str) or not _DATE_RE.fullmatch(value):
         raise ValueError("must be a date in YYYY-MM-DD format")
     try:
         return date.fromisoformat(value)
@@ -90,11 +91,11 @@ class Error(BaseModel):
     error: ErrorBody
 
 
-CVE_ID = re.compile(r"^CVE-[0-9]{4}-[0-9]+$")
+CVE_ID = re.compile(r"CVE-[0-9]{4}-[0-9]+")  # fullmatch: "$" would accept a trailing "\n"
 
 
 def _cve_format(value: str | None) -> str | None:
-    if value is not None and not CVE_ID.match(value):
+    if value is not None and not CVE_ID.fullmatch(value):
         raise ValueError("must match ^CVE-[0-9]{4}-[0-9]+$ (e.g. CVE-2023-25577)")
     return value
 

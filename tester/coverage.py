@@ -35,7 +35,7 @@ OPERATIONS: tuple[tuple[str, str], ...] = (
 ACCEPTANCE_CRITERIA = tuple(f"AC-0{i}" for i in range(1, 8))
 
 _PATTERNS = [
-    (method, template, re.compile("^" + re.sub(r"\{[^}]+\}", "[^/]+", template) + "$"))
+    (method, template, re.compile(re.sub(r"\{[^}]+\}", "[^/]+", template)))
     for method, template in OPERATIONS
 ]
 
@@ -43,7 +43,7 @@ _PATTERNS = [
 def operation(method: str, path: str) -> str | None:
     """'GET /api/v1/releases/{releaseId}' for GET /api/v1/releases/rel-1; None if not listed."""
     for op_method, template, pattern in _PATTERNS:
-        if op_method == method.upper() and pattern.match(path):
+        if op_method == method.upper() and pattern.fullmatch(path):
             return f"{op_method} {template}"
     return None
 

@@ -21,7 +21,7 @@ from pathlib import Path
 
 from app.clock import Clock
 
-_NAME = re.compile(r"^releasegate-\d{8}T\d{6}Z\.db$")
+_NAME = re.compile(r"releasegate-\d{8}T\d{6}Z\.db")
 
 
 class BackupError(Exception):
@@ -52,7 +52,7 @@ def run(db_path: Path, out_dir: Path, keep: int = 7, now: datetime | None = None
             os.replace(partial, target)
         finally:
             partial.unlink(missing_ok=True)
-    copies = sorted((p for p in out_dir.iterdir() if _NAME.match(p.name)), reverse=True)
+    copies = sorted((p for p in out_dir.iterdir() if _NAME.fullmatch(p.name)), reverse=True)
     for old in copies[keep:]:
         old.unlink()
     return target
