@@ -75,8 +75,8 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] 4 Invalid-UTF-8 SBOM message: `request body is not valid JSON: not UTF-8 text`, still 400 `INVALID_JSON` (Team 2 run, 2 failures) — proof: `tests/unit/test_sbom_validation.py::test_non_utf8`, `tests/acceptance/test_sbom.py::test_non_utf8_body_is_400_invalid_json_and_keeps_the_inventory`
 - [x] 5 Gate `Database.reset()` (the only audit-deleting path) on test endpoints being enabled — proof: `tests/unit/test_db.py::test_reset_refuses_unless_allowed_and_leaves_the_audit_log`, `tests/unit/test_reset_gate.py`; first section of `docs/audit-immutability.md`
 - [x] Record items 1, 2, 3a and 4 in `docs/decisions.md` as "awaiting Team 2" (P5-Q9), and the open missing-header case — proof: "Phase 5" table in `docs/decisions.md`
-- [x] 6 Re-seed the live demo data and return the live clock to real time — done by the 2026-11-18 full live run (`docs/test-reports/2026-11-18-deploy-full.md`, "Live data afterwards"), now with report data
-- [x] 7 Deploy items 1–5 (`deploy/gcp.sh update origin/phase5`, `c188b54`), post-deploy checks 5/5, deploy report — proof: `docs/test-reports/2026-11-18-deploy.md`
+- [x] 6 Re-seed the live demo data and return the live clock to real time — done by the 2026-11-18 full live run (`docs/test-reports/2026-11-18-deploy-full-c188b54.md`, "Live data afterwards"), now with report data
+- [x] 7 Deploy items 1–5 (`deploy/gcp.sh update origin/phase5`, `c188b54`), post-deploy checks 5/5, deploy report — proof: `docs/test-reports/2026-11-18-deploy-c188b54.md`
 - [ ] Team 2 reruns their Phase 4 suite against the fixes — proof: new `docs/test-reports/YYYY-MM-DD-cross-team-team2-to-ours.md`, none of the 12 failures left
 
 ## Phase 5 features (CLAUDE.md §6)
@@ -103,11 +103,12 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [ ] Decide how AC-10 counts in the harness `system` coverage (the harness descriptions now say AC-01..AC-09; AC-10 is the two-step snapshot/verify run) — **blocked: Phase 5 assignment text in `docs/phase5_assignment.md` (§5.2) and a team member's decision on AC-10 coverage**
 - [x] `post_deploy_check.sh --full --confirm-reset [--restart-cmd] [--report]` (tester AC-01..AC-09, smoke.sh, AC-10 snapshot → restart → verify, re-seed at real time; PASS/FAIL per step; report with `Result`, `**AC-10:**`, `Latency`) and `deploy/gcp.sh full`; the report operations are in the non-destructive checks via `app/contract_status.py` — proof: `tests/unit/test_post_deploy_full.py`; local end-to-end run with a real restart and a stub-gcloud dry run of `gcp.sh full` (2026-11-18)
 - [x] README (Phase 5 scope, report and audit models, known limitations, full live run), `docs/decisions.md`, `fixtures/README.md` Phase 5 section — proof: the files; a team member's review is still welcome
-- [x] Full live run (AC-01..AC-10) on `c188b54`: 97/97, AC-10 PASS across `docker compose restart api` — proof: `docs/test-reports/2026-11-18-deploy-full.md`. Rerun after any later deploy before the final tag
+- [x] Full live run (AC-01..AC-10) on `c188b54`: 97/97, AC-10 PASS across `docker compose restart api` — proof: `docs/test-reports/2026-11-18-deploy-full-c188b54.md`; rerun on `271da8e` (main): `docs/test-reports/2026-11-18-deploy-full.md`
 - [ ] Final cross-team run, ours → Team 2 (AC-01..AC-09, AC-10 two-step if they cooperate) — proof: `docs/test-reports/YYYY-MM-DD-cross-team-ours-to-team2.md` with `Result: X/Y passed (in scope)`. **blocked: Team 2's final URL and run window (P5-Q10)**
 - [ ] Final cross-team run, Team 2 → ours — proof: `docs/test-reports/YYYY-MM-DD-cross-team-team2-to-ours.md`. **blocked: P5-Q10**
 - [x] Tag `phase5` on the deployed commit (human, 2026-11-18): `phase5` → `c188b54` — proof: `git ls-remote --tags origin`; G6 row met. Move it if a later code change is redeployed
-- [ ] Bring live up to `main`: `22fa081` changed the harness wording in `app/harness.py`, `tester/harness.py`, `tester/main.py`, so live (`c188b54`) still says AC-01..AC-07. Deploy `main`, rerun `gcp.sh full`, record both reports, move `phase5` — proof: live `/health` = `main` head; new `*-deploy.md` and `*-deploy-full.md`. **blocked: permission to deploy and reset the live data (warn Team 2)**
+- [x] Bring live up to `main`: deployed `271da8e` and reran `gcp.sh full` (97/97, AC-10 PASS; both `/test` pages say AC-01..AC-09) — proof: `docs/test-reports/2026-11-18-deploy.md`, `2026-11-18-deploy-full.md`
+- [ ] Move the `phase5` tag from `c188b54` to the live `271da8e` (human) — proof: `git ls-remote --tags origin`; G6 row met
 
 ## Human tasks (CLAUDE.md §9, §10, §8)
 

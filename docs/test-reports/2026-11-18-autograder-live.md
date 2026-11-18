@@ -16,7 +16,7 @@ validated with `jsonschema` against the `/test` schemas in `docs/openapi.yaml`.
 | Tester `:8081` | 5/5 schema-valid (setup 201, unseen session 200) | pass | 89/89 required, 22/22 informational, 111 results | code 99.2, component 100, system 100 | `http://136.116.160.182:8080` |
 
 Acceptance criteria exercised in each run: AC-01..AC-09 (AC-10 needs a restart; it passed live in
-`2026-11-18-deploy-full.md`). All 14 contract operations were called.
+`2026-11-18-deploy-full-c188b54.md`). All 14 contract operations were called.
 
 **Known gap:** the `/test` description strings still say "AC-01..AC-07" although the run
 executes AC-01..AC-09; they change once the Phase 5 assignment text is in the repo
