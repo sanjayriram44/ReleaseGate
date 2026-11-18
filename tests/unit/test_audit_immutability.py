@@ -49,7 +49,7 @@ def sql_strings(path: Path) -> Iterator[tuple[str, str]]:
 
 def find(pattern: re.Pattern[str]) -> set[tuple[str, str]]:
     return {
-        (str(path.relative_to(ROOT)), scope)
+        (path.relative_to(ROOT).as_posix(), scope)  # "app/db.py" on Windows too
         for path in sorted((ROOT / "app").rglob("*.py"))
         for scope, text in sql_strings(path)
         if pattern.search(text)

@@ -159,12 +159,15 @@ def test_nested_duplicate_names_its_path() -> None:
 
 
 def _deeply_nested_sbom(depth: int) -> bytes:
-    inner: dict[str, Any] = {"type": "library", "name": "leaf", "version": "1"}
-    for i in range(depth):
-        inner = {"type": "library", "name": f"n{i}", "version": "1", "components": [inner]}
-    return raw(
-        {"bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1, "components": [inner]}
+    """Built as text: json.dumps recurses per level and hits the C recursion limit on Windows."""
+    opens = "".join(
+        f'{{"type": "library", "name": "n{i}", "version": "1", "components": ['
+        for i in reversed(range(depth))
     )
+    leaf = '{"type": "library", "name": "leaf", "version": "1"}'
+    inner = opens + leaf + "]}" * depth
+    head = '{"bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1, "components": ['
+    return (head + inner + "]}").encode()
 
 
 @pytest.mark.parametrize("depth", [300, 2000])
