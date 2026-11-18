@@ -42,6 +42,16 @@ CREATE TABLE IF NOT EXISTS submissions (
     recorded_at TEXT NOT NULL,
     PRIMARY KEY (incident_id, stage)
 );
+-- Report data as supplied, one JSON object per incident and stage, replaced as a whole on PUT.
+-- Reports (data + missing_fields) are computed on every read (app.services.reports).
+CREATE TABLE IF NOT EXISTS report_data (
+    incident_id TEXT NOT NULL REFERENCES incidents(incident_id) ON DELETE CASCADE,
+    stage TEXT NOT NULL,
+    data TEXT NOT NULL,
+    updated_by TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (incident_id, stage)
+);
 -- The fixture vulnerability source, filled by PUT /api/v1/test/vulnerability-source.
 CREATE TABLE IF NOT EXISTS vulnerability_records (cve_id TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS vulnerability_purls (
@@ -151,6 +161,7 @@ class Database:
             conn.execute("DELETE FROM vulnerability_records")
             conn.execute("UPDATE vulnerability_source_state SET mode = 'available'")
             conn.execute("DELETE FROM submissions")
+            conn.execute("DELETE FROM report_data")
             conn.execute("DELETE FROM incidents")
             conn.execute("DELETE FROM components")
             conn.execute("DELETE FROM releases")

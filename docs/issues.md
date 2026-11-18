@@ -83,7 +83,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 
 - [x] `app/services/reports.py` pure functions: `STAGE_FIELDS`, `validate_report_data()`, `missing_fields()`, `build_report()` (needs-human-review) — proof: `tests/unit/test_reports.py` written first, incl. `STAGE_FIELDS` == fixture `stage_fields`. Mapping provisional (P5-Q1)
 - [ ] A team member reviews the report logic (`app/services/reports.py`, needs-human-review) and its tests
-- [ ] `report_data` table (§6.5), `Database.reset()` clears it before incidents — proof: `tests/unit/test_db.py`
+- [x] `report_data` table (§6.5), `Database.reset()` clears it before incidents — proof: `tests/unit/test_db.py` (one row per incident and stage, foreign key, reset, existing database)
 - [ ] `PUT /api/v1/incidents/{incidentId}/report-data/{stage}` + audit `REPORT_DATA_STORED`, removed from `NOT_YET_IMPLEMENTED` — proof: `tests/acceptance/test_reports.py` (404, 400 stage/field/type, replace, nothing stored on error, audit details). **blocked: P5-Q1, P5-Q3, P5-Q4, P5-Q5**
 - [ ] `GET /api/v1/incidents/{incidentId}/reports/{stage}`, removed from `NOT_YET_IMPLEMENTED` — proof: `tests/acceptance/test_reports.py` (read-only, `generated_at` = clock). **blocked: P5-Q1, P5-Q2, P5-Q5, P5-Q6**
 - [ ] Contract commit agreed with Team 2: PUT 200 body (P5-Q3), GET 400 invalid stage (P5-Q5), per-stage required fields on `ReportData` (Phase 2 grader 5.1) — proof: contract test. **blocked: P5-Q1, P5-Q3, P5-Q5**
