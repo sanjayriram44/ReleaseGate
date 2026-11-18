@@ -95,6 +95,13 @@ notification) hold however P5-Q1 settles required versus optional, as long as th
 mapping stays. The edge cases depend on P5-Q1, Q2, Q4 and Q5 and stay informational until those
 are answered. All report text is synthetic.
 
+**Who reads it.** `stage_fields` is the shared stage-field table (CLAUDE.md §7 rule 2): the tester
+(`tester/phase5.py`) and the acceptance tests read it, and `tests/unit/test_reports.py` fails if
+`app/services/reports.py` `STAGE_FIELDS` or the contract's `ReportData` `x-fields-by-stage`
+differs from it. If the pod settles P5-Q1 differently, a person updates this file first; the
+tests then show what else must change. The complete and incomplete cases also seed AC-10
+(`tester/ac10.py`) and the demo data (`scripts/post_deploy_full.py`).
+
 - [ ] The stage-to-field mapping matches CRA Art. 14(2)(a), (b) and (c) and the `ReportData` schema.
 - [ ] The incomplete case's notification leaves out exactly two required fields.
 - [ ] Every edge case's expectation matches the agreed P5 answer it depends on (or is updated).
