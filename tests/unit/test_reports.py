@@ -217,3 +217,14 @@ def test_check_stage() -> None:
 )
 def test_is_missing(value: Any, missing: bool) -> None:
     assert is_missing(value) is missing
+
+
+def test_contract_fields_by_stage_match_the_table() -> None:
+    contract = yaml.safe_load((ROOT / "docs/openapi.yaml").read_text())
+    by_stage = contract["components"]["schemas"]["ReportData"]["x-fields-by-stage"]
+    assert set(by_stage) == set(STAGE_FIELDS)
+    for stage, fields in STAGE_FIELDS.items():
+        assert by_stage[stage] == {
+            "required": list(fields.required),
+            "optional": list(fields.optional),
+        }
