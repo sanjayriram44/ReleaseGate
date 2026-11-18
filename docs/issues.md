@@ -69,7 +69,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 ## Phase 5 carry-over (CLAUDE.md §4)
 
 - [x] 1 Reject a trailing newline (`\n`, `\r\n`) or trailing space in `now`, `awareness_at`, `fix_available_at`, `submitted_at`, `support_end_date`, `cve_id` (fullmatch / `\Z`; Team 2 run, 5 failures) — proof: `tests/unit/test_clock.py` (incl. a guard against `re.compile(r"^…$")` in `app/` and `tester/`) and `tests/acceptance/test_trailing_whitespace.py` → 400, nothing stored
-- [ ] 2 Accept lowercase `t`/`z` in timestamps, output `…T…Z` (RFC 3339 §5.6; Team 2 run, 4 failures) — proof: unit tests + one acceptance test per timestamp field
+- [x] 2 Accept lowercase `t`/`z` in timestamps, output `…T…Z` (RFC 3339 §5.6; Team 2 run, 4 failures) — proof: `tests/unit/test_clock.py` + `tests/acceptance/test_lowercase_t_z.py` (now, awareness_at, fix_available_at, submitted_at; no zone still 400)
 - [ ] 3a SBOM upload: 400 `Content-Type must be application/json` for a non-JSON media type; accepted set is one constant (`application/json`, `application/vnd.cyclonedx+json`, with parameters) (Team 2 run, 1 failure) — proof: acceptance tests; `tester/checks.py`, `scripts/smoke.sh`, `scripts/container_smoke.py` send `application/json`
 - [ ] 3b SBOM upload with **no** `Content-Type` header — proof: acceptance test. **blocked: P5-Q9 (missing header case)**
 - [ ] 4 Invalid-UTF-8 SBOM message: `request body is not valid JSON: not UTF-8 text`, still 400 `INVALID_JSON` (Team 2 run, 2 failures) — proof: acceptance test
