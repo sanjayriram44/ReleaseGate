@@ -1,4 +1,4 @@
-"""Check a deployment without changing it (CLAUDE.md §16.2, default mode).
+"""Check a deployment without changing it (docs/PHASE4_HANDOFF.md §16.2, default mode).
 
     bash scripts/post_deploy_check.sh <base_url> <expected_sha> [--test-endpoints on|off]
 

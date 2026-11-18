@@ -1,4 +1,5 @@
-"""CI stage F helpers (CLAUDE.md §15): the tester against a running system, and the restart check.
+"""CI stage F helpers (docs/PHASE4_HANDOFF.md §15): the tester against a running system,
+and the restart check.
 
     python scripts/container_smoke.py tester <base_url>
     python scripts/container_smoke.py seed <base_url> <state.json>
