@@ -4,7 +4,9 @@
   kept current by scripts/metrics.py). Only the system knows it; the tester copies it from the
   target's /test/report and reports null for a target that doesn't publish one.
 - component: share of the pod contract's API operations (OPERATIONS) the run called.
-- system: share of the system-model acceptance criteria, AC-01..AC-07, the run exercised.
+- system: share of the system-model acceptance criteria the run exercised, AC-01..AC-09. AC-10
+  needs a restart, so a single run can't exercise it (tester/ac10.py runs it in two steps); how
+  it counts here is an open decision for the team (CLAUDE.md §6.8).
 """
 
 import re
@@ -32,7 +34,7 @@ OPERATIONS: tuple[tuple[str, str], ...] = (
     ("PATCH", "/api/v1/audit-logs/{eventId}"),
     ("DELETE", "/api/v1/audit-logs/{eventId}"),
 )
-ACCEPTANCE_CRITERIA = tuple(f"AC-0{i}" for i in range(1, 8))
+ACCEPTANCE_CRITERIA = tuple(f"AC-0{i}" for i in range(1, 10))
 
 _PATTERNS = [
     (method, template, re.compile(re.sub(r"\{[^}]+\}", "[^/]+", template)))

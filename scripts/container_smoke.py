@@ -4,7 +4,7 @@
     python scripts/container_smoke.py seed <base_url> <state.json>
     python scripts/container_smoke.py verify <base_url> <state.json>
 
-`tester` runs every check (AC-01..AC-07) and fails unless all required checks pass; it resets
+`tester` runs every check (AC-01..AC-09) and fails unless all required checks pass; it resets
 the target. `seed` and `verify` are AC-10's two steps (tester/ac10.py, the same code the
 cross-team `python -m tester.ac10 snapshot|verify` runs): `seed` resets the target and stores a
 release with a replaced SBOM, vulnerability records and a CVE query result, an incident with a fix

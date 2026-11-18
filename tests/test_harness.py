@@ -178,8 +178,8 @@ def test_tester_run_and_report_carry_target_url_results_and_coverage(tmp_path: P
         assert set(body["coverage"]) >= COVERAGE_KEYS
     cov = report["coverage"]
     assert cov["code"] == float(Path(".coverage-baseline").read_text())  # reported by the system
-    assert 50 <= cov["component"] < 100  # report-data and reports (Phase 5) are not called
-    assert cov["system"] == 100.0  # AC-01..AC-07 all exercised
+    assert cov["component"] == 100.0  # every contract operation, report-data and reports too
+    assert cov["system"] == 100.0  # AC-01..AC-09 all exercised (AC-10 is the two-step run)
 
 
 def test_tester_shares_its_session_with_the_system(tmp_path: Path) -> None:

@@ -29,7 +29,7 @@ jobs:
           name: coverage-data-unit
           path: .coverage.unit
           include-hidden-files: true
-  # Stage C: AC-01..AC-07 and the OpenAPI contract check.
+  # Stage C: AC-01..AC-09 and the OpenAPI contract check.
   acceptance:
     needs: unit
     runs-on: ubuntu-latest
