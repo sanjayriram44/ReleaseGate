@@ -71,7 +71,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 - [x] 1 Reject a trailing newline (`\n`, `\r\n`) or trailing space in `now`, `awareness_at`, `fix_available_at`, `submitted_at`, `support_end_date`, `cve_id` (fullmatch / `\Z`; Team 2 run, 5 failures) — proof: `tests/unit/test_clock.py` (incl. a guard against `re.compile(r"^…$")` in `app/` and `tester/`) and `tests/acceptance/test_trailing_whitespace.py` → 400, nothing stored
 - [x] 2 Accept lowercase `t`/`z` in timestamps, output `…T…Z` (RFC 3339 §5.6; Team 2 run, 4 failures) — proof: `tests/unit/test_clock.py` + `tests/acceptance/test_lowercase_t_z.py` (now, awareness_at, fix_available_at, submitted_at; no zone still 400)
 - [x] 3a SBOM upload: 400 `Content-Type must be application/json` for a non-JSON media type; accepted set is one constant, `SBOM_MEDIA_TYPES` in `app/routers/sbom.py` (`application/json`, `application/vnd.cyclonedx+json`, with parameters) (Team 2 run, 1 failure) — proof: `tests/acceptance/test_sbom_media_type.py`; `tester/checks.py`, `scripts/smoke.sh`, `scripts/container_smoke.py` already send `application/json`
-- [ ] 3b SBOM upload with **no** `Content-Type` header: still accepted; flip `ALLOW_MISSING_CONTENT_TYPE` in `app/routers/sbom.py` if Team 2 agrees to 400 — proof: `test_missing_content_type_*` in `tests/acceptance/test_sbom_media_type.py`. **blocked: P5-Q9 (missing header case)**
+- [ ] 3b SBOM upload with **no** `Content-Type` header: Team 2 agreed it is 400 (P5-Q9, recorded 2026-11-22). Still accepted: flip `ALLOW_MISSING_CONTENT_TYPE` in `app/routers/sbom.py` (and give the test helpers that upload without a Content-Type one), then deploy before the final cross-team run — proof: `test_missing_content_type_*` in `tests/acceptance/test_sbom_media_type.py`
 - [x] 4 Invalid-UTF-8 SBOM message: `request body is not valid JSON: not UTF-8 text`, still 400 `INVALID_JSON` (Team 2 run, 2 failures) — proof: `tests/unit/test_sbom_validation.py::test_non_utf8`, `tests/acceptance/test_sbom.py::test_non_utf8_body_is_400_invalid_json_and_keeps_the_inventory`
 - [x] 5 Gate `Database.reset()` (the only audit-deleting path) on test endpoints being enabled — proof: `tests/unit/test_db.py::test_reset_refuses_unless_allowed_and_leaves_the_audit_log`, `tests/unit/test_reset_gate.py`; first section of `docs/audit-immutability.md`
 - [x] Record items 1, 2, 3a and 4 in `docs/decisions.md` as "awaiting Team 2" (P5-Q9), and the open missing-header case — proof: "Phase 5" table in `docs/decisions.md`
@@ -81,22 +81,23 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 
 ## Phase 5 features (CLAUDE.md §6)
 
-- [x] `app/services/reports.py` pure functions: `STAGE_FIELDS`, `validate_report_data()`, `missing_fields()`, `build_report()` (needs-human-review) — proof: `tests/unit/test_reports.py` written first, incl. `STAGE_FIELDS` == fixture `stage_fields`. Mapping provisional (P5-Q1)
+- [x] `app/services/reports.py` pure functions: `STAGE_FIELDS`, `validate_report_data()`, `missing_fields()`, `build_report()` (needs-human-review) — proof: `tests/unit/test_reports.py` written first, incl. `STAGE_FIELDS` == fixture `stage_fields`. Mapping agreed with Team 2 (P5-Q1)
 - [ ] A team member reviews the report logic (`app/services/reports.py`, needs-human-review) and its tests
 - [x] `report_data` table (§6.5), `Database.reset()` clears it before incidents — proof: `tests/unit/test_db.py` (one row per incident and stage, foreign key, reset, existing database)
-- [x] `PUT /api/v1/incidents/{incidentId}/report-data/{stage}` + audit `REPORT_DATA_STORED`, removed from `NOT_YET_IMPLEMENTED` — proof: `tests/acceptance/test_reports.py` (404, 400 stage/field/type/JSON/Content-Type, replace, nothing stored on error, audit details). Provisional: P5-Q1, Q3, Q4, Q5
-- [x] `GET /api/v1/incidents/{incidentId}/reports/{stage}`, removed from `NOT_YET_IMPLEMENTED` — proof: `tests/acceptance/test_reports.py` (read-only, `generated_at` = clock, survives a restart). Provisional: P5-Q1, Q2, Q5, Q6
+- [x] `PUT /api/v1/incidents/{incidentId}/report-data/{stage}` + audit `REPORT_DATA_STORED`, removed from `NOT_YET_IMPLEMENTED` — proof: `tests/acceptance/test_reports.py` (404, 400 stage/field/type/JSON/Content-Type, replace, nothing stored on error, audit details). Agreed with Team 2: P5-Q1, Q3, Q4, Q5
+- [x] `GET /api/v1/incidents/{incidentId}/reports/{stage}`, removed from `NOT_YET_IMPLEMENTED` — proof: `tests/acceptance/test_reports.py` (read-only, `generated_at` = clock, survives a restart). Agreed with Team 2: P5-Q1, Q2, Q5, Q6
 - [x] Contract commit (`0b3432d`): PUT 200 body (P5-Q3), GET 400 invalid stage (P5-Q5), `x-fields-by-stage` on `ReportData` (Phase 2 grader 5.1) — proof: contract test; `tests/unit/test_reports.py::test_contract_fields_by_stage_match_the_table`
-- [ ] Team 2 agrees the contract commit and applies it to their copy — **blocked: Team 2's answers to P5-Q1, P5-Q3, P5-Q5**
+- [x] Team 2 agrees the contract commit and applies it to their copy — proof: Team 2's answers in `docs/decisions.md` ("Phase 5", recorded 2026-11-22)
+- [ ] Make the tester checks that rest on the Phase 5 answers required now that Team 2 has agreed (CLAUDE.md §7 rule 4): `ac08.*.put_body`, the AC-08 edge cases (and their `required` flags in `fixtures/report_cases.json`), `ac09.actions`, `ac09.entity_types` — proof: `tests/tester/test_phase5.py`
 - [x] AC-08 acceptance test from `fixtures/report_cases.json` — proof: `tests/acceptance/test_reports.py::test_ac08_reports_from_the_fixture`. The fixture is still a DRAFT
 - [ ] `fixtures/report_cases.json` verified by one checker per team — proof: names and date in `docs/decisions.md` and `fixtures/README.md`. **blocked: P5-Q11 checkers**
-- [x] AC-09 acceptance test (four events in order, clock timestamps, rejected request adds nothing, PATCH/DELETE 405 leave the log unchanged) — proof: `tests/acceptance/test_ac09_audit.py`. Action names provisional (P5-Q7)
+- [x] AC-09 acceptance test (four events in order, clock timestamps, rejected request adds nothing, PATCH/DELETE 405 leave the log unchanged) — proof: `tests/acceptance/test_ac09_audit.py`. Action names agreed with Team 2 (P5-Q7)
 - [x] `docs/audit-immutability.md`: write-route inventory, triggers, INSERT-only `audit.py`, 405 routes, gated `reset()`, known limits — proof: each claim names its test
 - [ ] A team member reviews `docs/audit-immutability.md` (AC-09 code-inspection evidence)
 - [x] G7: `tests/unit/test_audit_immutability.py` (static scan of `app/` + triggers raise `IntegrityError`) — proof: test green; G7 row in `docs/metrics.md`. Found that `INSERT OR REPLACE` could overwrite an entry; fixed with the `audit_no_replace` trigger
 - [x] Route-audit coverage test: every POST/PUT/PATCH/DELETE outside `/api/v1/test` and `/test` has an expected audit action and writes exactly one entry — proof: `tests/acceptance/test_audit_coverage.py` (fails when an operation is missing from the inventory)
 - [x] AC-10: `scripts/container_smoke.py` seed/verify covers Phase 5 state (SBOM replace, CVE records + query, incident with fix and submission, report data + three reports, full audit log), exact JSON compare under the same test clock — proof: `tests/tester/test_ac10.py`, `tests/unit/test_container_smoke.py`; CI stage F; a real uvicorn restart locally on 2026-11-18 (AC-10 PASS)
-- [x] AC-10 cross-team: `python -m tester.ac10 snapshot|verify <url> <file>` in `tester/ac10.py`, the one implementation `container_smoke.py` also runs — proof: `tests/tester/test_ac10.py`. Provisional: P5-Q8
+- [x] AC-10 cross-team: `python -m tester.ac10 snapshot|verify <url> <file>` in `tester/ac10.py`, the one implementation `container_smoke.py` also runs — proof: `tests/tester/test_ac10.py`. Agreed with Team 2: P5-Q8
 - [x] README: the two-step AC-10 procedure for Team 2 ("AC-10 across teams")
 - [x] `tester/phase5.py` (AC-08, AC-09; required vs informational), `tester/coverage.py` `ACCEPTANCE_CRITERIA` (AC-01..AC-09) — proof: `tests/tester/test_phase5.py` (our system passes all; faulty targets fail the right checks); local HTTP run 89/89 required, 22/22 informational
 - [x] Both `/test/run` harnesses run AC-08/AC-09 (they call `tester.checks.run`); `system` coverage is AC-01..AC-09 and stays 100%, so CI stage F's assertion holds — proof: `tests/test_harness.py`
@@ -115,7 +116,7 @@ task gets a question, not a guess. `scripts/metrics.py` lists the blocked items 
 Status summary with evidence: `docs/PHASE5_PROGRESS.md`.
 
 
-- [ ] Send `docs/pod-questions-phase5.md` to Team 2 and record the answers in `docs/decisions.md` (P5-Q1..Q11)
+- [x] Send `docs/pod-questions-phase5.md` to Team 2 and record the answers in `docs/decisions.md` (P5-Q1..Q11) — Team 2 agreed to all; recorded 2026-11-22. Their fixture checkers, final URL and run window are still to come (below)
 - [ ] Save the Phase 5 assignment text as `docs/phase5_assignment.md` (§5.2)
 - [ ] One checker per team verifies `fixtures/report_cases.json` (P5-Q11); names and date in `docs/decisions.md` and `fixtures/README.md`
 - [ ] Team 2's final live URL and an agreed run window (P5-Q10)

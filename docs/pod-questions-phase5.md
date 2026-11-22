@@ -1,5 +1,7 @@
 Phase 5 questions for Team 2. Each has a proposed answer; nothing is decided until Team 2 agrees. Record the outcome in `docs/decisions.md`. Answers that change `docs/openapi.yaml` go into one contract commit that both teams apply.
 
+**Outcome (recorded 2026-11-22):** Team 2 received a shorter version with eight questions covering these eleven, and agreed to all of them, with three clarifications that match what we built. Questions 10 and 11 are still open, because Team 2 hasn't named their fixture checkers, final URLs or run window. The answers, the clarifications and what is still open are in `docs/decisions.md` ("Phase 5").
+
 1. Which `ReportData` fields belong to each report stage, and which of them are required (listed in `missing_fields` when absent)? The Phase 2 grader took a point off Section 5.1 because the spec never said.
    - Proposed answer: follow CRA Art. 14(2). `early_warning`: `member_states` (required). `vulnerability_notification`: `product_information`, `exploit_nature`, `vulnerability_nature`, `corrective_measures_taken`, `user_mitigations` (required) and `sensitivity` (optional, "where applicable"). `final_report`: `vulnerability_description`, `severity`, `impact`, `corrective_measure_details` (required) and `malicious_actor_information` (optional, "where available"). This matches the Section 5.2 example, which returns `missing_fields: []` for a notification without `sensitivity`. Optional fields appear in `data` when supplied and never in `missing_fields`.
 2. When is a required field "missing"?

@@ -6,7 +6,7 @@ Goals: `docs/goals.md` (confirmed by Daksh Agarwal, 2026-11-18); current values:
 
 ## Where it stands
 
-All of the Phase 5 feature work in the handoff (§13 steps 1, 3–11) is built, tested and deployed. **It rests on our proposed answers to the pod questions** (`docs/pod-questions-phase5.md`, P5-Q1..Q8; `docs/decisions.md`), because Team 2 hasn't answered yet. What's left is people: Team 2's answers and checkers, the assignment text, the final cross-team runs, and reviews.
+All of the Phase 5 feature work in the handoff (§13 steps 1, 3–11) is built, tested and deployed. It was built on our proposed answers to the pod questions (`docs/pod-questions-phase5.md`), and **Team 2 has since agreed to all of them** (`docs/decisions.md`, recorded 2026-11-22). One agreed answer isn't built yet: an SBOM with no `Content-Type` should be 400 but is still accepted. What's left is mostly people: Team 2's checkers, final URL and run window, the assignment text, the final cross-team runs, and reviews.
 
 | Goal | Status | Evidence |
 |---|---|---|
@@ -48,24 +48,24 @@ Effect: live was behind `main` until `271da8e` was deployed and the full run rep
 | §0.4 Skills | Documentation skill used for the README; deploy confirmed with the user |
 | §2.3 Unknown state | Live `/health` checked (was `bee2b44`, now `c188b54`); live data re-seeded and clock real. **Open:** Phase 4 grade and feedback; who deployed `bee2b44` and moved `phase4` |
 | §3 Decisions | Kept: reports computed on read, one row per stage, no legal judgment, fixture source only |
-| §4 items 1–5 | Done (`ce44401`, `50928bd`, `416c069`, `43d3e33`, `6d73206`). Item 3's missing-header case is open (P5-Q9). Item 6 done by the full run. Item 7: deployed; **Team 2's rerun of their Phase 4 suite not yet requested** |
-| §5.2 Required materials | **Missing:** Team 2's answers; fixture checkers; `docs/phase5_assignment.md`; Team 2's final URL and run window |
-| §6.1–6.5 Report endpoints, table | Done on the proposals; contract change `0b3432d` pending Team 2 |
+| §4 items 1–5 | Done (`ce44401`, `50928bd`, `416c069`, `43d3e33`, `6d73206`). Item 3's missing-header case: Team 2 agreed it is 400 (P5-Q9), not built yet. Item 6 done by the full run. Item 7: deployed; **Team 2's rerun of their Phase 4 suite not yet requested** |
+| §5.2 Required materials | Team 2's answers received (2026-11-22). **Missing:** fixture checkers; `docs/phase5_assignment.md`; Team 2's final URL and run window |
+| §6.1–6.5 Report endpoints, table | Done; Team 2 agreed the answers and applies contract change `0b3432d` to their copy |
 | §6.6 Audit log | Done: inventory, G7 test, route-audit test, `docs/audit-immutability.md`. Found and fixed an `INSERT OR REPLACE` hole |
 | §6.7 AC-10 | Done: `tester/ac10.py`, CI stage F, live on the VM, README procedure |
 | §6.8 AC automation | Done in tests, tester and both harnesses; the harness descriptions say AC-01..AC-09 (`22fa081`, live since `271da8e`). **Open:** how AC-10 counts in `system` coverage, which waits for the assignment text |
 | §6.9 Final cross-team runs | **Not done** (needs Team 2) |
 | §6.10 Demonstration | Ready on the live system: the demo incident's notification report shows `missing_fields: ["user_mitigations"]`; the audit log has the entries; PATCH gives 405; `gcp.sh full` shows the restart |
-| §7 Rules | Followed; unagreed behavior is informational in the tester (rule 4); ground truth still a draft (rule 5) |
+| §7 Rules | Followed; the checks on the Phase 5 answers are still informational in the tester although Team 2 has agreed, so they can now be made required (rule 4); ground truth still a draft (rule 5) |
 | §8 Operations | `post_deploy_check.sh --full` and `deploy/gcp.sh full` built and run live. **Open:** uptime monitor on `/health`; a backup restore test |
-| §9 Open questions | All 11 still unanswered by Team 2 |
+| §9 Open questions | Team 2 agreed to all (recorded 2026-11-22). **Open:** P5-Q10 (their final URL and run window) and P5-Q11 (their fixture checkers) |
 | §10 Spec housekeeping | 5.1 addressed in our contract copy (`x-fields-by-stage`). **Open:** the diagrams (3.2, 7.1), 3.1, 2.3, 9.1, 10, and the report text fixes |
 | §12 Self-review | Done, including `smoke.sh` and stale comment references |
-| §13.1 Definition of done | Not yet: cross-team reports, Team 2 answers and verified fixtures are missing. Deploy, full run and `phase5` tag are done on `271da8e` |
+| §13.1 Definition of done | Not yet: cross-team reports and verified fixtures are missing (Team 2's answers are in). Deploy, full run and `phase5` tag are done on `271da8e` |
 
 ## What we are missing (owner: people, not code)
 
-1. **Team 2's answers** to P5-Q1..Q11, and their agreement to apply contract commit `0b3432d`. If an answer differs, the stage table, the fixture and some checks change.
+1. ~~Team 2's answers~~ Received and recorded 2026-11-22: Team 2 agreed to every answer and applies `0b3432d` to their copy. Follow-ups: flip `ALLOW_MISSING_CONTENT_TYPE` and deploy before the final cross-team run; make the agreed tester checks required; confirm Team 2 also rejects a blank `member_states` entry (the version they received didn't say).
 2. **The Phase 5 assignment text** in `docs/phase5_assignment.md`. Then check the harness format and the new AC-01..AC-09 wording (`22fa081`) against it, and decide how AC-10 counts in `system` coverage. Phase 3 lost 55 points on harness format, so this is the biggest grading risk.
 3. **Fixture checkers**, one per team, for `fixtures/report_cases.json` (AC-08) and `fixtures/ground_truth.json` (AC-04). Both are still DRAFT.
 4. **Final cross-team runs**, both directions, in an agreed window (P5-Q10): ours → Team 2 (that report has been missing since Phase 4) and Team 2 → ours. Also ask Team 2 to rerun their Phase 4 suite against the live fixes. Each run resets the target; re-seed afterwards with `deploy/gcp.sh full`.

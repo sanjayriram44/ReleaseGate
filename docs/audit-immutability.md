@@ -9,7 +9,7 @@ proves it. Goal G7 in `docs/goals.md` is measured by `tests/unit/test_audit_immu
 Every successful state change through the application interface writes exactly one entry, in the
 same SQLite transaction as the change (so a change and its entry commit or roll back together).
 Failed requests, reads and the test-control endpoints (`/api/v1/test/*`, `/test*`) write none.
-Action names follow the proposed vocabulary in P5-Q7 (provisional until Team 2 answers).
+Action names follow the vocabulary in P5-Q7, which Team 2 agreed (recorded 2026-11-22); events with the same timestamp keep the order they were recorded in.
 
 | Operation | `action` | `entity_type` / `entity_id` | Written by |
 |---|---|---|---|

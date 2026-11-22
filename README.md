@@ -70,15 +70,15 @@ curl -X POST http://<tester-host>:8081/api/v1/runs \
 - **A run calls the target's `POST /api/v1/test/reset` at the start and the end, so it wipes the
   target's data.** The target needs its test endpoints enabled.
 - *Required* checks come from the shared contract and AC-01..AC-09 and decide pass/fail.
-  *Informational* checks cover our provisional pod decisions (`docs/decisions.md`; for Phase 5,
-  every check that rests on a proposed answer to `docs/pod-questions-phase5.md`) and never fail
-  a run.
+  *Informational* checks cover pod decisions that weren't agreed when the check was written
+  (`docs/decisions.md`; for Phase 5, every check that rests on an answer in
+  `docs/pod-questions-phase5.md`, which Team 2 has since agreed) and never fail a run.
 - Error messages for rejected input appear in the report for the human inspection AC-03 asks for.
 
 ### AC-10 across teams (two steps)
 
 A tester can't restart another team's server over HTTP, so AC-10 (state survives a restart with
-0 s timestamp drift) runs in two steps (P5-Q8, proposed). From a checkout or the tester image:
+0 s timestamp drift) runs in two steps (P5-Q8, agreed with Team 2). From a checkout or the tester image:
 
 ```bash
 python -m tester.ac10 snapshot http://<system-host>:8080 ac10.json   # RESETS the target, seeds, saves
@@ -145,8 +145,8 @@ unsubmitted is `pending` until the deadline and `overdue` after it. Voluntary in
 final report before a fix, are `not_applicable`. Timestamps may carry a UTC offset and are
 returned in UTC ending in `Z`.
 
-**Report data and reports** (`app/services/reports.py`, pure functions; built on the proposed
-answers to P5-Q1..Q6, `docs/decisions.md`). Each `ReportData` field belongs to one stage (CRA
+**Report data and reports** (`app/services/reports.py`, pure functions; built on the answers to
+P5-Q1..Q6, which Team 2 agreed, `docs/decisions.md`). Each `ReportData` field belongs to one stage (CRA
 Art. 14(2); `x-fields-by-stage` in the contract):
 
 | Stage | Required (listed in `missing_fields` when missing) | Optional |
@@ -171,7 +171,7 @@ code-inspection evidence, with the write-route inventory and the test behind eac
 
 **SBOM upload** (`PUT /api/v1/releases/{releaseId}/sbom`): unknown release → 404; a Content-Type
 other than `application/json` or `application/vnd.cyclonedx+json` → 400 (a missing header is
-still accepted, pending P5-Q9); body not JSON → 400; missing `bomFormat`/`specVersion`, a specVersion other than 1.4–1.6, a schema violation
+still accepted, although Team 2 agreed it should be 400; see Known limitations); body not JSON → 400; missing `bomFormat`/`specVersion`, a specVersion other than 1.4–1.6, a schema violation
 or a component without a version → 400 naming the problem. Only a fully valid SBOM is stored,
 replacing the release's previous components and writing its audit entry in one transaction.
 
@@ -183,11 +183,15 @@ replacing the release's previous components and writing its audit entry in one t
   see `spikes/dependency_track/`.
 - **Draft CVE ground truth.** `fixtures/ground_truth.json` (AC-04) hasn't been verified by the
   two teams' checkers yet, so AC-04 passing shows agreement with the draft only.
-- **Phase 5 rests on proposals.** The report endpoints, the stage-field table, the PUT's response
-  body, the GET's 400 for an invalid stage, the audit action names and the AC-10 procedure follow
-  the proposed answers in `docs/pod-questions-phase5.md`; Team 2 hasn't answered yet. The
-  contract change (`0b3432d`) is our copy until they apply it. Checks that rest on a proposal are
-  informational in the tester.
+- **Phase 5 pod answers are agreed, but not every check reflects that yet.** Team 2 agreed to
+  every Phase 5 answer (`docs/decisions.md`): the stage-field table, the PUT's response body, the
+  GET's 400 for an invalid stage, the audit action names, the AC-10 procedure and the P5-Q9 input
+  rules. They apply the contract change (`0b3432d`) to their copy. The tester checks that rest on
+  these answers are still informational, and Team 2's fixture checkers, final URL and run window
+  are still to come.
+- **An SBOM upload with no `Content-Type` is still accepted.** Team 2 agreed it should be 400
+  (P5-Q9); the switch is `ALLOW_MISSING_CONTENT_TYPE` in `app/routers/sbom.py`, to be flipped and
+  deployed before the final cross-team run.
 - **Draft report ground truth.** `fixtures/report_cases.json` (AC-08) was drafted by Claude from
   CRA Art. 14(2) and hasn't been verified by a checker per team, so AC-08 passing shows agreement
   with the draft only.
@@ -210,8 +214,7 @@ replacing the release's previous components and writing its audit entry in one t
 - **Pod decisions.** Team 2 agreed the Phase 4 answers on 2026-11-01 (`docs/decisions.md`),
   including the 400 for a malformed CVE ID and the 409 for a duplicate submission, both added to
   the contract. A few Phase 3 SBOM details (metadata components, repeated nested components)
-  are still proposals, as are the P5-Q9 input rules (trailing newline rejected, lowercase `t`/`z`
-  accepted, SBOM media types).
+  are still proposals.
 
 ## Deployment (Google Compute Engine)
 

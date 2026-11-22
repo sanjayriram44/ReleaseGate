@@ -113,8 +113,8 @@ outside the contract.
 ## Phase 5 report fixtures (AC-08): DRAFT, not verified
 
 > **Status: draft (2026-11-18).** Written by Team 6's Claude session from CRA Art. 14(2)(a)–(c)
-> and the Section 5 `ReportData` schema. The stage-to-field mapping is a proposal
-> (`docs/pod-questions-phase5.md`, P5-Q1). **Nobody has verified it yet.** One person per team
+> and the Section 5 `ReportData` schema. Team 2 agreed the stage-to-field mapping (P5-Q1,
+> recorded 2026-11-22), but **nobody has verified the expected values yet.** One person per team
 > checks it and Team 2 signs off; record the names and date here and in `docs/decisions.md`, then
 > drop the `_status` field.
 
