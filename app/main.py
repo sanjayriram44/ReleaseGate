@@ -56,7 +56,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             f"VULN_SOURCE={settings.vuln_source!r} is not built; only 'fixture' is"
             " (the production source waits for sign-off, docs/decisions.md Q8)"
         )
-    app = FastAPI(title="CRA Vulnerability Response Service", version="1.0.0")
+    app = FastAPI(title="CRA Vulnerability Response Service", version="1.1.0")
     app.state.settings = settings
     app.state.clock = Clock()
     app.state.db = Database(settings.db_path, allow_reset=settings.enable_test_endpoints)
