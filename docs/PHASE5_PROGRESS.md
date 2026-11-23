@@ -4,7 +4,7 @@
 Live: `271da8e` on `http://136.116.160.182:8080`, tester on `:8081`, tagged `phase5`; `main` has only docs commits after it. Handoff: `CLAUDE.md`. Tasks: `docs/issues.md`.
 Goals: `docs/goals.md` (confirmed by Daksh Agarwal, 2026-11-18); current values: `docs/metrics.md`.
 
-**Update 2026-11-22:** `main` `2106a76` (spec v2 harness `7cb2aec`, contract 1.1.0) is deployed and passes the post-deploy checks and the v2 harness probes (`docs/test-reports/2026-11-22-deploy.md`); locally the grader-style session passed 111/111. The full live run on `2106a76` then passed 97/97 with AC-10 PASS and re-seeded the demo data (`docs/test-reports/2026-11-23-deploy-full.md`, dated in UTC). Open: the `phase5` tag is still on `271da8e` (G6 `no` until it moves), no written Team 2 → ours report for the 393/395 run (G3), and issue 3b (missing `Content-Type` → 400).
+**Update 2026-11-22:** `main` `2106a76` (spec v2 harness `7cb2aec`, contract 1.1.0) is deployed and passes the post-deploy checks and the v2 harness probes (`docs/test-reports/2026-11-22-deploy.md`); locally the grader-style session passed 111/111. The full live run on `2106a76` then passed 97/97 with AC-10 PASS and re-seeded the demo data (`docs/test-reports/2026-11-23-deploy-full.md`, dated in UTC). The `phase5` tag now points to `2106a76` (G6 met). Open: no written Team 2 → ours report for the 393/395 run (G3), and issue 3b (missing `Content-Type` → 400), which the team deferred to the next phase.
 
 ## Where it stands
 
