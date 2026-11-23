@@ -4,6 +4,8 @@
 Live: `271da8e` on `http://136.116.160.182:8080`, tester on `:8081`, tagged `phase5`; `main` has only docs commits after it. Handoff: `CLAUDE.md`. Tasks: `docs/issues.md`.
 Goals: `docs/goals.md` (confirmed by Daksh Agarwal, 2026-11-18); current values: `docs/metrics.md`.
 
+**Update 2026-11-22:** `main` `2106a76` (spec v2 harness `7cb2aec`, contract 1.1.0) is deployed and passes the post-deploy checks and the v2 harness probes (`docs/test-reports/2026-11-22-deploy.md`); locally the grader-style session passed 111/111. Open: the `phase5` tag is still on `271da8e` (G6 `no` until it moves), no full live run on `2106a76` yet (the live data is un-seeded), no written Team 2 → ours report for the 393/395 run (G3), and issue 3b (missing `Content-Type` → 400).
+
 ## Where it stands
 
 All of the Phase 5 feature work in the handoff (§13 steps 1, 3–11) is built, tested and deployed. It was built on our proposed answers to the pod questions (`docs/pod-questions-phase5.md`), and **Team 2 has since agreed to all of them** (`docs/decisions.md`, recorded 2026-11-22). One agreed answer isn't built yet: an SBOM with no `Content-Type` should be 400 but is still accepted. What's left is mostly people: Team 2's checkers, final URL and run window, the assignment text, the final cross-team runs, and reviews.
