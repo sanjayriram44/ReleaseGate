@@ -94,24 +94,31 @@ uses only the contract and the test-control endpoints.
 
 ## Autograder endpoints (`/test`)
 
-Both base URLs (system `:8080`, tester `:8081`) serve the course autograder harness, documented
-in `docs/openapi.yaml` under "autograder harness". No authentication.
+Both services follow the course's testing-interface spec v2 ("Cross-team Testing Interface",
+Phases 5 and 6). No authentication. Error bodies are `{"message", "source"}` (`tester`, `system`,
+`communication` or `unknown`): 400 invalid request, 404 unknown session, 409 conflict or report not
+ready, 500 aborted or failed.
 
-| Call | System | Tester |
+| Call | System (`:8080`) | Tester (`:8081`) |
 |---|---|---|
-| `GET /test` | describes the service | describes the service |
-| `POST /test/setup` (201) | resets all data; optional `{"now": "…Z"}` sets the clock | optional `{"target_url": "…"}` (or `target_base_url`); default is our system's public URL. Also calls the system's `/test/setup` with the same `session_id` |
-| `POST /test/run` | runs AC-01..AC-09 against itself | runs AC-01..AC-09 against the target over HTTP, then the system's own `/test/run` for the session |
-| `GET /test/report?session_id=…` | result and every check | result and every check; on both, an unseen id (or no session yet) is a new, not-yet-run session, never 404 |
+| `GET /test` | describes the service (our extra) | describes the service (our extra) |
+| `POST /test/setup` | `{"session_id", "setup": {}}`: resets all data and the clock (`setup.now` sets the clock), 201 `{"session_id"}`; 409 if the id exists | `{"target_url"}`: makes a new session id, calls the system's `/test/setup` with it and waits, 201 `{"session_id"}`. A system setup error comes back with its status, message and source |
+| `POST /test/run` | none (not required) | `{"session_id"}`: runs AC-01..AC-09 against the target's project API, 200 with the suite report; 409 for a second run of the same session |
+| `GET /test/report?session_id=…` | the session's code coverage | the stored suite report; 409 before the suite ends |
 
-`setup` returns a `session_id`; `run` and `report` take it (in the JSON body or query string;
-without it they use the latest session). `run` is synchronous and finishes in a few seconds.
-`run` and `report` carry `target_url`, `results` (every check) and `coverage` in percent:
-`code` is `app/` line coverage from our test suite (`.coverage-baseline`, published by the
-system; null for a target that doesn't publish one), `component` the share of contract API
-operations the run called, and `system` the share of AC-01..AC-09 it exercised (AC-10 needs a
-restart, so a single run can't exercise it; how it should count is still to be decided against the
-Phase 5 assignment text).
+The suite report has `session_id`, `target_url`, one `results` entry per check (`test_id`,
+`outcome` pass/fail/error/skip, `message`, plus `source` for errors), and `coverage` entries of
+`{covered, total, basis}`:
+- `code`: copied from the system's `/test/report`. Ours is null, with the reason: runtime
+  instrumentation isn't enabled on the deployed service.
+- `component`: contract API operations called, out of 14.
+- `system`: acceptance criteria evaluated, out of AC-01..AC-10. AC-10 needs a restart, so a run
+  reaches 9 of 10; the two-step `tester.ac10` procedure covers it.
+- `model`: only when the target is our own system. Our design requirements evaluated, out of 14
+  (`docs/design-requirements.md`).
+
+`scripts/check_harness_run.py <tester_url> <target_url> [--own]` drives the harness like a grader
+and checks the format; CI stage F runs it against our own containers.
 The system's `/test` endpoints exist only when `ENABLE_TEST_ENDPOINTS=true`.
 
 ## Models (as delivered in Phase 5)

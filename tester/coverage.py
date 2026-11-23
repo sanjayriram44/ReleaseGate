@@ -1,12 +1,14 @@
-"""Coverage in /test/run and /test/report (autograder Q2): code, component and system model, in %.
+"""Coverage in the tester's suite report (spec v2, "Coverage fields"): code, component, system and,
+when the tester tests our own system, model. Each entry is {"covered", "total", "basis"} with
+nonnegative integer counts; an unavailable measure has null counts and says why.
 
-- code: line coverage of the system's app/ package by its own test suite (.coverage-baseline,
-  kept current by scripts/metrics.py). Only the system knows it; the tester copies it from the
-  target's /test/report and reports null for a target that doesn't publish one.
-- component: share of the pod contract's API operations (OPERATIONS) the run called.
-- system: share of the system-model acceptance criteria the run exercised, AC-01..AC-09. AC-10
-  needs a restart, so a single run can't exercise it (tester/ac10.py runs it in two steps); how
-  it counts here is an open decision for the team (CLAUDE.md §6.8).
+- code: source lines the target executed during the session. Only the target can measure it; the
+  tester copies it from the target system's GET /test/report.
+- component: the pod contract's API operations (OPERATIONS) the suite called.
+- system: the pod's acceptance criteria AC-01..AC-10 (Phase 2 report, Section 4.1) the suite
+  evaluated. AC-10 needs a restart, so a single run can't evaluate it; tester/ac10.py runs it in
+  two steps.
+- model: our Phase 5 design requirements the suite evaluated (tester/model.py).
 """
 
 import re
@@ -34,7 +36,7 @@ OPERATIONS: tuple[tuple[str, str], ...] = (
     ("PATCH", "/api/v1/audit-logs/{eventId}"),
     ("DELETE", "/api/v1/audit-logs/{eventId}"),
 )
-ACCEPTANCE_CRITERIA = tuple(f"AC-0{i}" for i in range(1, 10))
+ACCEPTANCE_CRITERIA = tuple(f"AC-{i:02d}" for i in range(1, 11))
 
 _PATTERNS = [
     (method, template, re.compile(re.sub(r"\{[^}]+\}", "[^/]+", template)))
@@ -51,25 +53,53 @@ def operation(method: str, path: str) -> str | None:
 
 
 def code_coverage(path: Path = Path(".coverage-baseline")) -> float | None:
+    """Our own test suite's app/ line coverage in percent (kept current by scripts/metrics.py)."""
     try:
         return round(float(path.read_text().strip()), 2)
     except (OSError, ValueError):
         return None
 
 
-def _percent(part: int, whole: int) -> float:
-    return round(100 * part / whole, 1)
+def entry(covered: int | None, total: int | None, basis: str) -> dict[str, Any]:
+    return {"covered": covered, "total": total, "basis": basis}
 
 
-def summarize(report: "Report | None", code: float | None) -> dict[str, Any]:
-    """The coverage object; component and system are null until a run has finished."""
-    if report is None:
-        return {"code": code, "component": None, "system": None}
-    exercised = {c.ac for c in report.checks if c.ac in ACCEPTANCE_CRITERIA}
-    return {
-        "code": code,
-        "component": _percent(len(set(report.operations)), len(OPERATIONS)),
-        "system": _percent(len(exercised), len(ACCEPTANCE_CRITERIA)),
-        "operations_called": sorted(set(report.operations)),
-        "acceptance_criteria_exercised": sorted(exercised),
-    }
+def unavailable(basis: str) -> dict[str, Any]:
+    """An unavailable measure: null counts (never zero) and the reason."""
+    return entry(None, None, basis)
+
+
+def is_entry(value: Any) -> bool:
+    """A well-formed coverage entry: counts both null, or integers with 0 <= covered <= total."""
+    if not isinstance(value, dict) or not isinstance(value.get("basis"), str):
+        return False
+    covered, total = value.get("covered"), value.get("total")
+    if covered is None and total is None:
+        return bool(value["basis"].strip())
+    if not isinstance(covered, int) or not isinstance(total, int):
+        return False
+    if isinstance(covered, bool) or isinstance(total, bool) or not 0 <= covered <= total:
+        return False
+    return bool(value["basis"].strip())
+
+
+def component(report: "Report") -> dict[str, Any]:
+    called = set(report.operations) & {f"{m} {p}" for m, p in OPERATIONS}
+    return entry(
+        len(called),
+        len(OPERATIONS),
+        "Operations of the pod's shared project API (docs/openapi.yaml, test-support endpoints "
+        "excluded); an operation counts once the suite has called it at least once.",
+    )
+
+
+def system(report: "Report") -> dict[str, Any]:
+    evaluated = {c.ac for c in report.checks if c.ac in ACCEPTANCE_CRITERIA}
+    return entry(
+        len(evaluated),
+        len(ACCEPTANCE_CRITERIA),
+        "Acceptance criteria AC-01..AC-10 of the pod's shared specification (Phase 2 report, "
+        "Section 4.1); a criterion counts once at least one of its checks ran. AC-10 needs a "
+        "service restart between two sessions, so it is evaluated by the separate two-step "
+        "tester.ac10 procedure, not in a single run.",
+    )

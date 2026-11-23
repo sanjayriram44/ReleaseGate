@@ -1,12 +1,13 @@
-"""Course autograder harness: GET /test, POST /test/setup, POST /test/run, GET /test/report.
+"""Course autograder harness, spec v2 ("Cross-team Testing Interface", student-facing-specv2,
+which applies to Phases 5 and 6).
 
-Mounted on both the system and the tester. setup creates a session (and resets state), run
-executes the AC-01..AC-09 suite for that session, report returns the stored result. The
-schemas below are the single source for both the routes and docs/openapi.yaml.
-
-The autograder's format (Phase 3 grading feedback): setup answers 201; run and report carry
-`target_url`, `results` (the checks) and `coverage` (code, component and system, in percent; see
-tester/coverage.py); the system answers 200 for a session id the tester created.
+Every tester exposes POST /test/setup, POST /test/run and GET /test/report; every system exposes
+POST /test/setup and GET /test/report next to the pod's project API (a system /test/run is not
+required, so ours has none). Error bodies are {"message", "source"}, with source tester, system,
+communication or unknown: 400 for an invalid request, 404 for an unknown session, 409 for a
+conflict or a report that isn't ready, 500 for an aborted operation or a service failure.
+GET /test (a short description of the service) is our own extra. The schemas below are the
+single source for the routes and the /test section of docs/openapi.yaml.
 """
 
 import json
@@ -23,10 +24,10 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from tester.checks import Report
-from tester.coverage import summarize
+from tester.coverage import unavailable
 
-MAX_SESSIONS = 50
+MAX_SESSIONS = 200
+SOURCES = ("tester", "system", "communication", "unknown")
 
 
 class CollapseSlashes:
@@ -43,15 +44,14 @@ class CollapseSlashes:
         await self.app(scope, receive, send)
 
 
+# -- schemas ----------------------------------------------------------------------------------
+
 ERROR_SCHEMA: dict[str, Any] = {
     "type": "object",
-    "required": ["error"],
+    "required": ["message", "source"],
     "properties": {
-        "error": {
-            "type": "object",
-            "required": ["code", "message"],
-            "properties": {"code": {"type": "string"}, "message": {"type": "string"}},
-        }
+        "message": {"type": "string", "minLength": 1},
+        "source": {"type": "string", "enum": list(SOURCES)},
     },
 }
 INFO_SCHEMA: dict[str, Any] = {
@@ -64,114 +64,80 @@ INFO_SCHEMA: dict[str, Any] = {
         "endpoints": {"type": "object", "additionalProperties": {"type": "string"}},
     },
 }
-SESSION_BODY_SCHEMA: dict[str, Any] = {
+SESSION_SCHEMA: dict[str, Any] = {
     "type": "object",
-    "description": "Optional. All fields optional; query parameters with the same names also work.",
+    "required": ["session_id"],
+    "properties": {"session_id": {"type": "string", "minLength": 1}},
+}
+SYSTEM_SETUP_BODY_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["session_id"],
     "properties": {
-        "session_id": {
-            "type": "string",
-            "description": "Setup: use this id instead of a generated one. Run: which session.",
-        },
-        "target_url": {
-            "type": "string",
-            "description": "Tester only: system base URL to test. Defaults to our deployed system.",
-        },
-        "target_base_url": {"type": "string", "description": "Tester only: same as target_url."},
-        "now": {
-            "type": "string",
-            "format": "date-time",
-            "description": "System only: set the reference clock (UTC, trailing Z) after reset.",
+        "session_id": {"type": "string", "minLength": 1},
+        "setup": {
+            "type": "object",
+            "description": "Pod-defined starting data; {} if none. Optional: now (date-time) sets "
+            "the test clock after the reset.",
+            "properties": {"now": {"type": "string", "format": "date-time"}},
         },
     },
 }
-SETUP_SCHEMA: dict[str, Any] = {
+TESTER_SETUP_BODY_SCHEMA: dict[str, Any] = {
     "type": "object",
-    "required": ["session_id", "status", "role"],
+    "required": ["target_url"],
+    "properties": {"target_url": {"type": "string", "format": "uri"}},
+}
+COVERAGE_ENTRY_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["covered", "total", "basis"],
+    "properties": {
+        "covered": {"type": ["integer", "null"], "minimum": 0},
+        "total": {"type": ["integer", "null"], "minimum": 0},
+        "basis": {"type": "string", "minLength": 1},
+    },
+}
+SYSTEM_REPORT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["session_id", "coverage"],
     "properties": {
         "session_id": {"type": "string"},
-        "status": {"type": "string", "enum": ["ready"]},
-        "role": {"type": "string", "enum": ["system", "tester"]},
-        "created_at": {"type": "string", "format": "date-time"},
-        "target_url": {"type": ["string", "null"]},
-        "target_base_url": {"type": ["string", "null"]},
-    },
-}
-COVERAGE_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "required": ["code", "component", "system"],
-    "description": "Percentages; null when not measurable (e.g. component and system before a run)",
-    "properties": {
-        "code": {"type": ["number", "null"]},
-        "component": {"type": ["number", "null"]},
-        "system": {"type": ["number", "null"]},
-        "operations_called": {"type": "array", "items": {"type": "string"}},
-        "acceptance_criteria_exercised": {"type": "array", "items": {"type": "string"}},
-    },
-}
-SUMMARY_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "additionalProperties": {"type": "integer"},
-    "description": "required_passed, required_failed, informational_passed, informational_failed",
-}
-CHECKS_SCHEMA: dict[str, Any] = {
-    "type": "array",
-    "items": {
-        "type": "object",
-        "required": ["id", "ac", "title", "required", "passed", "expected", "actual"],
-        "properties": {
-            "id": {"type": "string"},
-            "ac": {"type": "string"},
-            "title": {"type": "string"},
-            "required": {"type": "boolean"},
-            "passed": {"type": "boolean"},
-            "expected": {"type": "string"},
-            "actual": {"type": "string"},
-            "request": {"type": "string"},
-            "response": {"type": "string"},
-            "note": {"type": "string"},
+        "coverage": {
+            "type": "object",
+            "required": ["code"],
+            "properties": {"code": COVERAGE_ENTRY_SCHEMA},
         },
     },
 }
-RUN_SCHEMA: dict[str, Any] = {
+RESULT_SCHEMA: dict[str, Any] = {
     "type": "object",
-    "required": ["session_id", "status", "result", "target_url", "coverage", "results"],
+    "required": ["test_id", "outcome", "message"],
     "properties": {
-        "session_id": {"type": "string"},
-        "status": {"type": "string", "enum": ["completed"]},
-        "result": {"type": "string", "enum": ["pass", "fail", "error"]},
-        "summary": SUMMARY_SCHEMA,
-        "target_url": {"type": ["string", "null"]},
-        "coverage": COVERAGE_SCHEMA,
-        "results": CHECKS_SCHEMA,
-        "report_url": {"type": "string"},
+        "test_id": {"type": "string", "minLength": 1},
+        "outcome": {"type": "string", "enum": ["pass", "fail", "error", "skip"]},
+        "source": {"type": "string", "enum": list(SOURCES)},
+        "message": {"type": "string", "minLength": 1},
+        "ac": {"type": "string"},
+        "required": {"type": "boolean"},
     },
 }
-REPORT_SCHEMA: dict[str, Any] = {
+SUITE_REPORT_SCHEMA: dict[str, Any] = {
     "type": "object",
-    "required": [
-        "session_id",
-        "status",
-        "role",
-        "target_url",
-        "coverage",
-        "results",
-        "checks",
-    ],
+    "required": ["session_id", "target_url", "results", "coverage"],
     "properties": {
         "session_id": {"type": "string"},
-        "status": {"type": "string", "enum": ["ready", "completed"]},
-        "role": {"type": "string", "enum": ["system", "tester"]},
-        "target_url": {"type": ["string", "null"]},
-        "target_base_url": {"type": ["string", "null"]},
-        "result": {"type": ["string", "null"], "enum": ["pass", "fail", "error", None]},
-        "summary": SUMMARY_SCHEMA,
-        "error": {"type": ["string", "null"]},
-        "started_at": {"type": ["string", "null"]},
-        "finished_at": {"type": ["string", "null"]},
-        "duration_ms": {"type": ["integer", "null"]},
-        "coverage": COVERAGE_SCHEMA,
-        "results": CHECKS_SCHEMA,
-        "checks": CHECKS_SCHEMA,
+        "target_url": {"type": "string"},
+        "results": {"type": "array", "items": RESULT_SCHEMA},
+        "coverage": {
+            "type": "object",
+            "required": ["code", "component", "system"],
+            "properties": {
+                "code": COVERAGE_ENTRY_SCHEMA,
+                "component": COVERAGE_ENTRY_SCHEMA,
+                "system": COVERAGE_ENTRY_SCHEMA,
+                "model": COVERAGE_ENTRY_SCHEMA,
+            },
+        },
+        "summary": {"type": "object", "additionalProperties": {"type": "integer"}},
     },
 }
 
@@ -180,106 +146,82 @@ def _json(schema: dict[str, Any], description: str) -> dict[str, Any]:
     return {"description": description, "content": {"application/json": {"schema": schema}}}
 
 
-SESSION_BODY = {
-    "requestBody": {
-        "required": False,
-        "content": {"application/json": {"schema": SESSION_BODY_SCHEMA}},
-    }
-}
+def _body(schema: dict[str, Any]) -> dict[str, Any]:
+    return {"requestBody": {"required": True, "content": {"application/json": {"schema": schema}}}}
+
+
+# -- plumbing ---------------------------------------------------------------------------------
 
 
 class HarnessError(Exception):
-    def __init__(self, status: int, code: str, message: str) -> None:
+    """A /test error: status, a nonempty message and its source. code is only for our own
+    /api/v1/runs endpoint, which keeps the project's {"error": {"code", "message"}} shape."""
+
+    def __init__(self, status: int, message: str, source: str, code: str = "ERROR") -> None:
         super().__init__(message)
-        self.status, self.code, self.message = status, code, message
+        self.status, self.message, self.code = status, message or "error", code
+        self.source = source if source in SOURCES else "unknown"
 
 
-SetupHook = Callable[[dict[str, Any]], dict[str, Any]]
-RunHook = Callable[[dict[str, Any], dict[str, Any]], Report]
-CodeCoverage = Callable[[dict[str, Any]], float | None]
+def error(exc: HarnessError) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status, content={"message": exc.message, "source": exc.source}
+    )
 
 
 def _now() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-async def read_params(request: Request) -> dict[str, Any]:
-    """Merge query parameters with an optional JSON-object body (body wins)."""
+async def read_params(request: Request, source: str) -> dict[str, Any]:
+    """Query parameters merged with an optional JSON-object body (body wins)."""
     params: dict[str, Any] = dict(request.query_params)
     raw = await request.body()
     if raw.strip():
         try:
             body = json.loads(raw)
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-            raise HarnessError(
-                400, "INVALID_REQUEST", "request body must be a JSON object"
-            ) from exc
+            raise HarnessError(400, "request body must be a JSON object", source) from exc
         if not isinstance(body, dict):
-            raise HarnessError(400, "INVALID_REQUEST", "request body must be a JSON object")
+            raise HarnessError(400, "request body must be a JSON object", source)
         params.update({k: v for k, v in body.items() if v is not None})
     return params
 
 
-def make_router(
-    role: str,
-    description: str,
-    setup: SetupHook,
-    run: RunHook,
-    code_coverage: CodeCoverage,
-    adopt: Callable[[], dict[str, Any]] = dict,
-) -> APIRouter:
-    """The four /test endpoints. setup(params) may raise HarnessError and returns fields to keep
-    on the session; run(params, session); code_coverage(session) is the code % for reports.
-    report never answers 404: an unseen session_id (the grader asks the system about the
-    tester's id), or no session at all, becomes a new, not-yet-run session with adopt()'s fields."""
-    router = APIRouter(prefix="/test", tags=["autograder harness"])
-    sessions: OrderedDict[str, dict[str, Any]] = OrderedDict()
-    lock = threading.Lock()
-    run_lock = threading.Lock()
+def session_id_of(params: dict[str, Any], source: str) -> str:
+    sid = params.get("session_id")
+    if not isinstance(sid, str) or not sid.strip():
+        raise HarnessError(400, "session_id must be a nonempty string", source)
+    return sid
 
-    def error(exc: HarnessError) -> JSONResponse:
-        return JSONResponse(
-            status_code=exc.status, content={"error": {"code": exc.code, "message": exc.message}}
-        )
 
-    def remember(session: dict[str, Any]) -> None:
-        with lock:
-            sessions[session["session_id"]] = session
-            sessions.move_to_end(session["session_id"])
-            while len(sessions) > MAX_SESSIONS:
-                sessions.popitem(last=False)
+class Sessions:
+    """Sessions by id, oldest dropped first after MAX_SESSIONS; kept until the process stops."""
 
-    def find(session_id: str | None) -> dict[str, Any] | None:
-        with lock:
-            if session_id:
-                return sessions.get(str(session_id))
-            return next(reversed(sessions.values()), None)
+    def __init__(self) -> None:
+        self._items: OrderedDict[str, dict[str, Any]] = OrderedDict()
+        self.lock = threading.Lock()
 
-    def new_session(session_id: str, extra: dict[str, Any]) -> dict[str, Any]:
-        session = {
-            **extra,
-            "session_id": session_id,
-            "status": "ready",
-            "role": role,
-            "created_at": _now(),
-            "target_url": extra.get("target_url") or extra.get("target_base_url"),
-            "target_base_url": extra.get("target_base_url"),
-            "report": None,
-        }
-        remember(session)
-        return session
+    def reserve(self, sid: str, session: dict[str, Any]) -> bool:
+        """Add a new session; False if the id already exists."""
+        with self.lock:
+            if sid in self._items:
+                return False
+            self._items[sid] = session
+            while len(self._items) > MAX_SESSIONS:
+                self._items.popitem(last=False)
+            return True
 
-    def do_setup(params: dict[str, Any]) -> dict[str, Any]:
-        session_id = str(params.get("session_id") or f"ses-{uuid.uuid4().hex[:12]}")
-        return new_session(session_id, setup({**params, "session_id": session_id}))
+    def drop(self, sid: str) -> None:
+        with self.lock:
+            self._items.pop(sid, None)
 
-    def coverage(session: dict[str, Any]) -> dict[str, Any]:
-        return summarize(session["report"], code_coverage(session))
+    def get(self, sid: str) -> dict[str, Any] | None:
+        with self.lock:
+            return self._items.get(sid)
 
-    def public(session: dict[str, Any]) -> dict[str, Any]:
-        keys = ("session_id", "status", "role", "created_at", "target_url", "target_base_url")
-        return {k: session[k] for k in keys}
 
+def _info(router: APIRouter, role: str, description: str, endpoints: dict[str, str]) -> None:
     @router.get(
         "", responses={200: _json(INFO_SCHEMA, "What this service is and its /test endpoints")}
     )
@@ -288,119 +230,218 @@ def make_router(
             "service": "ReleaseGate",
             "role": role,
             "description": description,
-            "endpoints": {
-                "setup": "POST /test/setup",
-                "run": "POST /test/run",
-                "report": "GET /test/report?session_id=<id>",
-            },
+            "endpoints": endpoints,
         }
 
-    @router.api_route(
+
+def _report_session_id(session_id: str | None, source: str) -> str:
+    if session_id is None or not session_id.strip():
+        raise HarnessError(400, "the session_id query parameter is required", source)
+    return session_id
+
+
+# -- system -----------------------------------------------------------------------------------
+
+Prepare = Callable[[str, dict[str, Any]], None]
+CodeCoverage = Callable[[str], dict[str, Any]]
+
+
+def system_router(description: str, prepare: Prepare, code_coverage: CodeCoverage) -> APIRouter:
+    """POST /test/setup prepares state for the supplied session id (prepare(session_id, setup));
+    GET /test/report returns that session's code coverage (code_coverage(session_id))."""
+    router = APIRouter(prefix="/test", tags=["autograder harness"])
+    sessions = Sessions()
+    _info(
+        router,
+        "system",
+        description,
+        {"setup": "POST /test/setup", "report": "GET /test/report?session_id=<id>"},
+    )
+
+    @router.post(
         "/setup",
-        methods=["POST"],
         status_code=201,
-        openapi_extra=SESSION_BODY,
+        openapi_extra=_body(SYSTEM_SETUP_BODY_SCHEMA),
         responses={
-            201: _json(SETUP_SCHEMA, "Session created; state reset"),
-            400: _json(ERROR_SCHEMA, "Invalid input"),
+            201: _json(SESSION_SCHEMA, "Resources and initial state are ready"),
+            400: _json(ERROR_SCHEMA, "Invalid request"),
+            409: _json(ERROR_SCHEMA, "The session ID already exists"),
+            500: _json(ERROR_SCHEMA, "Preparation failed"),
         },
     )
-    @router.api_route("/setup", methods=["GET", "PUT"], include_in_schema=False)
-    async def setup_route(request: Request) -> Any:
+    async def setup(request: Request) -> Any:
         try:
-            params = await read_params(request)
-            session = await run_in_threadpool(do_setup, params)  # setup hooks block (reset, DNS)
+            params = await read_params(request, "system")
+            sid = session_id_of(params, "system")
+            start = params.get("setup", {})
+            if not isinstance(start, dict):
+                raise HarnessError(400, "setup must be a JSON object ({} if none)", "system")
+            if params.get("now") and "now" not in start:  # older callers sent now at the top
+                start = {**start, "now": params["now"]}
+            if not sessions.reserve(sid, {"state": "preparing", "created_at": _now()}):
+                raise HarnessError(409, f"session {sid} already exists", "system")
         except HarnessError as exc:
             return error(exc)
-        return JSONResponse(status_code=201, content=public(session))
-
-    @router.api_route(
-        "/run",
-        methods=["POST"],
-        openapi_extra=SESSION_BODY,
-        responses={
-            200: _json(RUN_SCHEMA, "Suite finished; full result at /test/report"),
-            400: _json(ERROR_SCHEMA, "Invalid input"),
-            404: _json(ERROR_SCHEMA, "Unknown session_id"),
-            409: _json(ERROR_SCHEMA, "A run is already in progress"),
-        },
-    )
-    @router.api_route("/run", methods=["GET", "PUT"], include_in_schema=False)
-    async def run_route(request: Request) -> Any:
         try:
-            params = await read_params(request)
-            session = find(params.get("session_id"))
-            if session is None:  # no setup yet (or an unknown id): set up, then run
-                session = await run_in_threadpool(do_setup, params)
+            await run_in_threadpool(prepare, sid, start)
         except HarnessError as exc:
+            sessions.drop(sid)
             return error(exc)
-        if not run_lock.acquire(blocking=False):
-            return error(HarnessError(409, "RUN_IN_PROGRESS", "a run is already in progress"))
-        try:
-            report = await run_in_threadpool(run, params, session)
-        except HarnessError as exc:
-            return error(exc)
-        finally:
-            run_lock.release()
-        session["report"] = report
-        session["status"] = "completed"
-        remember(session)
-        return {
-            "session_id": session["session_id"],
-            "status": "completed",
-            "result": report.result,
-            "summary": report.summary,
-            "target_url": session["target_url"],
-            "coverage": coverage(session),
-            "results": report.to_dict()["checks"],
-            "report_url": f"/test/report?session_id={session['session_id']}",
-        }
+        except Exception as exc:  # noqa: BLE001 - any preparation failure is a 500 from the system
+            sessions.drop(sid)
+            return error(HarnessError(500, f"could not prepare session {sid}: {exc}", "system"))
+        session = sessions.get(sid)
+        if session is not None:
+            session["state"] = "ready"
+        return JSONResponse(status_code=201, content={"session_id": sid})
 
     @router.get(
         "/report",
         responses={
-            200: _json(REPORT_SCHEMA, "Session result; status 'ready' until /test/run finishes"),
-            404: _json(ERROR_SCHEMA, "Unknown session_id, or no session yet"),
+            200: _json(SYSTEM_REPORT_SCHEMA, "Code coverage measured for this session so far"),
+            400: _json(ERROR_SCHEMA, "Missing session_id"),
+            404: _json(ERROR_SCHEMA, "Unknown session"),
+            409: _json(ERROR_SCHEMA, "Preparation is still in progress"),
+        },
+    )
+    def report(session_id: str | None = None) -> Any:
+        try:
+            sid = _report_session_id(session_id, "system")
+            session = sessions.get(sid)
+            if session is None:
+                raise HarnessError(404, f"unknown session {sid}", "system")
+            if session["state"] != "ready":
+                raise HarnessError(409, f"session {sid} is still being prepared", "system")
+        except HarnessError as exc:
+            return error(exc)
+        return {"session_id": sid, "coverage": {"code": code_coverage(sid)}}
+
+    return router
+
+
+# -- tester -----------------------------------------------------------------------------------
+
+TesterSetup = Callable[[str, dict[str, Any]], dict[str, Any]]
+TesterRun = Callable[[str, dict[str, Any]], dict[str, Any]]
+
+
+def tester_router(description: str, setup: TesterSetup, run: TesterRun) -> APIRouter:
+    """setup(session_id, params) checks the target, prepares it through its system setup and
+    returns the fields to keep (target_url, ...), or raises HarnessError. run(session_id, session)
+    runs the suite and returns the complete suite report. One run per session."""
+    router = APIRouter(prefix="/test", tags=["autograder harness"])
+    sessions = Sessions()
+    _info(
+        router,
+        "tester",
+        description,
+        {
+            "setup": "POST /test/setup",
+            "run": "POST /test/run",
+            "report": "GET /test/report?session_id=<id>",
+        },
+    )
+
+    @router.post(
+        "/setup",
+        status_code=201,
+        openapi_extra=_body(TESTER_SETUP_BODY_SCHEMA),
+        responses={
+            201: _json(SESSION_SCHEMA, "The target system is ready; same session ID"),
+            400: _json(ERROR_SCHEMA, "Invalid request or target URL"),
+            500: _json(ERROR_SCHEMA, "Setup failed (system setup errors keep their status)"),
+        },
+    )
+    async def setup_route(request: Request) -> Any:
+        sid = str(uuid.uuid4())
+        try:
+            params = await read_params(request, "tester")
+            fields = await run_in_threadpool(setup, sid, params)
+        except HarnessError as exc:
+            return error(exc)
+        except Exception as exc:  # noqa: BLE001 - a setup failure inside the tester
+            return error(HarnessError(500, f"tester setup failed: {exc}", "tester"))
+        sessions.reserve(sid, {**fields, "state": "ready", "report": None})
+        return JSONResponse(status_code=201, content={"session_id": sid})
+
+    @router.post(
+        "/run",
+        openapi_extra=_body(SESSION_SCHEMA),
+        responses={
+            200: _json(SUITE_REPORT_SCHEMA, "The complete suite report"),
+            400: _json(ERROR_SCHEMA, "Invalid request"),
+            404: _json(ERROR_SCHEMA, "Unknown session"),
+            409: _json(ERROR_SCHEMA, "The session's suite is running or has already run"),
+            500: _json(ERROR_SCHEMA, "The tester aborted; GET /test/report has what was kept"),
+        },
+    )
+    async def run_route(request: Request) -> Any:
+        try:
+            params = await read_params(request, "tester")
+            sid = session_id_of(params, "tester")
+            session = sessions.get(sid)
+            if session is None:
+                raise HarnessError(404, f"unknown session {sid}", "tester")
+            with sessions.lock:
+                if session["state"] != "ready":
+                    raise HarnessError(
+                        409, f"session {sid} has already run; set up a new session", "tester"
+                    )
+                session["state"] = "running"
+        except HarnessError as exc:
+            return error(exc)
+        try:
+            report = await run_in_threadpool(run, sid, session)
+        except HarnessError as exc:
+            if exc.status == 409:  # the target is busy with another run: nothing ran
+                session["state"] = "ready"
+                return error(exc)
+            session.update(state="aborted", report=_aborted(sid, session, exc.message))
+            return error(HarnessError(500, exc.message, exc.source))
+        except Exception as exc:  # noqa: BLE001 - the tester itself failed
+            message = f"the tester aborted: {type(exc).__name__}: {exc}"
+            session.update(state="aborted", report=_aborted(sid, session, message))
+            return error(HarnessError(500, message, "tester"))
+        session.update(state="completed", report=report)
+        return report
+
+    @router.get(
+        "/report",
+        responses={
+            200: _json(SUITE_REPORT_SCHEMA, "The stored suite report"),
+            400: _json(ERROR_SCHEMA, "Missing session_id"),
+            404: _json(ERROR_SCHEMA, "Unknown session"),
+            409: _json(ERROR_SCHEMA, "The suite has not ended; try again later"),
         },
     )
     def report_route(session_id: str | None = None) -> Any:
-        session = find(session_id)
-        if session is None:
-            session = new_session(str(session_id or f"ses-{uuid.uuid4().hex[:12]}"), adopt())
-        report: Report | None = session["report"]
-        body: dict[str, Any] = {
-            "session_id": session["session_id"],
-            "status": session["status"],
-            "role": role,
-            "target_url": session["target_url"],
-            "target_base_url": session["target_base_url"],
-            "coverage": coverage(session),
-            "results": [],
-            "result": None,
-            "summary": {},
-            "error": None,
-            "started_at": None,
-            "finished_at": None,
-            "duration_ms": None,
-            "checks": [],
-        }
-        if report is not None:
-            data = report.to_dict()
-            body.update(
-                {
-                    k: data[k]
-                    for k in (
-                        "result",
-                        "summary",
-                        "error",
-                        "started_at",
-                        "finished_at",
-                        "duration_ms",
-                        "checks",
-                    )
-                }
-            )
-            body["results"] = body["checks"]
-        return body
+        try:
+            sid = _report_session_id(session_id, "tester")
+            session = sessions.get(sid)
+            if session is None:
+                raise HarnessError(404, f"unknown session {sid}", "tester")
+            if session["state"] in ("ready", "running"):
+                raise HarnessError(409, f"the suite for session {sid} has not ended", "tester")
+        except HarnessError as exc:
+            return error(exc)
+        return session["report"]
 
     return router
+
+
+def _aborted(sid: str, session: dict[str, Any], message: str) -> dict[str, Any]:
+    """What an aborted run keeps: the error, and every coverage measure unavailable."""
+    why = "The tester aborted before the suite finished."
+    return {
+        "session_id": sid,
+        "target_url": session.get("target_url", ""),
+        "results": [
+            {"test_id": "suite.aborted", "outcome": "error", "source": "tester", "message": message}
+        ],
+        "coverage": {
+            "code": unavailable(why),
+            "component": unavailable(why),
+            "system": unavailable(why),
+        },
+        "summary": {"pass": 0, "fail": 0, "error": 1, "skip": 0},
+    }

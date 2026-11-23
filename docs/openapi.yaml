@@ -498,22 +498,15 @@ paths:
           description: Test vulnerability source configured
   /test:
     get:
-      summary: Describe this service and its autograder endpoints
-      description: 'Course autograder harness, served at the same paths on both base URLs: the system
-        (http://<host>:8080) and the tester (http://<host>:8081). No authentication; no X-User-Id needed.'
       tags:
       - autograder harness
+      summary: Info
       responses:
         '200':
           description: What this service is and its /test endpoints
           content:
             application/json:
               schema:
-                type: object
-                required:
-                - service
-                - role
-                - endpoints
                 properties:
                   service:
                     type: string
@@ -525,458 +518,240 @@ paths:
                   description:
                     type: string
                   endpoints:
-                    type: object
                     additionalProperties:
                       type: string
+                    type: object
+                additionalProperties: true
+                type: object
+                required:
+                - service
+                - role
+                - endpoints
+                title: Response Info Test Get
+      description: Course autograder harness, spec v2 ("Cross-team Testing Interface", Phases 5 and 6).
+        This is the system side; the tester (http://<host>:8081) serves POST /test/setup {target_url}, POST
+        /test/run {session_id} and GET /test/report?session_id=<id> with the suite report (results and coverage),
+        described in its own /openapi.json. Error bodies are {message, source}. Exists only when ENABLE_TEST_ENDPOINTS=true.
   /test/setup:
     post:
-      summary: Start a test session
-      description: 'Course autograder harness, served at the same paths on both base URLs: the system
-        (http://<host>:8080) and the tester (http://<host>:8081). No authentication; no X-User-Id needed.
-
-
-        System: resets all data (releases, components, incidents, vulnerability records, audit log) and
-        the clock; optional `now` sets the reference clock. Tester: selects the system to test from `target_url`
-        (or `target_base_url`; default: our deployed system) and shares the session with it by calling
-        its /test/setup with the same `session_id`. Returns 201 with the `session_id` used by run and
-        report.'
       tags:
       - autograder harness
+      summary: Setup
       requestBody:
-        required: false
         content:
           application/json:
             schema:
-              type: object
-              description: Optional. All fields optional; query parameters with the same names also work.
               properties:
                 session_id:
                   type: string
-                  description: 'Setup: use this id instead of a generated one. Run: which session.'
-                target_url:
-                  type: string
-                  description: 'Tester only: system base URL to test. Defaults to our deployed system.'
-                target_base_url:
-                  type: string
-                  description: 'Tester only: same as target_url.'
-                now:
-                  type: string
-                  format: date-time
-                  description: 'System only: set the reference clock (UTC, trailing Z) after reset.'
+                  minLength: 1
+                setup:
+                  properties:
+                    now:
+                      type: string
+                      format: date-time
+                  type: object
+                  description: 'Pod-defined starting data; {} if none. Optional: now (date-time) sets the
+                    test clock after the reset.'
+              type: object
+              required:
+              - session_id
+        required: true
       responses:
         '201':
-          description: Session created; state reset
+          description: Resources and initial state are ready
           content:
             application/json:
               schema:
-                type: object
-                required:
-                - session_id
-                - status
-                - role
                 properties:
                   session_id:
                     type: string
-                  status:
+                    minLength: 1
+                type: object
+                required:
+                - session_id
+                title: Response Setup Test Setup Post
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                    minLength: 1
+                  source:
                     type: string
                     enum:
-                    - ready
-                  role:
-                    type: string
-                    enum:
-                    - system
                     - tester
-                  created_at:
-                    type: string
-                    format: date-time
-                  target_url:
-                    type:
-                    - string
-                    - 'null'
-                  target_base_url:
-                    type:
-                    - string
-                    - 'null'
-        '400':
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                - error
-                properties:
-                  error:
-                    type: object
-                    required:
-                    - code
-                    - message
-                    properties:
-                      code:
-                        type: string
-                      message:
-                        type: string
-  /test/run:
-    post:
-      summary: Run the AC-01..AC-09 suite for a session
-      description: 'Course autograder harness, served at the same paths on both base URLs: the system
-        (http://<host>:8080) and the tester (http://<host>:8081). No authentication; no X-User-Id needed.
-
-
-        Runs synchronously (well under 30 s) and returns the outcome. System: runs the suite against itself.
-        Tester: runs it over HTTP against the session''s target, which resets that system''s data. Without
-        a prior setup, run sets up a session first. The response carries `target_url`, `results` (every
-        check) and `coverage` (code, component and system, in percent). Tester: after its run it asks
-        the system to run its own suite for the same session, which also supplies the system''s code coverage.'
-      tags:
-      - autograder harness
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              description: Optional. All fields optional; query parameters with the same names also work.
-              properties:
-                session_id:
-                  type: string
-                  description: 'Setup: use this id instead of a generated one. Run: which session.'
-                target_url:
-                  type: string
-                  description: 'Tester only: system base URL to test. Defaults to our deployed system.'
-                target_base_url:
-                  type: string
-                  description: 'Tester only: same as target_url.'
-                now:
-                  type: string
-                  format: date-time
-                  description: 'System only: set the reference clock (UTC, trailing Z) after reset.'
-      responses:
-        '200':
-          description: Suite finished; full result at /test/report
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                - session_id
-                - status
-                - result
-                - target_url
-                - coverage
-                - results
-                properties:
-                  session_id:
-                    type: string
-                  status:
-                    type: string
-                    enum:
-                    - completed
-                  result:
-                    type: string
-                    enum:
-                    - pass
-                    - fail
-                    - error
-                  summary:
-                    type: object
-                    additionalProperties:
-                      type: integer
-                    description: required_passed, required_failed, informational_passed, informational_failed
-                  target_url:
-                    type:
-                    - string
-                    - 'null'
-                  coverage:
-                    type: object
-                    required:
-                    - code
-                    - component
                     - system
-                    description: Percentages; null when not measurable (e.g. component and system before
-                      a run)
-                    properties:
-                      code:
-                        type:
-                        - number
-                        - 'null'
-                      component:
-                        type:
-                        - number
-                        - 'null'
-                      system:
-                        type:
-                        - number
-                        - 'null'
-                      operations_called:
-                        type: array
-                        items:
-                          type: string
-                      acceptance_criteria_exercised:
-                        type: array
-                        items:
-                          type: string
-                  results:
-                    type: array
-                    items:
-                      type: object
-                      required:
-                      - id
-                      - ac
-                      - title
-                      - required
-                      - passed
-                      - expected
-                      - actual
-                      properties:
-                        id:
-                          type: string
-                        ac:
-                          type: string
-                        title:
-                          type: string
-                        required:
-                          type: boolean
-                        passed:
-                          type: boolean
-                        expected:
-                          type: string
-                        actual:
-                          type: string
-                        request:
-                          type: string
-                        response:
-                          type: string
-                        note:
-                          type: string
-                  report_url:
-                    type: string
-        '400':
-          description: Invalid input
-          content:
-            application/json:
-              schema:
+                    - communication
+                    - unknown
                 type: object
                 required:
-                - error
-                properties:
-                  error:
-                    type: object
-                    required:
-                    - code
-                    - message
-                    properties:
-                      code:
-                        type: string
-                      message:
-                        type: string
-        '404':
-          description: Unknown session_id
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                - error
-                properties:
-                  error:
-                    type: object
-                    required:
-                    - code
-                    - message
-                    properties:
-                      code:
-                        type: string
-                      message:
-                        type: string
+                - message
+                - source
         '409':
-          description: A run is already in progress
+          description: The session ID already exists
           content:
             application/json:
               schema:
+                properties:
+                  message:
+                    type: string
+                    minLength: 1
+                  source:
+                    type: string
+                    enum:
+                    - tester
+                    - system
+                    - communication
+                    - unknown
                 type: object
                 required:
-                - error
+                - message
+                - source
+        '500':
+          description: Preparation failed
+          content:
+            application/json:
+              schema:
                 properties:
-                  error:
-                    type: object
-                    required:
-                    - code
-                    - message
-                    properties:
-                      code:
-                        type: string
-                      message:
-                        type: string
+                  message:
+                    type: string
+                    minLength: 1
+                  source:
+                    type: string
+                    enum:
+                    - tester
+                    - system
+                    - communication
+                    - unknown
+                type: object
+                required:
+                - message
+                - source
+      description: Course autograder harness, spec v2 ("Cross-team Testing Interface", Phases 5 and 6).
+        This is the system side; the tester (http://<host>:8081) serves POST /test/setup {target_url}, POST
+        /test/run {session_id} and GET /test/report?session_id=<id> with the suite report (results and coverage),
+        described in its own /openapi.json. Error bodies are {message, source}. Exists only when ENABLE_TEST_ENDPOINTS=true.
   /test/report:
     get:
-      summary: Get a session's result
-      description: 'Course autograder harness, served at the same paths on both base URLs: the system
-        (http://<host>:8080) and the tester (http://<host>:8081). No authentication; no X-User-Id needed.
-
-
-        `status` is `ready` until run finishes, then `completed` with `result` (pass/fail/error), a summary
-        and every check (expected vs actual). Without `session_id`, returns the latest session. `results`
-        repeats `checks`. `coverage.code` is the system''s app/ line coverage from its own test suite;
-        `component` is the share of contract API operations the run called; `system` the share of AC-01..AC-09
-        it exercised (null before a run). An unseen `session_id`, or no session at all, is answered as a
-        new, not-yet-run session rather than 404 (the grader asks the system about the tester''s id).'
       tags:
       - autograder harness
+      summary: Report
       parameters:
       - name: session_id
         in: query
         required: false
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session Id
       responses:
         '200':
-          description: Session result
+          description: Code coverage measured for this session so far
           content:
             application/json:
               schema:
+                title: Response Report Test Report Get
                 type: object
                 required:
                 - session_id
-                - status
-                - role
-                - target_url
                 - coverage
-                - results
-                - checks
                 properties:
                   session_id:
                     type: string
-                  status:
-                    type: string
-                    enum:
-                    - ready
-                    - completed
-                  role:
-                    type: string
-                    enum:
-                    - system
-                    - tester
-                  target_url:
-                    type:
-                    - string
-                    - 'null'
-                  target_base_url:
-                    type:
-                    - string
-                    - 'null'
-                  result:
-                    type:
-                    - string
-                    - 'null'
-                    enum:
-                    - pass
-                    - fail
-                    - error
-                    - null
-                  summary:
-                    type: object
-                    additionalProperties:
-                      type: integer
-                    description: required_passed, required_failed, informational_passed, informational_failed
-                  error:
-                    type:
-                    - string
-                    - 'null'
-                  started_at:
-                    type:
-                    - string
-                    - 'null'
-                  finished_at:
-                    type:
-                    - string
-                    - 'null'
-                  duration_ms:
-                    type:
-                    - integer
-                    - 'null'
                   coverage:
                     type: object
                     required:
                     - code
-                    - component
-                    - system
-                    description: Percentages; null when not measurable (e.g. component and system before
-                      a run)
                     properties:
                       code:
-                        type:
-                        - number
-                        - 'null'
-                      component:
-                        type:
-                        - number
-                        - 'null'
-                      system:
-                        type:
-                        - number
-                        - 'null'
-                      operations_called:
-                        type: array
-                        items:
-                          type: string
-                      acceptance_criteria_exercised:
-                        type: array
-                        items:
-                          type: string
-                  results: &id001
-                    type: array
-                    items:
-                      type: object
-                      required:
-                      - id
-                      - ac
-                      - title
-                      - required
-                      - passed
-                      - expected
-                      - actual
-                      properties:
-                        id:
-                          type: string
-                        ac:
-                          type: string
-                        title:
-                          type: string
+                        type: object
                         required:
-                          type: boolean
-                        passed:
-                          type: boolean
-                        expected:
-                          type: string
-                        actual:
-                          type: string
-                        request:
-                          type: string
-                        response:
-                          type: string
-                        note:
-                          type: string
-                  checks: *id001
-        '404':
-          description: Unknown session_id, or no session yet
+                        - covered
+                        - total
+                        - basis
+                        properties:
+                          covered:
+                            type:
+                            - integer
+                            - 'null'
+                            minimum: 0
+                          total:
+                            type:
+                            - integer
+                            - 'null'
+                            minimum: 0
+                          basis:
+                            type: string
+                            minLength: 1
+        '400':
+          description: Missing session_id
           content:
             application/json:
               schema:
                 type: object
                 required:
-                - error
+                - message
+                - source
                 properties:
-                  error:
-                    type: object
-                    required:
-                    - code
-                    - message
-                    properties:
-                      code:
-                        type: string
-                      message:
-                        type: string
+                  message:
+                    type: string
+                    minLength: 1
+                  source:
+                    type: string
+                    enum:
+                    - tester
+                    - system
+                    - communication
+                    - unknown
+        '404':
+          description: Unknown session
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                - source
+                properties:
+                  message:
+                    type: string
+                    minLength: 1
+                  source:
+                    type: string
+                    enum:
+                    - tester
+                    - system
+                    - communication
+                    - unknown
+        '409':
+          description: Preparation is still in progress
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                - source
+                properties:
+                  message:
+                    type: string
+                    minLength: 1
+                  source:
+                    type: string
+                    enum:
+                    - tester
+                    - system
+                    - communication
+                    - unknown
+      description: Course autograder harness, spec v2 ("Cross-team Testing Interface", Phases 5 and 6).
+        This is the system side; the tester (http://<host>:8081) serves POST /test/setup {target_url}, POST
+        /test/run {session_id} and GET /test/report?session_id=<id> with the suite report (results and coverage),
+        described in its own /openapi.json. Error bodies are {message, source}. Exists only when ENABLE_TEST_ENDPOINTS=true.
 components:
   parameters:
     UserId:

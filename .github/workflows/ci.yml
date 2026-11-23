@@ -117,14 +117,10 @@ jobs:
       - run: curl -fsS localhost:8080/health | grep -q "\"commit\":\"$GIT_SHA\""
       - run: bash scripts/smoke.sh localhost:8080
       - run: uv run python scripts/container_smoke.py tester http://localhost:8080
-      - name: Tester container and system self-test (/test/run) pass
-        run: |
-          for port in 8081 8080; do
-            curl -fsS -X POST localhost:$port/test/run | tee run.json
-            python3 -c "import json; r = json.load(open('run.json')); assert r['result'] == 'pass', r; \
-              c = r['coverage']; assert r['results'] and 'target_url' in r, r; \
-              assert c['code'] is not None and c['component'] and c['system'] == 100.0, c"
-          done
+      - name: Autograder harness (spec v2) - our tester against our system, like a grader
+        run: >-
+          uv run python scripts/check_harness_run.py http://localhost:8081 http://api:8080
+          --own --system-url http://localhost:8080
       - run: uv run python scripts/container_smoke.py seed http://localhost:8080 state.json
       - run: docker compose restart api
       - name: Wait for /health after the restart (60 s)

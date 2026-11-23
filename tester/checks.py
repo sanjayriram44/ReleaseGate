@@ -36,6 +36,7 @@ class Check:
     request: str = ""
     response: str = ""
     note: str = ""
+    status: int | None = None  # the HTTP status the check evaluated, if any
 
 
 @dataclass
@@ -170,6 +171,7 @@ class Runner:
                 request=f"{resp.request.method} {resp.request.url.path}" if resp else "",
                 response=_excerpt(resp) if resp is not None else "",
                 note=note,
+                status=resp.status_code if resp is not None else None,
             )
         )
         return passed
